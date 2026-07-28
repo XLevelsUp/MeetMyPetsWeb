@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(git ls-remote *)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(git rev-list *)",
+      "Bash(awk '{print \"behind=\"$1\"  ahead=\"$2}')",
+      "Bash(git fetch *)",
+      "Bash(curl -s -o /tmp/gh.json -w \"%{http_code}\" --max-time 20 https://api.github.com/repos/XLevelsUp/MateMyPetsWeb)",
+      "Bash(python -c ' *)"
+    ]
+  }
+}
