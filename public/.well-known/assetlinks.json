@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.example.meet_my_pets",
+      "sha256_cert_fingerprints": [
+        "46:56:5F:D9:BD:01:5E:45:2C:BA:B3:74:9E:86:4C:DD:C6:E4:2F:CB:DE:1F:C0:43:DC:F7:78:6C:F5:8D:3C:1C"
+      ]
+    }
+  }
+]

@@ -9,7 +9,9 @@
       "Bash(awk '{print \"behind=\"$1\"  ahead=\"$2}')",
       "Bash(git fetch *)",
       "Bash(curl -s -o /tmp/gh.json -w \"%{http_code}\" --max-time 20 https://api.github.com/repos/XLevelsUp/MateMyPetsWeb)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(tee /tmp/index-baseline.txt)",
+      "Bash(python -m json.tool out/.well-known/assetlinks.json)"
     ]
   }
 }
