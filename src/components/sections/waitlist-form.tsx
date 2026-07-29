@@ -175,6 +175,7 @@ export function WaitlistForm() {
                         "placeholder:text-ink-soft/70 disabled:cursor-not-allowed disabled:opacity-60",
                         status === "error" ? "border-destructive" : "border-input",
                       )}
+                      maxLength={64}
                     />
                     <button
                       type="submit"

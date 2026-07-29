@@ -2,6 +2,10 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Long-form typography for /privacy and /terms. Tailwind v4 loads plugins from
+   CSS — there is no tailwind.config.js in v4 to register this in. */
+@plugin "@tailwindcss/typography";
+
 @custom-variant dark (&:is(.dark *));
 
 /* ---------------------------------------------------------------------------
@@ -200,6 +204,37 @@
 }
 
 @layer components {
+  /* Legal document body. Maps `prose` onto the brand palette so long-form text
+     reads as part of the site rather than as Tailwind defaults. */
+  .prose-legal {
+    --tw-prose-body: var(--muted-foreground);
+    --tw-prose-headings: var(--foreground);
+    --tw-prose-lead: var(--muted-foreground);
+    --tw-prose-links: var(--brand-ink);
+    --tw-prose-bold: var(--foreground);
+    --tw-prose-counters: var(--muted-foreground);
+    --tw-prose-bullets: var(--border);
+    --tw-prose-hr: var(--border);
+    --tw-prose-quotes: var(--foreground);
+    --tw-prose-quote-borders: var(--brand);
+    --tw-prose-captions: var(--muted-foreground);
+    --tw-prose-code: var(--foreground);
+    --tw-prose-th-borders: var(--border);
+    --tw-prose-td-borders: var(--border);
+  }
+
+  /* Unresolved facts in the legal copy. Deliberately loud: these must not
+     reach production unnoticed. See src/config/legal.ts. */
+  .legal-todo {
+    background: #fef3c7;
+    color: #78350f;
+    border: 1px dashed #b45309;
+    border-radius: 4px;
+    padding: 0 0.35em;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
   /* Glassmorphism — reserved for verification badges and the hero pill only. */
   .glass {
     background: color-mix(in oklab, var(--card) 62%, transparent);

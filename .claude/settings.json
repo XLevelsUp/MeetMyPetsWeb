@@ -11,7 +11,9 @@
       "Bash(curl -s -o /tmp/gh.json -w \"%{http_code}\" --max-time 20 https://api.github.com/repos/XLevelsUp/MateMyPetsWeb)",
       "Bash(python -c ' *)",
       "Bash(tee /tmp/index-baseline.txt)",
-      "Bash(python -m json.tool out/.well-known/assetlinks.json)"
+      "Bash(python -m json.tool out/.well-known/assetlinks.json)",
+      "Bash(node -p \"require\\('./node_modules/@tailwindcss/typography/package.json'\\).version\")",
+      "Bash(echo \"installed: $\\(node -p \"require\\('./node_modules/@tailwindcss/typography/package.json'\\).version\"\\)\")"
     ]
   }
 }

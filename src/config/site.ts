@@ -17,7 +17,9 @@ export const site = {
   name: "MeetMyPets",
   domain: "meetmypets.app",
   url: "https://meetmypets.app",
-  legalEntity: "XLU Technologies Pvt Ltd",
+  // Full registered name — legal pages and Organization JSON-LD must use the
+  // name on the incorporation record, not an abbreviation.
+  legalEntity: "XLU Technologies Private Limited",
   tagline: "Find friends, playmates and perfect matches for your pets.",
   description:
     "MeetMyPets is a multi-species pet ecosystem: verified playdates and breeding matches, community groups and local events, plus a directory of vetted pet businesses.",

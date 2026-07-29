@@ -64,6 +64,53 @@ export function SoftwareApplicationLd() {
   );
 }
 
+/**
+ * WebPage + BreadcrumbList for the legal documents. Both are emitted from one
+ * component so a page can never ship one without the other.
+ */
+export function LegalPageLd({
+  slug,
+  title,
+  description,
+  updated,
+}: {
+  slug: string;
+  title: string;
+  description: string;
+  updated: string;
+}) {
+  const url = `${site.url}/${slug}/`;
+  return (
+    <>
+      <Ld
+        data={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          name: title,
+          description,
+          url,
+          inLanguage: "en-IN",
+          isPartOf: { "@type": "WebSite", name: site.name, url: site.url },
+          publisher: { "@type": "Organization", name: site.legalEntity, url: site.url },
+          // Only emitted once a real date replaces the placeholder — a
+          // schema.org date field must not carry "[TO BE CONFIRMED …]".
+          ...(updated.startsWith("[") ? {} : { dateModified: updated }),
+        }}
+      />
+      <Ld
+        data={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: `${site.url}/` },
+            { "@type": "ListItem", position: 2, name: title, item: url },
+          ],
+        }}
+      />
+    </>
+  );
+}
+
 export function FaqLd() {
   return (
     <Ld

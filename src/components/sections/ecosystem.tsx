@@ -61,7 +61,7 @@ export function Ecosystem() {
                 onClick={() => setActive(index)}
                 className={cn(
                   "relative min-h-11 flex-1 cursor-pointer rounded-xl px-4 py-3 text-sm font-semibold transition-colors",
-                  selected ? "text-white" : "text-ink-soft hover:text-ink",
+                  selected ? "text-primary font-bold" : "text-ink-soft hover:text-ink",
                 )}
               >
                 {selected && (
