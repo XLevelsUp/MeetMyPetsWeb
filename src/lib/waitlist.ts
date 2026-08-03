@@ -16,10 +16,18 @@ import { validateContact } from "@/lib/validation";
  *    submission would fail cross-origin. The body is still JSON; only the
  *    header is a lie, and it is a deliberate one.
  *
- * 2. We can read the response. /exec 302-redirects to
- *    script.googleusercontent.com, which does send Access-Control-Allow-Origin,
- *    so fetch follows it and we get a real ok/failure rather than an opaque
- *    result. That is what keeps the success animation honest.
+ * 2. `mode: "no-cors"`, which means we CANNOT read the response.
+ *
+ *    This file used to read it: /exec 302-redirects to
+ *    script.googleusercontent.com, and that redirect target used to send
+ *    Access-Control-Allow-Origin. It no longer does — it answers 405 with no
+ *    CORS header at all. The browser then blocks the read and the fetch
+ *    promise never settles, so the form span forever on a submission that
+ *    had in fact already saved the row and sent the email.
+ *
+ *    Under no-cors the request still reaches Apps Script and still works; we
+ *    just get an opaque response and resolve as soon as it is sent. Read the
+ *    consequence in submitWaitlist before changing this back.
  *
  * SECURITY: the endpoint is public and unauthenticated by construction —
  * anyone reading the JS bundle can find it and append rows. The honeypot in
@@ -52,6 +60,23 @@ export type WaitlistResult =
  * `honeypot` is the value of the hidden field humans never see. It is passed
  * through untouched; the Apps Script decides what to do with it (and answers
  * "ok" either way, so a bot cannot detect the filter).
+ *
+ * WHAT { ok: true } MEANS HERE
+ *
+ * "The request left the browser", not "the row was saved" — see note 2 above.
+ * A server-side failure therefore shows the user a success animation.
+ *
+ * That is the better of the two errors available to a static site. The old
+ * behaviour failed the OTHER way, on every single signup: the row saved, the
+ * email sent, and the form span forever because it was waiting on a response
+ * the browser would not let it read.
+ *
+ * What survives: invalid input is still caught before any request is made,
+ * which is the only error class a user can act on anyway. What is lost:
+ * detection of a genuine backend failure. Reconcile the Sheet against
+ * Resend's logs periodically — a gap between them means something broke
+ * silently. If signups become business-critical, put a real endpoint in front
+ * of Sheets; no UI code depends on what this function talks to.
  */
 export async function submitWaitlist(
   contact: string,
@@ -72,9 +97,10 @@ export async function submitWaitlist(
   }
 
   try {
-    const response = await fetch(ENDPOINT, {
+    await fetch(ENDPOINT, {
       method: "POST",
-      // Do not "fix" this to application/json. See note 1 above.
+      // Do not "fix" either of these. See notes 1 and 2 above.
+      mode: "no-cors",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       redirect: "follow",
       body: JSON.stringify({
@@ -85,27 +111,8 @@ export async function submitWaitlist(
       }),
     });
 
-    if (!response.ok) {
-      return {
-        ok: false,
-        reason: "unknown",
-        message: "We could not save that just now. Please try again in a moment.",
-      };
-    }
-
-    // The script reports duplicates as { ok: true } — a repeat signup is a
-    // success from the user's point of view, and saying otherwise would
-    // confirm to a stranger which addresses are already on the list.
-    const body = (await response.json().catch(() => null)) as { ok?: boolean } | null;
-
-    if (body?.ok === false) {
-      return {
-        ok: false,
-        reason: "unknown",
-        message: "We could not save that just now. Please try again in a moment.",
-      };
-    }
-
+    // No status to inspect — an opaque response exposes neither `ok` nor a
+    // body. Resolving at all is the signal: the request was dispatched.
     return { ok: true };
   } catch {
     return {
