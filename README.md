@@ -1,26 +1,30 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+MeetMyPets web — an npm-workspaces monorepo:
+
+- `apps/landing` — the public marketing/waitlist site (`meetmypets.app`), fully static export.
+- `apps/admin` — the moderator/founder admin panel (`admin.meetmypets.app`), server-rendered.
 
 ## Getting Started
 
-First, run the development server:
+From the repo root:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+
+npm run dev:landing   # landing site on http://localhost:3000
+npm run dev:admin     # admin panel on http://localhost:3001
+
+npm run build:landing # static export to apps/landing/out
+npm run build:admin
+
+npm run typecheck     # both workspaces
+npm run lint          # both workspaces
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The landing page lives at `apps/landing/src/app/page.tsx`; it auto-updates as you edit.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Android App Links — `public/.well-known/assetlinks.json`
+## Android App Links — `apps/landing/public/.well-known/assetlinks.json`
 
 That file is a Digital Asset Links statement. It is what lets
 `https://meetmypets.app/pet/<uuid>` and `/post/<uuid>` open the MeetMyPets Android app

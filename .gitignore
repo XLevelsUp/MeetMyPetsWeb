@@ -1,7 +1,9 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+# Un-anchored so the patterns apply inside each workspace (apps/*) as well as
+# at the repo root — this file predates the npm-workspaces conversion.
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -11,14 +13,14 @@
 !.yarn/versions
 
 # testing
-/coverage
+coverage/
 
 # next.js
-/.next/
-/out/
+.next/
+out/
 
 # production
-/build
+build/
 
 # misc
 .DS_Store
@@ -42,3 +44,7 @@ next-env.d.ts
 
 # Keep the documented Google Sheet / Apps Script setup template in version control.
 !.env.example
+
+# AI agent skills/config
+.agents/
+.claude/
