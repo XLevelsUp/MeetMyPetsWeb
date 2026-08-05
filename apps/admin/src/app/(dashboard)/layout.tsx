@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 
+import { AppHeader } from "@/components/layout/app-header";
+import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Button } from "@/components/ui/button";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { verifySession } from "@/lib/dal";
 import { signOut } from "@/app/login/actions";
 
@@ -33,7 +36,13 @@ export default async function DashboardLayout({ children }: LayoutProps<"/">) {
     );
   }
 
-  // Sidebar + header shell lands in the layout-shell commit; the session is
-  // verified above so children can already trust it.
-  return <div className="flex min-h-svh w-full">{children}</div>;
+  return (
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <AppHeader email={session.email} role={session.role} />
+        {children}
+      </SidebarInset>
+    </SidebarProvider>
+  );
 }
