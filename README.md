@@ -22,6 +22,20 @@ npm run lint          # both workspaces
 
 The landing page lives at `apps/landing/src/app/page.tsx`; it auto-updates as you edit.
 
+### Admin panel setup
+
+`apps/admin` talks to Supabase and needs credentials before sign-in works:
+
+```bash
+cp apps/admin/.env.example apps/admin/.env.local
+# then fill in the publishable + secret keys from the Supabase dashboard
+```
+
+Admin roles (`super_admin` / `moderator` / `support`) are read from Supabase
+`app_metadata` — see `docs/admin/schema-notes.md` for the assumption register
+that still needs verifying against the live database, and
+`supabase/migrations/` for the not-yet-applied analytics function.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Android App Links — `apps/landing/public/.well-known/assetlinks.json`
