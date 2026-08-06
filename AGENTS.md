@@ -12,3 +12,7 @@ Actions there). `apps/admin` is the server-rendered admin panel. Run scripts
 from the root: `npm run dev:landing` / `dev:admin` / `build:landing` /
 `build:admin` / `typecheck` / `lint`. `node_modules` is hoisted to the root,
 so the Next.js docs path above is unchanged.
+
+Working on `apps/admin`? Read `docs/admin/README.md` first — it is the
+master plan (purpose, 4-phase roadmap, architecture decisions, working
+rules) — plus `docs/admin/schema-notes.md` for verified database reality.
