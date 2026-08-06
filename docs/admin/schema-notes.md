@@ -1,42 +1,62 @@
 # Admin panel ↔ Supabase schema notes
 
-Status: **ASSUMPTIONS — not yet verified against the live project.**
+Status: **VERIFIED 2026-08-05** against project `owfrnkafevdfzduuqnic`
+(introspected over the REST/Auth admin APIs with the service key; the
+Supabase MCP was unavailable in the build session).
 
-The Supabase MCP server for project `owfrnkafevdfzduuqnic` was not
-authenticated while the admin panel was built, so the data layer was written
-against the assumptions below. All schema knowledge is deliberately confined
-to two files so verification is a two-file change:
+All schema knowledge is deliberately confined to two files:
 
 - `apps/admin/src/lib/dal.ts` — where admin roles are read from
 - `apps/admin/src/lib/analytics.ts` — table/column names behind every metric
 
-## How to verify (once, in an interactive session)
+## Verification results
 
-1. Run `claude` in a terminal, then `/mcp` → select `supabase` → Authenticate.
-2. Ask Claude to list tables/columns and reconcile them with this document,
-   then update the two files above and flip the checkboxes here.
+| # | Assumption | Result |
+|---|-----------|--------|
+| 1 | Roles at `app_metadata.role` | ✅ **Adopted and seeded.** No user had a role before 2026-08-05; two test users were created with roles (below). Production admins still need roles assigned. |
+| 2 | New-style API keys (`sb_publishable_…` / `sb_secret_…`) | ✅ Confirmed — the project uses publishable/secret keys. |
+| 3 | Asymmetric JWT signing (local `getClaims()`) | ⚠️ Unverified — needs the dashboard or MCP. Auth flow works either way; only proxy latency is affected. |
+| 4–10 | Application tables (`profiles`, `pet_profiles`, `matches`, `chats`, `verifications`, `reports`, `swipes`) in `public` | ❌ **None exist.** The `public` schema exposes only an `rls_auto_enable` RPC. Auth is real (33 users incl. genuine signups), but the app data lives elsewhere — presumably the FastAPI backend's database or a non-exposed Postgres schema. |
 
-## Assumption register
+## Consequence for the dashboard
 
-| # | Assumption | Used by | Verified? |
-|---|-----------|---------|-----------|
-| 1 | Admin roles are stored as a single string at `auth.users.raw_app_meta_data.role` (`super_admin` \| `moderator` \| `support`). Never `user_metadata` — that is user-editable. | `dal.ts`, `proxy.ts` | ☐ |
-| 2 | API keys use the new publishable/secret style (`sb_publishable_…` / `sb_secret_…`). If the project still uses legacy `anon`/`service_role` JWTs, only `.env` values change — code is key-style agnostic. | env | ☐ |
-| 3 | JWT signing uses asymmetric keys, so `auth.getClaims()` verifies locally in the proxy. If legacy HS256, `getClaims` makes a network round-trip per request (works, slower). | `proxy.ts` | ☐ |
-| 4 | `profiles` table: one row per user, `created_at timestamptz`. | `analytics.ts` (totalUsers, acquisition series) | ☐ |
-| 5 | `pet_profiles` table: `species text`, `created_at`, active pets discernible (assumed `deleted_at is null` or `is_active bool`). | `analytics.ts` (activePets, species breakdown) | ☐ |
-| 6 | `matches` table: `created_at`. | `analytics.ts` (totalMatches) | ☐ |
-| 7 | `chats` (or `conversations`) table: activity discernible via `last_message_at` (assumed) — "active" = message in the last 7 days. | `analytics.ts` (activeChats) | ☐ |
-| 8 | `verifications` table: `status text` with a `'pending'`-like value, `created_at`. | `analytics.ts` (pendingVerifications) | ☐ |
-| 9 | `reports` table: `status text` with an `'open'`-like value, `created_at`. | `analytics.ts` (openReports) | ☐ |
-| 10 | `swipes` table: one row per swipe, `created_at`. | `analytics.ts` (swipe volume series) | ☐ |
+RBAC works end-to-end (verified live: anonymous → 307/401, support → 403,
+moderator → passes auth). Analytics queries fail with a clear
+`query_failed` 500 ("Could not find the table 'public.pet_profiles'…")
+and the UI renders its retry card — graceful, but **no metrics render until
+one of these happens**:
 
-## Also to do during verification
+1. The mobile-app/FastAPI tables are created in (or exposed to) this
+   Supabase project's `public` schema, and `analytics.ts` TABLES constants
+   are pointed at the real names; or
+2. The admin API is repointed at the FastAPI backend once it exists — the
+   contract in `api-contract.ts` was designed for exactly that swap; or
+3. Product decides the Supabase project should own these tables, in which
+   case write migrations (see `supabase/migrations/` for the pending
+   analytics function) and seed data.
 
-- Create two test users with roles set via
-  `supabase.auth.admin.updateUserById(id, { app_metadata: { role: "moderator" } })`
-  (one `moderator`, one `support`) for the RBAC verification pass.
-- Apply the timeseries SQL function migration (see
-  `supabase/migrations/`) with
-  `REVOKE EXECUTE … FROM PUBLIC, anon, authenticated` — until then the
-  analytics adapter uses its TS-side bucketing fallback.
+**Decision needed from the team: which of the three.**
+
+## Test users (created 2026-08-05, passwords delivered in-session)
+
+| Email | Role | Purpose |
+|-------|------|---------|
+| `admin.moderator.test@meetmypets.dev` | `moderator` | Can sign in + call analytics APIs |
+| `admin.support.test@meetmypets.dev` | `support` | Signs in but gets 403 from analytics — proves the role allowlist |
+
+Assign real admins with:
+
+```js
+supabase.auth.admin.updateUserById(userId, { app_metadata: { role: "super_admin" } })
+```
+
+(Users must sign out/in — or wait for token refresh — before the proxy
+sees a changed role; the DAL sees it immediately.)
+
+## Still pending
+
+- Apply `supabase/migrations/20260805000000_admin_analytics_timeseries.sql`
+  once the source tables exist (requires SQL access: MCP `execute_sql`,
+  the dashboard SQL editor, or `supabase db push`).
+- Verify JWT signing-key type (assumption #3).
+- Rotate the secret key if it was ever exposed outside `.env.local`.
