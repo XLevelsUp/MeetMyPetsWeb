@@ -42,9 +42,11 @@ PostgREST enforces table GRANTs even for `service_role` (it has
 narrow and looks deliberate:
 
 - `identity.*` — full CRUD grants on all tables
-- `pets.pets`, `matching.matches`, `chat.conversations` — SELECT only
-- everything else (incl. `matching.pet_likes`, `pets.species`, all of
-  `social`) — **no access**; `social` lacks even schema USAGE
+- `pets.pets`, `matching.matches`, `matching.pet_likes`,
+  `chat.conversations` — SELECT only (`pet_likes` granted 2026-08-06,
+  migration `20260806000001`)
+- everything else (incl. `pets.species`, all of `social`) — **no access**;
+  `social` lacks even schema USAGE
 
 Reference tables `pets.species` / `pets.breeds` are anon-readable
 (verified live) — the adapter uses the publishable-key client for species
@@ -70,36 +72,53 @@ names.
 | pendingVerifications | `identity.account_verifications` where `status='pending'` | table empty today; `'pending'` is an assumed enum value — recheck on first real row |
 | openReports | — | no table exists; hardcoded true-zero until the feature lands |
 | speciesBreakdown | `pets.pets.species_id` + `pets.species` names | species via anon reference client |
-| userAcquisition (chart) | `identity.accounts.created_at` | |
-| swipeVolume (chart) | `matching.pet_likes.created_at` | ⛔ blocked — see below |
+| userAcquisition (chart) | `public.admin_analytics_timeseries` rpc → `identity.accounts.created_at` | |
+| swipeVolume (chart) | `public.admin_analytics_timeseries` rpc → `matching.pet_likes.created_at` | ✅ unblocked 2026-08-06 |
 
-**One blocker remains:** `service_role` has no SELECT on
-`matching.pet_likes`, so the timeseries endpoint returns its graceful
-`query_failed` card until someone runs (dashboard SQL editor or a
-migration):
+**Timeseries is now server-side.** As of 2026-08-06 the charts call
+`public.admin_analytics_timeseries(days)` (SECURITY INVOKER,
+service_role-only EXECUTE) instead of bucketing bare timestamps in
+TypeScript — `analytics.ts` `fetchAnalyticsTimeseries` was switched to
+`supabase.rpc(...)` and validates the payload against the shared contract.
+The function reads `identity.accounts` + `matching.pet_likes` (both
+readable by the service key after the `pet_likes` grant). The swipe-volume
+blocker is resolved; live-verified the rpc returns real data (e.g. 272
+swipes on 2026-08-06).
 
-```sql
-grant select on matching.pet_likes to service_role;
-```
+## 🚨 Security findings (advisors + live probe)
 
-## 🚨 Security findings (advisors + live probe — NOT fixed, read-only session)
-
-1. **P0 — public PII exposure.** The `identity` schema is exposed to the
-   Data API, 8 of its tables (`accounts`, `account_profiles`,
+1. **P0 — public PII exposure. `anon` half FIXED 2026-08-06; `authenticated`
+   half OPEN (backend team).** The `identity` schema is exposed to the Data
+   API and 8 of its tables (`accounts`, `account_profiles`,
    `account_sessions`, `account_devices`, `account_settings`,
    `account_privacy_settings`, `account_email_history`,
-   `account_verifications`) have **RLS disabled**, and `anon` holds **full
-   CRUD grants** on them. Verified live: a bare publishable key +
-   `Accept-Profile: identity` returns real `identity.accounts` rows.
-   Anyone with the browser-bundled key can read (and write!) emails, phone
-   numbers, sessions, device tokens, and profile lat/long. Matches the 8
-   `rls_disabled_in_public` ERROR advisors. Fix ASAP: enable RLS and/or
-   revoke `anon`/`authenticated` grants and/or remove `identity` from the
-   exposed schemas ([remediation](https://supabase.com/docs/guides/database/database-linter?lint=0013_rls_disabled_in_public)).
+   `account_verifications`) have **RLS disabled**. Originally both `anon`
+   and `authenticated` held full CRUD, so a bare publishable key with no
+   login could read/write emails, phones, sessions, device tokens, and
+   profile lat/long (live-verified).
+
+   - **Fixed (migration `20260806000002`):** all `anon` privileges on
+     `identity` tables/functions/sequences + schema USAGE revoked, with
+     `alter default privileges` to keep future objects closed. Re-verified
+     live: `anon` now gets `42501 permission denied for schema identity`.
+   - **Deliberately NOT changed — `authenticated`:** a read of the Supabase
+     API logs showed the **mobile app (Dart/3.12) reads `identity.accounts`
+     and `identity.account_profiles` directly through PostgREST as the
+     `authenticated` role.** Revoking `authenticated` would break the live
+     app, so it was left intact. With RLS still disabled, `authenticated`
+     retains full cross-row access to identity PII — a real but separate
+     exposure. **Correct fix (backend team): enable RLS on the 8 tables and
+     add owner-scoped policies** so a signed-in user reads only rows it
+     should. This needs the mobile team's access patterns and app-side
+     testing; it is not safe to guess.
+   ([remediation](https://supabase.com/docs/guides/database/database-linter?lint=0013_rls_disabled_in_public))
 2. **WARN ×63** — SECURITY DEFINER functions in the domain schemas are
    executable by `anon`/`authenticated` (e.g. `identity.purge_account_now`,
-   `identity.archive_account`, `matching.undo_last_swipe`). Review EXECUTE
-   grants ([lint](https://supabase.com/docs/guides/database/database-linter?lint=0099_role_can_execute_security_definer_function)).
+   `identity.archive_account`, `matching.undo_last_swipe`). The `identity`
+   ones had their `anon` EXECUTE revoked by migration `20260806000002`; the
+   `authenticated` grants and all `matching`/`pets`/`social`/`chat`
+   functions are untouched (mobile app may legitimately RPC them). Review
+   remaining EXECUTE grants ([lint](https://supabase.com/docs/guides/database/database-linter?lint=0099_role_can_execute_security_definer_function)).
 3. **WARN ×8** — functions with mutable `search_path`
    ([lint](https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable)).
 4. **WARN** — leaked-password protection disabled in Auth
@@ -125,13 +144,17 @@ curated read surface. `analytics.ts` has been repointed at the real names —
 no FastAPI repoint (option 2) and no table-creation migrations (option 3)
 are needed for reads. Residual asks for the backend team:
 
-- run the `pet_likes` GRANT above (unlocks the swipe chart);
-- decide where "reports" will live when moderation ships;
+- ~~run the `pet_likes` GRANT (unlocks the swipe chart)~~ — done
+  2026-08-06 (`20260806000001`);
+- decide where "reports" will live when moderation ships (the admin build
+  proposes a `moderation` schema owned jointly with FastAPI — see the
+  build plan);
 - decide whether admin roles stay in `app_metadata.role` or should merge
   with `identity.accounts.is_platform_admin/_moderator` — today they are
   two disconnected role systems (`dal.ts` reads only the former);
-- **fix the P0 anon exposure** (item 1 above) — independent of the admin
-  panel but found during this pass.
+- **finish the P0 fix** — the `anon` half is done; the `authenticated` +
+  RLS half (item 1 above) still needs owner-scoped policies from the team
+  that owns the mobile access patterns.
 
 ## Test users (created 2026-08-05, passwords delivered in-session)
 
@@ -149,16 +172,24 @@ supabase.auth.admin.updateUserById(userId, { app_metadata: { role: "super_admin"
 (Users must sign out/in — or wait for token refresh — before the proxy
 sees a changed role; the DAL sees it immediately.)
 
+## Applied 2026-08-06 (Step 0 of the admin build)
+
+- `20260806000001_admin_read_grant_pet_likes` — `grant select on
+  matching.pet_likes to service_role` (unblocks the swipe chart).
+- `20260806000002_p0_identity_revoke_anon` — revoked all `anon` access to
+  the `identity` schema (tables, functions, sequences, USAGE) + default
+  privileges. Verified: anon now `42501` on identity; `authenticated` and
+  `service_role` unaffected.
+- `20260805000000_admin_analytics_timeseries` — rewritten against
+  `identity.accounts` / `matching.pet_likes` (was `public.profiles` /
+  `public.swipes`) and applied; `analytics.ts` now calls it via `rpc`.
+
 ## Still pending
 
-- `GRANT SELECT ON matching.pet_likes TO service_role;` — unblocks the
-  swipe-volume chart (until then the timeseries endpoint returns
-  `query_failed` by design).
-- Rewrite `supabase/migrations/20260805000000_admin_analytics_timeseries.sql`
-  against the verified tables (`identity.accounts`, `matching.pet_likes` —
-  it still references `public.profiles` / `public.swipes`), then apply.
-  Deliberately NOT applied this pass.
-- Remediate the P0 anon exposure of the `identity` schema (backend team).
+- **`authenticated` + RLS half of the P0** (backend team) — enable RLS on
+  the 8 `identity` tables with owner-scoped policies; see security finding 1.
 - Confirm the `account_verifications.status = 'pending'` enum value once
   real verification rows exist.
 - Rotate the secret key if it was ever exposed outside `.env.local`.
+- Remaining advisor cleanup (unindexed FKs, `auth_rls_initplan`,
+  leaked-password protection) — non-blocking, backend-owned.

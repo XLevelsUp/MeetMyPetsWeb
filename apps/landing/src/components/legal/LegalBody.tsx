@@ -20,7 +20,6 @@ function withMarkers(text: string) {
 
   return parts.map((part, index) =>
     isMarker(part) ? (
-      // eslint-disable-next-line react/no-array-index-key
       <mark key={index} className="legal-todo">
         {part}
       </mark>
@@ -56,7 +55,6 @@ export function LegalBody({ sections }: { sections: readonly LegalSection[] }) {
           <h2 id={section.id}>{section.title}</h2>
           {section.body.map((block, index) => (
             // Blocks have no stable id of their own and never reorder at runtime.
-            // eslint-disable-next-line react/no-array-index-key
             <Block key={index} block={block} />
           ))}
         </section>

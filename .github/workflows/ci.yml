@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main, Control-Panel]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Typecheck, lint, test, build
+    runs-on: ubuntu-latest
+    env:
+      # The adapters read these at call-time and fall back to an "unconfigured"
+      # result, so builds don't need real Supabase access — but the client
+      # factories require the vars to exist. Dummy values keep the build hermetic.
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_dummy
+      SUPABASE_SECRET_KEY: sb_secret_ci_dummy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build:admin
+      - run: npm run build:landing
+
+  e2e:
+    name: Auth + RBAC smoke (Playwright)
+    runs-on: ubuntu-latest
+    needs: quality
+    # Only run when the Supabase + test-user secrets are configured.
+    if: ${{ vars.RUN_E2E == 'true' }}
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      E2E_MODERATOR_EMAIL: ${{ secrets.E2E_MODERATOR_EMAIL }}
+      E2E_MODERATOR_PASSWORD: ${{ secrets.E2E_MODERATOR_PASSWORD }}
+      E2E_SUPPORT_EMAIL: ${{ secrets.E2E_SUPPORT_EMAIL }}
+      E2E_SUPPORT_PASSWORD: ${{ secrets.E2E_SUPPORT_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/admin
+      - name: Run smoke tests
+        run: npm run test:e2e --workspace apps/admin

@@ -3,12 +3,12 @@ import "server-only";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import type {
-  AnalyticsSummaryResponse,
-  AnalyticsTimeseriesResponse,
-  MetricKey,
-  MetricValue,
-  TimeseriesPoint,
+import {
+  analyticsTimeseriesSchema,
+  type AnalyticsSummaryResponse,
+  type AnalyticsTimeseriesResponse,
+  type MetricKey,
+  type MetricValue,
 } from "@/lib/api-contract";
 
 /**
@@ -221,51 +221,25 @@ export async function fetchAnalyticsTimeseries(
   }
 
   const supabase = createAdminClient();
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
   /**
-   * TS-side day bucketing. A generate_series SQL function exists in
-   * supabase/migrations/ but has not been applied yet — and must be rewritten
-   * against the verified tables first (see docs/admin/schema-notes.md); until
-   * then this fetches bare timestamps.
-   * TODO(scale): switch to `supabase.rpc("admin_analytics_timeseries", ...)`
-   * once the migration is applied — the .range cap below silently truncates
-   * beyond 50k rows/window.
+   * Day bucketing runs in Postgres via public.admin_analytics_timeseries
+   * (SECURITY INVOKER, service_role-only EXECUTE — see
+   * supabase/migrations/20260805000000_admin_analytics_timeseries.sql). It
+   * generate_series-pre-seeds every day to zero and reads identity.accounts +
+   * matching.pet_likes, so there is no per-row transfer or .range() cap. The
+   * returned jsonb is validated against the shared contract before it leaves
+   * this adapter.
    */
-  const dailyCounts = async (ref: TableRef): Promise<TimeseriesPoint[]> => {
-    const { data, error } = await supabase
-      .schema(ref.schema)
-      .from(ref.table)
-      .select("created_at")
-      .gte("created_at", since)
-      .range(0, 49_999);
-    if (error) throw new Error(`${ref.schema}.${ref.table}: ${error.message}`);
-
-    const buckets = new Map<string, number>();
-    // Pre-seed every day so charts show explicit zeroes, not gaps.
-    for (let i = days - 1; i >= 0; i--) {
-      const day = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-      buckets.set(day, 0);
-    }
-    for (const row of (data ?? []) as { created_at: string }[]) {
-      const day = row.created_at.slice(0, 10);
-      if (buckets.has(day)) buckets.set(day, (buckets.get(day) ?? 0) + 1);
-    }
-    return [...buckets.entries()].map(([date, value]) => ({ date, value }));
-  };
-
   try {
-    // KNOWN BLOCKER: service_role has no SELECT on matching.pet_likes yet, so
-    // this endpoint returns query_failed (with Postgres's own GRANT hint) and
-    // the UI shows its retry card. Deliberate: an honest error beats charting
-    // a flat zero line over 1,100+ real swipes. Unblock with:
-    //   GRANT SELECT ON matching.pet_likes TO service_role;
-    // (tracked in docs/admin/schema-notes.md → "Still pending").
-    const [userAcquisition, swipeVolume] = await Promise.all([
-      dailyCounts(TABLES.users),
-      dailyCounts(TABLES.swipes),
-    ]);
-    return { ok: true, data: { days, userAcquisition, swipeVolume } };
+    const { data, error } = await supabase.rpc("admin_analytics_timeseries", { days });
+    if (error) throw new Error(error.message);
+
+    const parsed = analyticsTimeseriesSchema.safeParse(data);
+    if (!parsed.success) {
+      throw new Error(`unexpected timeseries shape: ${parsed.error.message}`);
+    }
+    return { ok: true, data: parsed.data };
   } catch (error) {
     return {
       ok: false,

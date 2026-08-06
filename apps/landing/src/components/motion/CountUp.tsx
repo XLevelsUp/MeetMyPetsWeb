@@ -30,6 +30,9 @@ export function CountUp({ to, fallback, duration = 1.1, className }: CountUpProp
     // Zero targets have nothing to count toward — animating would just flash.
     if (to === 0) return;
 
+    // Reset to 0 so the scroll-triggered count starts from the bottom; the
+    // SSR value is `to`, so this only runs client-side once in view.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setValue(0);
     const controls = animate(0, to, {
       duration,
