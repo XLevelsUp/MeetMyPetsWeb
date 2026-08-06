@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+
 import { createAdminClient } from "@/lib/supabase/admin";
 import type {
   AnalyticsSummaryResponse,
@@ -12,9 +14,13 @@ import type {
 /**
  * Analytics query adapter — the ONE file that knows the database schema.
  *
- * SCHEMA ASSUMPTIONS: every table/column here is an unverified assumption
- * recorded in docs/admin/schema-notes.md. When the Supabase MCP
- * introspection runs, reconcile THIS file (and dal.ts) only.
+ * SCHEMA: verified 2026-08-06 via Supabase MCP introspection (see
+ * docs/admin/schema-notes.md). The app data lives in domain schemas
+ * (`identity`, `pets`, `matching`, `chat`, `social`), all exposed to the
+ * Data API — NOT in `public`. The service_role read surface is deliberately
+ * narrow: all of `identity`, plus SELECT on exactly `pets.pets`,
+ * `matching.matches`, and `chat.conversations`. Everything queried here must
+ * stay inside that surface (or the anon-readable reference tables).
  *
  * House adapter pattern (apps/landing/src/lib/waitlist.ts): discriminated
  * union results, never throws. Uses the service client — RLS is bypassed,
@@ -25,22 +31,49 @@ export type AnalyticsResult<T> =
   | { ok: true; data: T }
   | { ok: false; reason: "unconfigured" | "query_failed"; message: string };
 
-/** Assumed table names — one place to fix after introspection. */
+/** Verified table locations — one place to fix if the schema moves again. */
 const TABLES = {
-  users: "profiles",
-  pets: "pet_profiles",
-  matches: "matches",
-  chats: "chats",
-  verifications: "verifications",
-  reports: "reports",
-  swipes: "swipes",
+  users: { schema: "identity", table: "accounts" },
+  pets: { schema: "pets", table: "pets" },
+  species: { schema: "pets", table: "species" },
+  matches: { schema: "matching", table: "matches" },
+  chats: { schema: "chat", table: "conversations" },
+  verifications: { schema: "identity", table: "account_verifications" },
+  swipes: { schema: "matching", table: "pet_likes" },
 } as const;
+
+type TableRef = (typeof TABLES)[keyof typeof TABLES];
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 function isConfigured(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SECRET_KEY);
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.SUPABASE_SECRET_KEY &&
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  );
 }
+
+/**
+ * Anon-key client for public reference data only. `pets.species` is
+ * anon-readable by design (mobile app dropdowns) while service_role has no
+ * SELECT on it — the FastAPI side grants the service key only the tables the
+ * dashboard aggregates.
+ */
+function createReferenceClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+}
+
+/**
+ * No reports/moderation table exists anywhere in the database yet (verified
+ * across every schema, 2026-08-06). Zero is the true count until the
+ * feature lands; revisit TABLES when it does.
+ */
+const NO_REPORTS_YET: MetricValue = { current: 0, previous: 0, changePct: null };
 
 export async function fetchAnalyticsSummary(): Promise<
   AnalyticsResult<AnalyticsSummaryResponse>
@@ -54,29 +87,34 @@ export async function fetchAnalyticsSummary(): Promise<
   const weekAgo = new Date(now - WEEK_MS).toISOString();
   const twoWeeksAgo = new Date(now - 2 * WEEK_MS).toISOString();
 
+  const fromRef = (ref: TableRef) => supabase.schema(ref.schema).from(ref.table);
+
   // `head: true` sends no rows, only the exact count header.
-  type CountQuery = ReturnType<ReturnType<typeof supabase.from>["select"]>;
+  type CountQuery = ReturnType<ReturnType<typeof fromRef>["select"]>;
   const countRows = async (
-    table: string,
+    ref: TableRef,
     filter?: (q: CountQuery) => CountQuery,
   ): Promise<number> => {
-    let query = supabase.from(table).select("*", { count: "exact", head: true });
+    let query = fromRef(ref).select("*", { count: "exact", head: true });
     if (filter) query = filter(query);
     const { count, error } = await query;
-    if (error) throw new Error(`${table}: ${error.message}`);
+    if (error) throw new Error(`${ref.schema}.${ref.table}: ${error.message}`);
     return count ?? 0;
   };
 
   /**
-   * Stock metrics report the all-time total as `current`; the trend compares
-   * rows created this week vs the prior week (an all-time total's own WoW
-   * delta is meaningless).
+   * Stock metrics report the all-time total as `current` (optionally
+   * narrowed by `currentFilter`); the trend compares rows created this week
+   * vs the prior week (an all-time total's own WoW delta is meaningless).
    */
-  const stockMetric = async (table: string): Promise<MetricValue> => {
+  const stockMetric = async (
+    ref: TableRef,
+    currentFilter?: (q: CountQuery) => CountQuery,
+  ): Promise<MetricValue> => {
     const [total, thisWeek, priorWeek] = await Promise.all([
-      countRows(table),
-      countRows(table, (q) => q.gte("created_at", weekAgo)),
-      countRows(table, (q) => q.gte("created_at", twoWeeksAgo).lt("created_at", weekAgo)),
+      countRows(ref, currentFilter),
+      countRows(ref, (q) => q.gte("created_at", weekAgo)),
+      countRows(ref, (q) => q.gte("created_at", twoWeeksAgo).lt("created_at", weekAgo)),
     ]);
     return { current: total, previous: priorWeek, changePct: changePct(thisWeek, priorWeek) };
   };
@@ -87,16 +125,16 @@ export async function fetchAnalyticsSummary(): Promise<
    * more useful than the queue's own size delta, which resolution work
    * constantly moves.
    */
-  const queueMetric = async (table: string, statusValue: string): Promise<MetricValue> => {
+  const queueMetric = async (ref: TableRef, statusValue: string): Promise<MetricValue> => {
     const [open, thisWeek, priorWeek] = await Promise.all([
-      countRows(table, (q) => q.eq("status", statusValue)),
-      countRows(table, (q) => q.gte("created_at", weekAgo)),
-      countRows(table, (q) => q.gte("created_at", twoWeeksAgo).lt("created_at", weekAgo)),
+      countRows(ref, (q) => q.eq("status", statusValue)),
+      countRows(ref, (q) => q.gte("created_at", weekAgo)),
+      countRows(ref, (q) => q.gte("created_at", twoWeeksAgo).lt("created_at", weekAgo)),
     ]);
     return { current: open, previous: priorWeek, changePct: changePct(thisWeek, priorWeek) };
   };
 
-  /** "Active" chats = a message in the last 7 days (assumed last_message_at). */
+  /** "Active" chats = a message in the last 7 days (`last_message_at`, verified). */
   const activeChatsMetric = async (): Promise<MetricValue> => {
     const [thisWeek, priorWeek] = await Promise.all([
       countRows(TABLES.chats, (q) => q.gte("last_message_at", weekAgo)),
@@ -107,15 +145,32 @@ export async function fetchAnalyticsSummary(): Promise<
     return { current: thisWeek, previous: priorWeek, changePct: changePct(thisWeek, priorWeek) };
   };
 
+  /**
+   * `pets.pets` stores `species_id`, not a name; names come from the
+   * anon-readable `pets.species` reference table (service_role has no
+   * SELECT on it — see createReferenceClient).
+   */
   const speciesBreakdown = async () => {
     // TODO(pre-launch scale): fine while pet counts are small; replace with a
     // grouped SQL function once row counts warrant it.
-    const { data, error } = await supabase.from(TABLES.pets).select("species").range(0, 49_999);
-    if (error) throw new Error(`${TABLES.pets}: ${error.message}`);
+    const [petsRes, speciesRes] = await Promise.all([
+      fromRef(TABLES.pets).select("species_id").eq("status", "active").range(0, 49_999),
+      createReferenceClient()
+        .schema(TABLES.species.schema)
+        .from(TABLES.species.table)
+        .select("id,name"),
+    ]);
+    if (petsRes.error) throw new Error(`${TABLES.pets.table}: ${petsRes.error.message}`);
+    if (speciesRes.error) throw new Error(`${TABLES.species.table}: ${speciesRes.error.message}`);
+
+    const names = new Map<string, string>();
+    for (const row of (speciesRes.data ?? []) as { id: string; name: string | null }[]) {
+      if (row.name?.trim()) names.set(row.id, row.name.trim());
+    }
 
     const counts = new Map<string, number>();
-    for (const row of (data ?? []) as { species: string | null }[]) {
-      const species = row.species?.trim() || "Unknown";
+    for (const row of (petsRes.data ?? []) as { species_id: string | null }[]) {
+      const species = (row.species_id && names.get(row.species_id)) || "Unknown";
       counts.set(species, (counts.get(species) ?? 0) + 1);
     }
     return [...counts.entries()]
@@ -124,16 +179,15 @@ export async function fetchAnalyticsSummary(): Promise<
   };
 
   try {
-    const [totalUsers, activePets, totalMatches, activeChats, pendingVerifications, openReports, bySpecies] =
+    const [totalUsers, activePets, totalMatches, activeChats, pendingVerifications, bySpecies] =
       await Promise.all([
         stockMetric(TABLES.users),
-        // TODO(introspection): add the "active" filter (is_active / deleted_at)
-        // once the real column is known — counts all pets until then.
-        stockMetric(TABLES.pets),
+        stockMetric(TABLES.pets, (q) => q.eq("status", "active")),
         stockMetric(TABLES.matches),
         activeChatsMetric(),
+        // Table is empty today; "pending" is the assumed FastAPI status value —
+        // recheck when the first real verification lands.
         queueMetric(TABLES.verifications, "pending"),
-        queueMetric(TABLES.reports, "open"),
         speciesBreakdown(),
       ]);
 
@@ -143,7 +197,7 @@ export async function fetchAnalyticsSummary(): Promise<
       totalMatches,
       activeChats,
       pendingVerifications,
-      openReports,
+      openReports: NO_REPORTS_YET,
     };
 
     return {
@@ -171,19 +225,21 @@ export async function fetchAnalyticsTimeseries(
 
   /**
    * TS-side day bucketing. A generate_series SQL function exists in
-   * supabase/migrations/ but has not been applied yet (see
-   * docs/admin/schema-notes.md); until then this fetches bare timestamps.
+   * supabase/migrations/ but has not been applied yet — and must be rewritten
+   * against the verified tables first (see docs/admin/schema-notes.md); until
+   * then this fetches bare timestamps.
    * TODO(scale): switch to `supabase.rpc("admin_analytics_timeseries", ...)`
    * once the migration is applied — the .range cap below silently truncates
    * beyond 50k rows/window.
    */
-  const dailyCounts = async (table: string): Promise<TimeseriesPoint[]> => {
+  const dailyCounts = async (ref: TableRef): Promise<TimeseriesPoint[]> => {
     const { data, error } = await supabase
-      .from(table)
+      .schema(ref.schema)
+      .from(ref.table)
       .select("created_at")
       .gte("created_at", since)
       .range(0, 49_999);
-    if (error) throw new Error(`${table}: ${error.message}`);
+    if (error) throw new Error(`${ref.schema}.${ref.table}: ${error.message}`);
 
     const buckets = new Map<string, number>();
     // Pre-seed every day so charts show explicit zeroes, not gaps.
@@ -199,6 +255,12 @@ export async function fetchAnalyticsTimeseries(
   };
 
   try {
+    // KNOWN BLOCKER: service_role has no SELECT on matching.pet_likes yet, so
+    // this endpoint returns query_failed (with Postgres's own GRANT hint) and
+    // the UI shows its retry card. Deliberate: an honest error beats charting
+    // a flat zero line over 1,100+ real swipes. Unblock with:
+    //   GRANT SELECT ON matching.pet_likes TO service_role;
+    // (tracked in docs/admin/schema-notes.md → "Still pending").
     const [userAcquisition, swipeVolume] = await Promise.all([
       dailyCounts(TABLES.users),
       dailyCounts(TABLES.swipes),
