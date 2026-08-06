@@ -24,7 +24,7 @@ export const adminNav = [
   { label: "Verifications", href: "/verifications", icon: "badge-check", enabled: false },
   { label: "Content Reports", href: "/reports", icon: "flag", enabled: false },
   { label: "Business Directory", href: "/businesses", icon: "store", enabled: false },
-  { label: "Audit Logs", href: "/audit", icon: "scroll-text", enabled: false },
+  { label: "Audit Logs", href: "/audit", icon: "scroll-text", enabled: true },
   { label: "Settings", href: "/settings", icon: "settings", enabled: false },
 ] as const;
 
@@ -32,6 +32,11 @@ export type AdminNavItem = (typeof adminNav)[number];
 
 export const copy = {
   comingSoon: "Coming in a later phase",
+  /** Strings shared by every list surface. Feature-specific copy stays below. */
+  common: {
+    retry: "Retry",
+    pagination: { previous: "Previous", next: "Next", showing: "Showing" },
+  },
   searchPlaceholder: "Search users, pets, reports…",
   /** System status is a config-driven stub in Phase 1 — no live probe yet. */
   systemStatus: { state: "operational", label: "All systems operational" },
@@ -96,9 +101,6 @@ export const copy = {
       actions: "Actions",
     },
     empty: "No matches. Try a different search or filter.",
-    loadFailed: "Could not load this list.",
-    retry: "Retry",
-    pagination: { previous: "Previous", next: "Next", showing: "Showing" },
     detail: {
       back: "Back to Users & Pets",
       notFound: "That account no longer exists.",
@@ -176,5 +178,50 @@ export const copy = {
     /** Shown when the lockout took effect but the audit write failed. */
     unauditedWarning:
       "The action was applied, but writing the audit log failed. Tell an engineer before doing anything else.",
+    viewHistory: "View in audit log",
+  },
+  audit: {
+    title: "Audit Logs",
+    subtitle: "Every moderation action, who took it, and why.",
+    searchPlaceholder: "Search by admin email, reason, or paste an ID…",
+    filters: {
+      action: "Action",
+      target: "Target",
+      from: "From",
+      to: "To",
+      all: "All",
+      clear: "Clear filters",
+    },
+    columns: {
+      when: "When",
+      actor: "Admin",
+      action: "Action",
+      target: "Target",
+      reason: "Reason",
+    },
+    targetTypes: { account: "Account", pet: "Pet" },
+    /**
+     * An empty audit log is the normal state on a fresh install, not an
+     * error — the copy should reassure rather than alarm.
+     */
+    empty: "No admin actions recorded yet.",
+    emptyFiltered: "No actions match these filters.",
+    viewAccount: "Open account",
+    details: "Details",
+    detailDialog: {
+      title: "Audit entry",
+      description: "The full record as written. Audit rows can never be edited or deleted.",
+      metadata: "Metadata",
+      noMetadata: "No additional metadata.",
+      close: "Close",
+    },
+    /** Mirrors AUDIT_ACTIONS in lib/audit.ts. */
+    actionLabels: {
+      "account.suspend": "Account suspended",
+      "account.ban": "Account banned",
+      "account.restore": "Account restored",
+      "pet.flag": "Pet flagged",
+      "pet.unflag": "Pet flag removed",
+    },
   },
 } as const;

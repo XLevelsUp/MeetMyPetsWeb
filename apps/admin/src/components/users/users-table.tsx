@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { ListToolbar, Pagination } from "@/components/users/list-toolbar";
+import { Pagination } from "@/components/shared/pagination";
+import { QueryErrorCard } from "@/components/shared/query-error-card";
+import { ListToolbar } from "@/components/users/list-toolbar";
 import { RestrictionBadge } from "@/components/users/restriction-badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -53,14 +53,7 @@ export function UsersTable() {
       />
 
       {accounts.isError ? (
-        <Card>
-          <CardContent className="flex flex-col items-start gap-3 pt-6">
-            <p className="text-sm text-destructive">{accounts.error.message}</p>
-            <Button variant="outline" size="sm" onClick={() => accounts.refetch()}>
-              {copy.users.retry}
-            </Button>
-          </CardContent>
-        </Card>
+        <QueryErrorCard message={accounts.error.message} onRetry={() => accounts.refetch()} />
       ) : (
         <>
           <div className="overflow-x-auto rounded-lg border">

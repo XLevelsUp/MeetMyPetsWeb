@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
+import { QueryErrorCard } from "@/components/shared/query-error-card";
 import { ActionDialog } from "@/components/users/action-dialog";
 import { RestrictionBadge } from "@/components/users/restriction-badge";
 import { Button } from "@/components/ui/button";
@@ -102,19 +103,11 @@ export function UserDetail({ id, role }: { id: string; role: AdminRole }) {
 
   if (account.isError) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-start gap-3 pt-6">
-          <p className="text-sm text-destructive">{account.error.message}</p>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => account.refetch()}>
-              {copy.users.retry}
-            </Button>
-            <Button variant="ghost" size="sm" render={<Link href="/users" />}>
-              {copy.users.detail.back}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <QueryErrorCard message={account.error.message} onRetry={() => account.refetch()}>
+        <Button variant="ghost" size="sm" render={<Link href="/users" />}>
+          {copy.users.detail.back}
+        </Button>
+      </QueryErrorCard>
     );
   }
 
@@ -205,8 +198,17 @@ export function UserDetail({ id, role }: { id: string; role: AdminRole }) {
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
           <CardTitle>{copy.users.detail.history}</CardTitle>
+          {/* The restriction rows below are current state; the audit log is the
+              full record of who did what and why. */}
+          <Button
+            variant="ghost"
+            size="sm"
+            render={<Link href={`/audit?targetId=${data.id}`} />}
+          >
+            {copy.users.viewHistory}
+          </Button>
         </CardHeader>
         <CardContent>
           {data.restrictions.length === 0 ? (

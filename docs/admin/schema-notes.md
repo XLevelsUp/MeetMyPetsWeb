@@ -182,7 +182,7 @@ unreachable from the app. Security is per-table, so nothing is lost.
 
 | Table | Purpose | service_role grants |
 |-------|---------|---------------------|
-| `public.admin_audit_logs` | Append-only trail: actor (id/email/role snapshot), dot-namespaced `action`, target, mandatory `reason`, `metadata` jsonb | **INSERT + SELECT only** |
+| `public.admin_audit_logs` | Append-only trail: actor (id/email/role snapshot), dot-namespaced `action`, target, mandatory `reason`, `metadata` jsonb. Read by `/audit` (Step 2) | **INSERT + SELECT only** |
 | `public.admin_restrictions` | Suspend/ban/flag state for accounts and pets; active = `lifted_at is null and (expires_at is null or expires_at > now())` | SELECT + INSERT + **UPDATE** (no DELETE — restrictions are lifted, never removed) |
 
 ⚠️ **Supabase default privileges on `public` auto-grant new tables to `anon`,
@@ -209,6 +209,23 @@ the partial unique index rejects a second active restriction of a kind, and the
 - Every action runs **enforcement → restriction row → audit row**. If the
   audit write fails the API returns 500 with an explicit "applied but
   unaudited" message rather than reporting success.
+
+### Reading the audit log (Step 2)
+
+`/audit` reads the same table through `listAuditLogs` in `lib/audit.ts`, with
+filters for action, target type, an inclusive date range, and free text over
+`actor_email` / `reason` (a uuid matches `target_id` or `actor_id` exactly).
+Verified live 2026-08-06 against the real table under `set role service_role`:
+the adapter's column list resolves, every filter and the ordering/pagination
+window behave, and PostgREST accepts the `or=(col.ilike.*term*,…)` form the
+adapter builds. The probe row was removed afterwards **as `postgres`** —
+`service_role` cannot delete, which is also why e2e specs must never seed this
+table.
+
+The canonical action list lives in `lib/audit-actions.ts` rather than
+`lib/audit.ts`: the adapter is `server-only`, but the filter dropdown is a
+client component and needs the same list. Adding an action there requires a
+matching label in `copy.audit.actionLabels`.
 
 ## Applied 2026-08-06 (Step 0 of the admin build)
 

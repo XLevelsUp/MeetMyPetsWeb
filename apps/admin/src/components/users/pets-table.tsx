@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { Pagination } from "@/components/shared/pagination";
+import { QueryErrorCard } from "@/components/shared/query-error-card";
 import { ActionDialog } from "@/components/users/action-dialog";
-import { ListToolbar, Pagination } from "@/components/users/list-toolbar";
+import { ListToolbar } from "@/components/users/list-toolbar";
 import { RestrictionBadge } from "@/components/users/restriction-badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -71,14 +71,7 @@ export function PetsTable({ role }: { role: AdminRole }) {
       />
 
       {pets.isError ? (
-        <Card>
-          <CardContent className="flex flex-col items-start gap-3 pt-6">
-            <p className="text-sm text-destructive">{pets.error.message}</p>
-            <Button variant="outline" size="sm" onClick={() => pets.refetch()}>
-              {copy.users.retry}
-            </Button>
-          </CardContent>
-        </Card>
+        <QueryErrorCard message={pets.error.message} onRetry={() => pets.refetch()} />
       ) : (
         <>
           <div className="overflow-x-auto rounded-lg border">

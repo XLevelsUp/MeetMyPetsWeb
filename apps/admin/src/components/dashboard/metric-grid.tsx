@@ -15,8 +15,7 @@ import { ChartSkeleton, MetricGridSkeleton } from "@/components/dashboard/dashbo
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { SpeciesBreakdown } from "@/components/dashboard/species-breakdown";
 import { SwipeVolumeChart } from "@/components/dashboard/swipe-volume-chart";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { QueryErrorCard } from "@/components/shared/query-error-card";
 import { copy } from "@/config/admin";
 import { useAnalyticsSummary, useAnalyticsTimeseries } from "@/hooks/use-analytics";
 import type { MetricKey } from "@/lib/api-contract";
@@ -30,20 +29,6 @@ const metricIcons: Record<MetricKey, LucideIcon> = {
   openReports: Flag,
 };
 
-/** Soft failure state — query-level errors render inline with a retry. */
-function QueryError({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <Card>
-      <CardContent className="flex flex-col items-start gap-3 pt-6">
-        <p className="text-sm text-destructive">{message}</p>
-        <Button variant="outline" size="sm" onClick={onRetry}>
-          Retry
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
 export function MetricGrid() {
   const summary = useAnalyticsSummary();
   const timeseries = useAnalyticsTimeseries(30);
@@ -54,7 +39,7 @@ export function MetricGrid() {
       {summary.isPending ? (
         <MetricGridSkeleton />
       ) : summary.isError ? (
-        <QueryError message={summary.error.message} onRetry={() => summary.refetch()} />
+        <QueryErrorCard message={summary.error.message} onRetry={() => summary.refetch()} />
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -78,7 +63,7 @@ export function MetricGrid() {
           <ChartSkeleton />
         </div>
       ) : timeseries.isError ? (
-        <QueryError message={timeseries.error.message} onRetry={() => timeseries.refetch()} />
+        <QueryErrorCard message={timeseries.error.message} onRetry={() => timeseries.refetch()} />
       ) : (
         <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
           <AcquisitionChart data={timeseries.data.userAcquisition} />

@@ -3,7 +3,6 @@
 import { Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -81,45 +80,3 @@ export function ListToolbar({
   );
 }
 
-/** Range summary + prev/next. Hand-rolled: the shadcn block is link-oriented. */
-export function Pagination({
-  page,
-  pageSize,
-  total,
-  onPageChange,
-}: {
-  page: number;
-  pageSize: number;
-  total: number;
-  onPageChange: (page: number) => void;
-}) {
-  const first = total === 0 ? 0 : (page - 1) * pageSize + 1;
-  const last = Math.min(page * pageSize, total);
-  const hasNext = page * pageSize < total;
-
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <p className="text-sm text-muted-foreground">
-        {copy.users.pagination.showing} {first}–{last} of {total}
-      </p>
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={page <= 1}
-          onClick={() => onPageChange(page - 1)}
-        >
-          {copy.users.pagination.previous}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={!hasNext}
-          onClick={() => onPageChange(page + 1)}
-        >
-          {copy.users.pagination.next}
-        </Button>
-      </div>
-    </div>
-  );
-}
