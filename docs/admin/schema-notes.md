@@ -146,9 +146,11 @@ are needed for reads. Residual asks for the backend team:
 
 - ~~run the `pet_likes` GRANT (unlocks the swipe chart)~~ — done
   2026-08-06 (`20260806000001`);
-- decide where "reports" will live when moderation ships (the admin build
-  proposes a `moderation` schema owned jointly with FastAPI — see the
-  build plan);
+- **reports table** — column contract drafted for the backend team in
+  [`reports-schema-proposal.md`](./reports-schema-proposal.md)
+  (`public.admin_reports`, jointly written by the panel and FastAPI).
+  Awaiting sign-off before the Step 3 migration; the panel's `openReports`
+  metric stays a hardcoded zero until it lands;
 - decide whether admin roles stay in `app_metadata.role` or should merge
   with `identity.accounts.is_platform_admin/_moderator` — today they are
   two disconnected role systems (`dal.ts` reads only the former);
