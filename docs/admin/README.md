@@ -2,7 +2,9 @@
 
 > **Audience: every human or AI agent working on `apps/admin`.** Read this
 > before touching admin code. Companion docs: [schema-notes.md](schema-notes.md)
-> (verified database reality — updated per introspection pass) and the root
+> (verified database reality — updated per introspection pass),
+> [app-team-handoff.md](app-team-handoff.md) (**what the mobile-app/FastAPI team
+> needs to know and do** — shared auth, shared tables, open asks), and the root
 > [AGENTS.md](../../AGENTS.md) (Next.js 16 warning + repo layout).
 
 ## 1. Purpose

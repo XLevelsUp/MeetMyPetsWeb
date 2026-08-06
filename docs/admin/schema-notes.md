@@ -6,10 +6,15 @@ live PostgREST probes). Supersedes the 2026-08-05 REST-only introspection,
 which could only see the `public` schema and wrongly concluded the app data
 didn't exist.
 
-All schema knowledge is deliberately confined to two files:
+> **Sharing this with the mobile-app / FastAPI team?** Send them
+> [app-team-handoff.md](app-team-handoff.md) instead — same facts, written for
+> them, with the column-dependency appendix and the open asks.
+
+All schema knowledge is deliberately confined to the feature adapters:
 
 - `apps/admin/src/lib/dal.ts` — where admin roles are read from
 - `apps/admin/src/lib/analytics.ts` — table/column names behind every metric
+- `apps/admin/src/lib/users.ts`, `audit.ts` — moderation reads and writes
 
 ## Headline: the app data DOES live in this project
 
