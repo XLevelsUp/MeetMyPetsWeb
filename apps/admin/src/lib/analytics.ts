@@ -1,8 +1,7 @@
 import "server-only";
 
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createReferenceClient, isSupabaseConfigured } from "@/lib/supabase/reference";
 import {
   analyticsTimeseriesSchema,
   type AnalyticsSummaryResponse,
@@ -46,28 +45,6 @@ type TableRef = (typeof TABLES)[keyof typeof TABLES];
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-function isConfigured(): boolean {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.SUPABASE_SECRET_KEY &&
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-  );
-}
-
-/**
- * Anon-key client for public reference data only. `pets.species` is
- * anon-readable by design (mobile app dropdowns) while service_role has no
- * SELECT on it — the FastAPI side grants the service key only the tables the
- * dashboard aggregates.
- */
-function createReferenceClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
-}
-
 /**
  * No reports/moderation table exists anywhere in the database yet (verified
  * across every schema, 2026-08-06). Zero is the true count until the
@@ -78,7 +55,7 @@ const NO_REPORTS_YET: MetricValue = { current: 0, previous: 0, changePct: null }
 export async function fetchAnalyticsSummary(): Promise<
   AnalyticsResult<AnalyticsSummaryResponse>
 > {
-  if (!isConfigured()) {
+  if (!isSupabaseConfigured()) {
     return { ok: false, reason: "unconfigured", message: "Supabase env vars are not set." };
   }
 
@@ -216,7 +193,7 @@ export async function fetchAnalyticsSummary(): Promise<
 export async function fetchAnalyticsTimeseries(
   days: number,
 ): Promise<AnalyticsResult<AnalyticsTimeseriesResponse>> {
-  if (!isConfigured()) {
+  if (!isSupabaseConfigured()) {
     return { ok: false, reason: "unconfigured", message: "Supabase env vars are not set." };
   }
 

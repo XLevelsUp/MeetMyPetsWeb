@@ -20,7 +20,7 @@ export const admin = {
  */
 export const adminNav = [
   { label: "Dashboard", href: "/", icon: "layout-dashboard", enabled: true },
-  { label: "Users & Pets", href: "/users", icon: "users", enabled: false },
+  { label: "Users & Pets", href: "/users", icon: "users", enabled: true },
   { label: "Verifications", href: "/verifications", icon: "badge-check", enabled: false },
   { label: "Content Reports", href: "/reports", icon: "flag", enabled: false },
   { label: "Business Directory", href: "/businesses", icon: "store", enabled: false },
@@ -67,5 +67,114 @@ export const copy = {
     },
     deltaVsLastWeek: "vs last week",
     noData: "—",
+  },
+  users: {
+    title: "Users & Pets",
+    subtitle: "Search accounts and pet profiles, and act on abuse.",
+    tabs: { users: "Users", pets: "Pets" },
+    searchPlaceholder: "Search email, name, phone, or paste an ID…",
+    statusLabel: "Status",
+    statusOptions: {
+      all: "All",
+      active: "Active",
+      archived: "Archived",
+      suspended: "Suspended",
+      banned: "Banned",
+      flagged: "Flagged",
+    },
+    columns: {
+      user: "User",
+      contact: "Contact",
+      pets: "Pets",
+      status: "Status",
+      joined: "Joined",
+      lastActive: "Last active",
+      pet: "Pet",
+      species: "Species",
+      owner: "Owner",
+      added: "Added",
+      actions: "Actions",
+    },
+    empty: "No matches. Try a different search or filter.",
+    loadFailed: "Could not load this list.",
+    retry: "Retry",
+    pagination: { previous: "Previous", next: "Next", showing: "Showing" },
+    detail: {
+      back: "Back to Users & Pets",
+      notFound: "That account no longer exists.",
+      profile: "Profile",
+      pets: "Pets",
+      verifications: "Verifications",
+      history: "Moderation history",
+      noPets: "No pets on this account.",
+      noVerifications: "No verification records.",
+      noHistory: "No moderation actions have been taken on this account.",
+      neverActive: "Never",
+      verified: "Verified",
+      unverified: "Unverified",
+      lifted: "Lifted",
+    },
+    /**
+     * Destructive-action copy. `confirm` is the button label; `description`
+     * must state the real-world consequence, because the reason typed here
+     * becomes the permanent audit record.
+     */
+    actions: {
+      suspend: {
+        label: "Suspend",
+        title: "Suspend this account?",
+        description:
+          "They will be signed out of the mobile app and cannot sign back in until the suspension expires.",
+        confirm: "Suspend account",
+      },
+      ban: {
+        label: "Ban",
+        title: "Ban this account?",
+        description:
+          "This blocks sign-in indefinitely. Only a super admin can reverse it.",
+        confirm: "Ban account",
+      },
+      restore: {
+        label: "Restore",
+        title: "Restore this account?",
+        description: "Sign-in is re-enabled immediately and active restrictions are lifted.",
+        confirm: "Restore account",
+      },
+      flag: {
+        label: "Flag",
+        title: "Flag this pet profile?",
+        description: "Marks the profile for review. It stays visible in the app.",
+        confirm: "Flag pet",
+      },
+      unflag: {
+        label: "Unflag",
+        title: "Remove this flag?",
+        description: "Clears the review flag on this pet profile.",
+        confirm: "Remove flag",
+      },
+    },
+    dialog: {
+      reasonLabel: "Reason (recorded in the audit log)",
+      reasonPlaceholder: "What prompted this? Include ticket or report references.",
+      durationLabel: "Suspend for",
+      durations: {
+        "24": "24 hours",
+        "72": "3 days",
+        "168": "7 days",
+        "720": "30 days",
+      },
+      cancel: "Cancel",
+      submitting: "Working…",
+    },
+    toast: {
+      suspend: "Account suspended.",
+      ban: "Account banned.",
+      restore: "Account restored.",
+      flag: "Pet flagged.",
+      unflag: "Flag removed.",
+    },
+    /** Shown when the lockout took effect but the audit write failed. */
+    unauditedWarning:
+      "The action was applied, but writing the audit log failed. Tell an engineer before doing anything else.",
   },
 } as const;

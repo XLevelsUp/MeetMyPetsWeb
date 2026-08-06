@@ -1,66 +1,133 @@
 /**
  * Chainable fake of the supabase-js query builder for adapter unit tests.
  *
- * The real builder is a thenable: every filter method returns `this` and the
- * chain is awaited to run. This fake mirrors that — filter methods are no-ops
- * returning the builder, and awaiting resolves to a result decided per
- * `schema.table`. A `select("*", { head: true })` call (the count pattern)
- * resolves to `{ count }`; any other select resolves to `{ data }`. Per-table
- * `error` forces the `query_failed` branch.
+ * The real builder is a thenable: filter methods return `this` and awaiting the
+ * chain runs it. This mirrors that shape closely enough to exercise adapter
+ * logic without a database.
+ *
+ * Results are keyed by `schema.table`, optionally narrowed per operation with
+ * a `#select` / `#insert` / `#update` suffix — needed when one table is both
+ * read and written in a single action (e.g. admin_restrictions).
+ *
+ * `client.calls` records every operation in order, so tests can assert
+ * sequencing (ban → restriction → audit) rather than just end state.
  */
 
-export type TableResult = { count?: number; rows?: unknown[]; error?: { message: string } };
-
-type Client = {
-  schema: (s: string) => { from: (t: string) => QueryBuilder };
-  from: (t: string) => QueryBuilder;
-  rpc: (name: string, args?: unknown) => Promise<{ data: unknown; error: { message: string } | null }>;
+export type TableResult = {
+  /** Returned for `select("*", { head: true })` count queries. */
+  count?: number;
+  /** Returned for ordinary selects and for `.update(...).select(...)`. */
+  rows?: unknown[];
+  /** Returned for `.maybeSingle()`; `null` means "no row". */
+  single?: unknown;
+  error?: { message: string };
 };
 
-type QueryBuilder = {
-  select: (sel?: string, opts?: { head?: boolean; count?: string }) => QueryBuilder;
-  then: <R>(onFulfilled: (v: unknown) => R, onRejected?: (e: unknown) => R) => Promise<R>;
-} & Record<string, (...args: unknown[]) => QueryBuilder>;
+export type MockCall = {
+  op: "select" | "insert" | "update" | "rpc" | "auth.updateUserById";
+  key: string;
+  values?: unknown;
+};
 
-const CHAIN_METHODS = ["gte", "lt", "eq", "range", "order", "in", "or", "ilike", "is", "not", "limit"];
+const CHAIN_METHODS = [
+  "gte",
+  "lt",
+  "gt",
+  "lte",
+  "eq",
+  "neq",
+  "range",
+  "order",
+  "in",
+  "or",
+  "ilike",
+  "like",
+  "is",
+  "not",
+  "limit",
+  "contains",
+];
 
-/**
- * @param tables keyed by `schema.table` (e.g. "identity.accounts", "pets.species")
- * @param rpcs   keyed by rpc name → payload (omit a name to make that rpc error)
- */
+type Resolver = (value: unknown) => unknown;
+
+export type SupabaseMock = ReturnType<typeof makeSupabaseMock>;
+
 export function makeSupabaseMock(
   tables: Record<string, TableResult>,
   rpcs: Record<string, unknown> = {},
-): Client {
-  function builderFor(key: string): QueryBuilder {
-    let head = false;
-    const builder = {} as QueryBuilder;
+) {
+  const calls: MockCall[] = [];
 
-    builder.select = (_sel?: string, opts?: { head?: boolean }) => {
+  function lookup(key: string, mode: "select" | "insert" | "update"): TableResult {
+    return tables[`${key}#${mode}`] ?? tables[key] ?? {};
+  }
+
+  function builderFor(key: string) {
+    let head = false;
+    let mode: "select" | "insert" | "update" = "select";
+
+    const builder: Record<string, unknown> = {};
+
+    const settle = () => {
+      const t = lookup(key, mode);
+      if (t.error) return { data: null, count: null, error: t.error };
+      if (head) return { count: t.count ?? 0, data: null, error: null };
+      return { data: t.rows ?? [], count: t.count ?? (t.rows?.length ?? 0), error: null };
+    };
+
+    builder.select = (_sel?: string, opts?: { head?: boolean; count?: string }) => {
       if (opts?.head) head = true;
+      if (mode === "select") calls.push({ op: "select", key });
       return builder;
     };
-    for (const m of CHAIN_METHODS) {
-      builder[m] = () => builder;
-    }
-    builder.then = (onFulfilled, onRejected) => {
-      const t = tables[key] ?? {};
-      const result = t.error
-        ? { data: null, count: null, error: t.error }
-        : head
-          ? { count: t.count ?? 0, error: null }
-          : { data: t.rows ?? [], error: null };
-      return Promise.resolve(result).then(onFulfilled, onRejected);
+
+    builder.insert = (values: unknown) => {
+      mode = "insert";
+      calls.push({ op: "insert", key, values });
+      return builder;
     };
+
+    builder.update = (values: unknown) => {
+      mode = "update";
+      calls.push({ op: "update", key, values });
+      return builder;
+    };
+
+    for (const method of CHAIN_METHODS) {
+      builder[method] = () => builder;
+    }
+
+    builder.maybeSingle = () => {
+      const t = lookup(key, mode);
+      if (t.error) return Promise.resolve({ data: null, error: t.error });
+      const single = "single" in t ? t.single : (t.rows?.[0] ?? null);
+      return Promise.resolve({ data: single ?? null, error: null });
+    };
+
+    builder.then = (onFulfilled: Resolver, onRejected?: Resolver) =>
+      Promise.resolve(settle()).then(onFulfilled, onRejected);
+
     return builder;
   }
 
   return {
-    schema: (s) => ({ from: (t) => builderFor(`${s}.${t}`) }),
-    from: (t) => builderFor(`public.${t}`),
-    rpc: async (name) =>
-      name in rpcs
+    calls,
+    schema: (s: string) => ({ from: (t: string) => builderFor(`${s}.${t}`) }),
+    from: (t: string) => builderFor(`public.${t}`),
+    rpc: async (name: string) => {
+      calls.push({ op: "rpc", key: name });
+      return name in rpcs
         ? { data: rpcs[name], error: null }
-        : { data: null, error: { message: `rpc ${name} not configured` } },
+        : { data: null, error: { message: `rpc ${name} not configured` } };
+    },
+    auth: {
+      admin: {
+        updateUserById: async (uid: string, attributes: unknown) => {
+          calls.push({ op: "auth.updateUserById", key: uid, values: attributes });
+          const failure = tables["auth.admin"]?.error;
+          return failure ? { data: null, error: failure } : { data: {}, error: null };
+        },
+      },
+    },
   };
 }

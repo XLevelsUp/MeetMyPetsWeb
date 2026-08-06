@@ -37,6 +37,26 @@ export const VERIFICATION_ROLES: readonly AdminRole[] = ["super_admin", "moderat
 /** Settings and admin-role management. */
 export const SETTINGS_ROLES: readonly AdminRole[] = ["super_admin"];
 
+/**
+ * Per-action allowlists for the moderation surface. Viewing is separate
+ * (USERS_VIEW_ROLES) — support can see who a user is without being able to
+ * act on them. Reversal (`restore`) is deliberately narrower than the action
+ * it reverses: a moderator can suspend, but only a super_admin can un-ban.
+ *
+ * The UI hides actions the caller cannot perform; the route enforces this map
+ * independently, so a hand-crafted POST is rejected either way.
+ */
+export const USER_ACTION_ROLES: Record<
+  "suspend" | "ban" | "restore" | "flag" | "unflag",
+  readonly AdminRole[]
+> = {
+  suspend: ["super_admin", "moderator"],
+  ban: ["super_admin"],
+  restore: ["super_admin"],
+  flag: ["super_admin", "moderator"],
+  unflag: ["super_admin", "moderator"],
+};
+
 /** Human-readable badge labels. */
 export const ROLE_LABELS: Record<AdminRole, string> = {
   super_admin: "Super Admin",

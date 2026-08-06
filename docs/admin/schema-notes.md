@@ -172,6 +172,44 @@ supabase.auth.admin.updateUserById(userId, { app_metadata: { role: "super_admin"
 (Users must sign out/in — or wait for token refresh — before the proxy
 sees a changed role; the DAL sees it immediately.)
 
+## Admin-owned tables (Step 1)
+
+The panel owns two tables. They live in **`public`**, not a dedicated
+`moderation` schema, because PostgREST only serves schemas on its exposed
+list and adding one is a dashboard-only toggle — a new schema would be
+unreachable from the app. Security is per-table, so nothing is lost.
+`alter table … set schema` moves them later if the team exposes one.
+
+| Table | Purpose | service_role grants |
+|-------|---------|---------------------|
+| `public.admin_audit_logs` | Append-only trail: actor (id/email/role snapshot), dot-namespaced `action`, target, mandatory `reason`, `metadata` jsonb | **INSERT + SELECT only** |
+| `public.admin_restrictions` | Suspend/ban/flag state for accounts and pets; active = `lifted_at is null and (expires_at is null or expires_at > now())` | SELECT + INSERT + **UPDATE** (no DELETE — restrictions are lifted, never removed) |
+
+⚠️ **Supabase default privileges on `public` auto-grant new tables to `anon`,
+`authenticated` AND `service_role`.** The migration explicitly revokes; without
+that step both tables would have been world-readable with the browser key, and
+"append-only" would have been a comment rather than a constraint. Verified live
+after applying: anon gets `42501` on both, and under `set role service_role`
+audit UPDATE/DELETE and restriction DELETE all raise `insufficient_privilege`,
+the partial unique index rejects a second active restriction of a kind, and the
+`kind` check constraint rejects unknown values.
+
+### Moderation semantics (implemented in `lib/users.ts`)
+
+- **Never writes `identity.accounts.status`.** That column is the backend's
+  user-lifecycle vocabulary (`active`/`archived`); moderation state is ours.
+- **Enforcement is the Supabase Auth ban** (`auth.admin.updateUserById` with
+  `ban_duration`), which revokes refresh tokens and therefore locks the user
+  out of the mobile app too. Suspend = finite hours, ban = 100 years,
+  restore = `"none"`.
+- **No "force logout" action exists.** `auth.admin.signOut(jwt)` needs the
+  target user's JWT, which a server never holds, and supabase-js 2.112.0 has
+  no server-side session-revocation call. Suspension is the lockout path;
+  existing access tokens die within their TTL (~1h).
+- Every action runs **enforcement → restriction row → audit row**. If the
+  audit write fails the API returns 500 with an explicit "applied but
+  unaudited" message rather than reporting success.
+
 ## Applied 2026-08-06 (Step 0 of the admin build)
 
 - `20260806000001_admin_read_grant_pet_likes` — `grant select on
@@ -183,6 +221,8 @@ sees a changed role; the DAL sees it immediately.)
 - `20260805000000_admin_analytics_timeseries` — rewritten against
   `identity.accounts` / `matching.pet_likes` (was `public.profiles` /
   `public.swipes`) and applied; `analytics.ts` now calls it via `rpc`.
+- `20260806000003_admin_moderation_tables` (Step 1) — `admin_audit_logs` +
+  `admin_restrictions` with the revokes and constraints described above.
 
 ## Still pending
 
