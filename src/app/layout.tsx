@@ -1,8 +1,17 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Nunito_Sans } from "next/font/google";
+import Script from "next/script";
 
 import { site } from "@/config/site";
 import "./globals.css";
+
+/**
+ * Meta (Facebook) Pixel. Hardcoded rather than read from an env var: it is a
+ * public identifier that ships in the HTML of every page either way, and
+ * NEXT_PUBLIC_* values are inlined at build time, so an env var would add a
+ * deploy-time failure mode (blank pixel on a stale build) and hide nothing.
+ */
+const META_PIXEL_ID = "1615323050153590";
 
 // Self-hosted at build time by next/font — no external request to Google, no
 // render-blocking <link>, and `display: swap` prevents invisible text.
@@ -85,6 +94,34 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           Skip to main content
         </a>
         {children}
+
+        {/* Meta Pixel. `afterInteractive` loads it once the page is usable —
+            the pixel is analytics, and must never delay the hero paint. */}
+        <Script id="meta-pixel" strategy="afterInteractive">
+          {`!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '${META_PIXEL_ID}');
+fbq('track', 'PageView');`}
+        </Script>
+
+        {/* Fallback for visitors with JavaScript disabled. Plain <img>, not
+            next/image: it is a 1x1 tracking beacon, not content to optimise. */}
+        <noscript>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            height="1"
+            width="1"
+            style={{ display: "none" }}
+            src={`https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1`}
+            alt=""
+          />
+        </noscript>
       </body>
     </html>
   );
