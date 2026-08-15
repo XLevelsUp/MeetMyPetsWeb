@@ -3,6 +3,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createReferenceClient, isSupabaseConfigured } from "@/lib/supabase/reference";
 import { writeAuditLog, type AuditAction } from "@/lib/audit";
+import { liftRestrictions, insertRestriction as writeRestriction } from "@/lib/restrictions";
 import type { AdminRole } from "@/lib/roles";
 import type {
   AccountDetail,
@@ -539,24 +540,14 @@ export async function listPets(query: PetsQuery): Promise<UsersResult<PetsRespon
  * pretending nothing occurred.
  * ---------------------------------------------------------------------- */
 
-/** Lifts every active restriction of the given kinds; returns rows affected. */
-async function liftRestrictions(
-  targetType: "account" | "pet",
-  targetId: string,
-  kinds: RestrictionKind[],
-  actor: Actor,
-): Promise<number> {
-  const { data, error } = await from(TABLES.restrictions)
-    .update({ lifted_at: new Date().toISOString(), lifted_by: actor.userId })
-    .eq("target_type", targetType)
-    .eq("target_id", targetId)
-    .in("kind", kinds)
-    .is("lifted_at", null)
-    .select("id");
-  if (error) throw new Error(`admin_restrictions: ${error.message}`);
-  return (data ?? []).length;
-}
-
+/**
+ * Thin wrapper over the shared writer in `lib/restrictions.ts`, preserving this
+ * adapter's throw-on-failure contract: every caller here runs inside
+ * `runAccountAction` / `runPetAction`, whose catch turns a throw into
+ * `action_failed`. A duplicate is a real failure on these paths — they lift the
+ * existing restriction first, so hitting the unique index means something
+ * raced.
+ */
 async function insertRestriction(
   targetType: "account" | "pet",
   targetId: string,
@@ -565,15 +556,8 @@ async function insertRestriction(
   actor: Actor,
   expiresAt: string | null,
 ): Promise<void> {
-  const { error } = await from(TABLES.restrictions).insert({
-    target_type: targetType,
-    target_id: targetId,
-    kind,
-    reason,
-    created_by: actor.userId,
-    expires_at: expiresAt,
-  });
-  if (error) throw new Error(`admin_restrictions: ${error.message}`);
+  const result = await writeRestriction(targetType, targetId, kind, reason, actor, expiresAt);
+  if (!result.ok) throw new Error(`admin_restrictions: ${result.message}`);
 }
 
 async function audit(

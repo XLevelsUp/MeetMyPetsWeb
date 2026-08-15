@@ -240,6 +240,7 @@ export const copy = {
       "breed.create": "Breed added",
       "breed.update": "Breed updated",
       "trust.restore": "Trust restored",
+      "trust.ban": "Pet permanently banned",
     },
   },
   reports: {
@@ -480,12 +481,36 @@ export const copy = {
       reasonLabel: "Reason (recorded in the audit log)",
       reasonPlaceholder: "What did you review, and why is the restriction being lifted?",
       cancel: "Cancel",
-      confirm: "Restore to good standing",
+      confirm: "Restore",
       submitting: "Restoring…",
       error: "Could not restore the pet.",
       alreadyNormal: "This pet is already in good standing.",
     },
-    toast: { restored: "Trust restored." },
+    ban: {
+      action: "Ban permanently",
+      title: "Permanently ban this pet?",
+      /**
+       * Every consequence in words, including the two that happen elsewhere:
+       * the app-side lockout is their trigger's doing, and the discovery
+       * removal depends on a restriction row the app has to read.
+       */
+      description:
+        "The owner is locked out of this pet immediately and sees the permanent-ban screen next time the app checks. The pet is also marked restricted so it can be removed from discovery. Their other pets are unaffected, and this is reversible — Restore puts the pet back in good standing.",
+      reasonLabel: "Reason (recorded in the audit log)",
+      reasonPlaceholder: "What did you review, and why does this warrant a permanent ban?",
+      confirm: "Ban permanently",
+      submitting: "Banning…",
+      error: "Could not ban the pet.",
+      alreadyBanned: "This pet is already permanently banned.",
+    },
+    /**
+     * A permanent ban still stamps a review date, because the backend trigger
+     * sets a 7-day window for any score under 100 without distinguishing
+     * permanent from temporary. Showing it would claim a review is pending on a
+     * pet nobody intends to review.
+     */
+    permanentNoReview: "No review — permanently banned.",
+    toast: { restored: "Trust restored.", banned: "Pet permanently banned." },
   },
   settings: {
     title: "Settings",

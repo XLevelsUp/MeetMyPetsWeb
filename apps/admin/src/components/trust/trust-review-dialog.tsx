@@ -27,7 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { copy } from "@/config/admin";
-import { useRestoreTrust, useTrustLedger } from "@/hooks/use-trust";
+import { useTrustAction, useTrustLedger } from "@/hooks/use-trust";
 import { reasonSchema } from "@/lib/contract-shared";
 import type { TrustQueueEntry } from "@/lib/trust-contract";
 
@@ -43,34 +43,54 @@ export function TrustReviewDialog({
   canRestore,
 }: {
   entry: TrustQueueEntry;
+  /** Gates both actions — the route requires super_admin for either. */
   canRestore: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
+  /** Which action the confirmation step is for; null = not confirming. */
+  const [confirming, setConfirming] = useState<"restore" | "ban" | null>(null);
   const ledger = useTrustLedger(open ? entry.petId : null);
-  const restore = useRestoreTrust();
+  const action = useTrustAction();
 
   const reasonCheck = reasonSchema.safeParse(reason);
+  const alreadyBanned = entry.status === "permanently_banned";
 
   function reset() {
     setReason("");
     setError(null);
+    setConfirming(null);
   }
 
-  async function handleRestore() {
+  async function run(kind: "restore" | "ban") {
     if (!reasonCheck.success) {
       setError(reasonCheck.error.issues[0]?.message ?? "Enter a reason.");
       return;
     }
+    // Banning is destructive and not obviously reversible to a reader, so it
+    // gets a second, explicit confirmation. Restore does not — it is the
+    // recovery path, and adding friction to recovery is the wrong asymmetry.
+    if (kind === "ban" && confirming !== "ban") {
+      setError(null);
+      setConfirming("ban");
+      return;
+    }
     setError(null);
     try {
-      await restore.mutateAsync({ petId: entry.petId, reason: reasonCheck.data });
-      toast.success(copy.trust.toast.restored);
+      await action.mutateAsync({ petId: entry.petId, action: kind, reason: reasonCheck.data });
+      toast.success(kind === "ban" ? copy.trust.toast.banned : copy.trust.toast.restored);
       setOpen(false);
       reset();
     } catch (err) {
-      setError(err instanceof Error ? err.message : copy.trust.restore.error);
+      setError(
+        err instanceof Error
+          ? err.message
+          : kind === "ban"
+            ? copy.trust.ban.error
+            : copy.trust.restore.error,
+      );
+      setConfirming(null);
     }
   }
 
@@ -111,11 +131,16 @@ export function TrustReviewDialog({
             ) : null}
           </div>
 
-          {entry.reviewDueAt ? (
+          {/* The stamped date is a trigger artifact once a pet is permanently
+              banned — showing it would claim a review is pending. */}
+          {entry.reviewDueAt && !alreadyBanned ? (
             <p className="text-sm text-muted-foreground">
               {copy.trust.columns.reviewDue}: {formatWhen(entry.reviewDueAt)} —{" "}
               {copy.trust.clockWarning}
             </p>
+          ) : null}
+          {alreadyBanned ? (
+            <p className="text-sm text-muted-foreground">{copy.trust.permanentNoReview}</p>
           ) : null}
 
           {entry.status === "warning" && entry.warningAcknowledged ? (
@@ -179,17 +204,28 @@ export function TrustReviewDialog({
           {canRestore ? (
             <div className="flex flex-col gap-2 border-t pt-4">
               <p className="text-sm text-muted-foreground">{copy.trust.restore.description}</p>
-              <Label htmlFor={`restore-reason-${entry.petId}`}>
+              {!alreadyBanned ? (
+                <p className="text-sm text-muted-foreground">{copy.trust.ban.description}</p>
+              ) : null}
+              {/* One reason field for both: each is a decision worth recording,
+                  and two boxes would invite writing it in the wrong one. */}
+              <Label htmlFor={`trust-reason-${entry.petId}`}>
                 {copy.trust.restore.reasonLabel}
               </Label>
               <Textarea
-                id={`restore-reason-${entry.petId}`}
+                id={`trust-reason-${entry.petId}`}
                 rows={3}
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
                 placeholder={copy.trust.restore.reasonPlaceholder}
               />
             </div>
+          ) : null}
+
+          {confirming === "ban" ? (
+            <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              {copy.trust.ban.title} {copy.trust.ban.description}
+            </p>
           ) : null}
 
           {error ? (
@@ -203,12 +239,24 @@ export function TrustReviewDialog({
           <DialogClose render={<Button variant="outline" />}>
             {copy.trust.ledger.close}
           </DialogClose>
-          {canRestore ? (
+          {canRestore && !alreadyBanned ? (
             <Button
-              disabled={restore.isPending || !reasonCheck.success}
-              onClick={handleRestore}
+              variant="destructive"
+              disabled={action.isPending || !reasonCheck.success}
+              onClick={() => run("ban")}
             >
-              {restore.isPending ? copy.trust.restore.submitting : copy.trust.restore.confirm}
+              {action.isPending && confirming === "ban"
+                ? copy.trust.ban.submitting
+                : confirming === "ban"
+                  ? copy.trust.ban.confirm
+                  : copy.trust.ban.action}
+            </Button>
+          ) : null}
+          {canRestore ? (
+            <Button disabled={action.isPending || !reasonCheck.success} onClick={() => run("restore")}>
+              {action.isPending && confirming !== "ban"
+                ? copy.trust.restore.submitting
+                : copy.trust.restore.confirm}
             </Button>
           ) : null}
         </DialogFooter>

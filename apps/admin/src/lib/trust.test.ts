@@ -13,7 +13,7 @@ vi.mock("@/lib/supabase/reference", () => ({
   isSupabaseConfigured: () => holder.configured,
 }));
 
-import { getTrustLedger, listTrustQueue, restoreTrust } from "@/lib/trust";
+import { banPetPermanently, getTrustLedger, listTrustQueue, restoreTrust } from "@/lib/trust";
 import type { TrustQuery } from "@/lib/trust-contract";
 
 const BANNED_PET = "11111111-1111-1111-1111-111111111111";
@@ -128,6 +128,29 @@ describe("listTrustQueue", () => {
     expect(item.reviewOverdue).toBe(true);
     expect(item.ownerEmail).toBe("owner@example.com");
     expect(item.reportCount).toBe(1);
+  });
+
+  it("never marks a permanently banned pet as awaiting review", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-25T00:00:00Z"));
+
+    setup({
+      // Score 0 with a stamped window — exactly what banning produces, because
+      // their trigger stamps 7 days for anything under 100.
+      "pets.pets": { rows: [{ ...BANNED_ROW, trust_score: 0 }], count: 1 },
+      "identity.accounts": { rows: [] },
+      "matching.pet_reports": { rows: [] },
+    });
+
+    const result = await listTrustQueue(baseQuery);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const [item] = result.data.items;
+    expect(item.status).toBe("permanently_banned");
+    // The date exists on the row but no review is pending, so it must not reach
+    // the overdue view either.
+    expect(item.reviewOverdue).toBe(false);
   });
 
   it("does not mark a review overdue before its date", async () => {
@@ -310,5 +333,124 @@ describe("restoreTrust", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason).toBe("action_failed");
+  });
+
+  it("lifts the ban restriction, so a restored pet leaves the discovery filter", async () => {
+    const mock = setupRestore();
+    await restoreTrust(BANNED_PET, "Appeal upheld on review", ACTOR);
+
+    const lift = mock.calls.find(
+      (c) => c.op === "update" && c.key === "public.admin_restrictions",
+    );
+    // Restoring only the score would leave an active `banned` row behind,
+    // keeping the pet in active_moderation_targets — reading "normal"
+    // everywhere while still suppressed in the app.
+    expect(lift).toBeDefined();
+    expect(lift?.filters).toContainEqual({ method: "in", args: ["kind", ["banned"]] });
+    expect(lift?.filters).toContainEqual({ method: "is", args: ["lifted_at", null] });
+  });
+});
+
+describe("banPetPermanently", () => {
+  function setupBan(overrides: Record<string, TableResult> = {}) {
+    return setup({
+      // A warning-band pet: not yet banned, no existing review window.
+      "pets.pets#select": { single: WARNED_ROW },
+      "pets.pets#update": { rows: [{ id: ACTOR_PET }] },
+      "public.admin_restrictions": {},
+      "public.admin_audit_logs": {},
+      ...overrides,
+    });
+  }
+
+  it("rejects a non-uuid id without touching the database", async () => {
+    const mock = setupBan();
+    const result = await banPetPermanently("nope", "Reviewed and banned", ACTOR);
+    expect(result).toEqual({ ok: false, reason: "not_found", message: "No pet with that id." });
+    expect(mock.calls).toHaveLength(0);
+  });
+
+  it("writes ONLY trust_score, and exactly 0", async () => {
+    const mock = setupBan();
+    const result = await banPetPermanently(ACTOR_PET, "Repeated animal welfare reports", ACTOR);
+    expect(result).toEqual({ ok: true });
+
+    const update = mock.calls.find((c) => c.op === "update" && c.key === "pets.pets")
+      ?.values as Record<string, unknown>;
+    // <= 0 is their permanent band; the lifecycle columns belong to the trigger
+    // and the grant is column-scoped to trust_score.
+    expect(update).toEqual({ trust_score: 0 });
+  });
+
+  it("also records a pet 'banned' restriction, after the score write", async () => {
+    const mock = setupBan();
+    await banPetPermanently(ACTOR_PET, "Repeated animal welfare reports", ACTOR);
+
+    const scoreWrite = mock.calls.find((c) => c.op === "update" && c.key === "pets.pets");
+    const restriction = mock.calls.find(
+      (c) => c.op === "insert" && c.key === "public.admin_restrictions",
+    );
+    expect(restriction?.values).toMatchObject({
+      target_type: "pet",
+      target_id: ACTOR_PET,
+      kind: "banned",
+      expires_at: null,
+      created_by: ACTOR_ID,
+    });
+    // Score first: if the restriction fails the pet is still locked out of the
+    // app, which is the safety-critical half.
+    expect(mock.calls.indexOf(scoreWrite!)).toBeLessThan(mock.calls.indexOf(restriction!));
+  });
+
+  it("refuses a pet that is already permanently banned", async () => {
+    const mock = setupBan({
+      "pets.pets#select": { single: { ...WARNED_ROW, trust_score: 0 } },
+    });
+
+    const result = await banPetPermanently(ACTOR_PET, "Banning an already banned pet", ACTOR);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe("conflict");
+    expect(mock.calls.some((c) => c.op === "update")).toBe(false);
+  });
+
+  it("records the trigger artifact so the meaningless review date is explained", async () => {
+    const mock = setupBan();
+    await banPetPermanently(ACTOR_PET, "Repeated animal welfare reports", ACTOR);
+
+    const audit = mock.calls.find((c) => c.key === "public.admin_audit_logs")?.values as Record<
+      string,
+      unknown
+    >;
+    expect(audit.action).toBe("trust.ban");
+    expect(audit.target_type).toBe("pet");
+    expect(audit.metadata).toMatchObject({
+      previousScore: 173,
+      newScore: 0,
+      previousStatus: "warning",
+      restrictionWritten: true,
+      // WARNED_ROW has no temporary_banned_at, so this ban causes their trigger
+      // to stamp a 7-day window that means nothing.
+      stampedReviewWindow: true,
+    });
+  });
+
+  it("still bans when the restriction write fails, and says so", async () => {
+    setupBan({
+      "public.admin_restrictions": { error: { message: "restrictions table down" } },
+    });
+
+    const result = await banPetPermanently(ACTOR_PET, "Repeated animal welfare reports", ACTOR);
+    // The pet IS locked out of the app at this point; reporting failure would
+    // wrongly suggest nothing happened.
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("reports `unaudited` when the ban landed but the audit failed", async () => {
+    setupBan({ "public.admin_audit_logs": { error: { message: "audit down" } } });
+    const result = await banPetPermanently(ACTOR_PET, "Repeated animal welfare reports", ACTOR);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe("unaudited");
   });
 });

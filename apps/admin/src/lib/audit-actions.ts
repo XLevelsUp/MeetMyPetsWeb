@@ -25,6 +25,7 @@ export const AUDIT_ACTIONS = [
   "breed.create",
   "breed.update",
   "trust.restore",
+  "trust.ban",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

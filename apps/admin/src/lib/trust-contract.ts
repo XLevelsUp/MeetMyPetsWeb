@@ -94,13 +94,27 @@ export type TrustQuery = z.infer<typeof trustQuerySchema>;
  * Restore
  * ---------------------------------------------------------------------- */
 
+/* -------------------------------------------------------------------------
+ * Actions
+ * ---------------------------------------------------------------------- */
+
 /**
- * The only write. There is no partial restoration and therefore no score
- * parameter — the value is fixed at 555 by their trigger's equality test, so
- * accepting one from the client would imply a choice that does not exist.
+ * Neither action takes a score. Both values are fixed by the backend's own
+ * ladder — 555 is the only value its restoration branch tests for, and 0 is the
+ * canonical permanent band — so accepting one from the client would imply a
+ * choice that does not exist.
+ *
+ * A discriminated union rather than two optional fields: the action a request
+ * performs is stated, never inferred from which keys happen to be present.
  */
-export const restoreTrustSchema = z.object({ reason: reasonSchema });
-export type RestoreTrustRequest = z.infer<typeof restoreTrustSchema>;
+export const trustActionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("restore"), reason: reasonSchema }),
+  z.object({ action: z.literal("ban"), reason: reasonSchema }),
+]);
+export type TrustActionRequest = z.infer<typeof trustActionSchema>;
+
+export const TRUST_ACTIONS = ["restore", "ban"] as const;
+export type TrustAction = (typeof TRUST_ACTIONS)[number];
 
 /** `{ ok: true }` — the client refetches rather than trusting a returned row. */
 export const trustActionResponseSchema = z.object({ ok: z.literal(true) });

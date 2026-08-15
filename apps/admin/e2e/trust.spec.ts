@@ -33,7 +33,14 @@ test.describe("support role", () => {
 
   test("cannot restore", async ({ request }) => {
     const res = await request.post(`${TRUST_API}/${ABSENT_ID}`, {
-      data: { reason: "Support should never be able to do this" },
+      data: { action: "restore", reason: "Support should never be able to do this" },
+    });
+    expect(res.status()).toBe(403);
+  });
+
+  test("cannot permanently ban", async ({ request }) => {
+    const res = await request.post(`${TRUST_API}/${ABSENT_ID}`, {
+      data: { action: "ban", reason: "Support should never be able to do this" },
     });
     expect(res.status()).toBe(403);
   });
@@ -74,13 +81,22 @@ test.describe("moderator role", () => {
 
   test("cannot restore — reversal is narrower than viewing", async ({ request }) => {
     const res = await request.post(`${TRUST_API}/${ABSENT_ID}`, {
-      data: { reason: "A moderator may review but not overturn" },
+      data: { action: "restore", reason: "A moderator may review but not overturn" },
     });
     expect(res.status()).toBe(403);
   });
 
-  test("rejects a restore with too short a reason", async ({ request }) => {
-    const res = await request.post(`${TRUST_API}/${ABSENT_ID}`, { data: { reason: "no" } });
+  test("cannot permanently ban — super_admin only", async ({ request }) => {
+    const res = await request.post(`${TRUST_API}/${ABSENT_ID}`, {
+      data: { action: "ban", reason: "A moderator may review but not ban outright" },
+    });
+    expect(res.status()).toBe(403);
+  });
+
+  test("rejects an action with too short a reason", async ({ request }) => {
+    const res = await request.post(`${TRUST_API}/${ABSENT_ID}`, {
+      data: { action: "restore", reason: "no" },
+    });
     // 403 wins over 400 here: the role check runs first, which is the correct
     // ordering. Either way nothing is written.
     expect([400, 403]).toContain(res.status());

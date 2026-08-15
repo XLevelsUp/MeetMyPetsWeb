@@ -506,6 +506,27 @@ state is `warning`. A queue built on the app's RPC would silently drop most of
 its own population. We derive the status from the score instead
 (`lib/trust-constants.ts`) rather than an RPC per row.
 
+**Permanent ban writes `0`** — their band is `<= 0`, and `0` is the canonical
+value (a negative bans identically but reads like an arithmetic accident). The
+action does **two** writes, because a trust ban alone is weaker than it sounds:
+it stops the *owner* acting as that pet but hides the pet from nobody. So it
+also inserts a `kind = 'banned'` restriction, which surfaces the ban in `/users`
+and puts the pet into `public.active_moderation_targets` for the app's discovery
+filter. Score first — if the restriction insert fails the pet is still locked
+out of the app, which is the half that matters, and the audit records
+`restrictionWritten: false`. `restoreTrust` lifts that restriction, or a
+restored pet would read `normal` everywhere while still being suppressed.
+
+⚠️ **A permanent ban acquires a meaningless review date.** Their trigger stamps
+`temporary_banned_at` / `temporary_ban_until` for *anything* under 100 — it does
+not distinguish permanent from temporary. Verified live: banning a warning-band
+pet set a 7-day window while the status read `permanently_banned`. We cannot
+clear it (the grant is column-scoped to `trust_score`), so **the UI suppresses
+the date and the overdue flag for `permanently_banned`**, and the adapter
+excludes those pets from `reviewOverdue` so they stay out of the "overdue only"
+view. The audit metadata records `stampedReviewWindow` rather than hiding it.
+A trigger fix — skip the stamp when `NEW.trust_score <= 0` — is an open ask.
+
 **⚠️ Restore is exactly 555.** Their `trust_status_on_score_change` trigger
 branches on `IF NEW.trust_score = 555` — an equality test. In that branch it
 clears `trust_warning_acknowledged`, `temporary_banned_at` and

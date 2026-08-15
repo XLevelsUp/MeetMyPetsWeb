@@ -201,7 +201,15 @@ export function TrustTable({ role }: { role: AdminRole }) {
                         {entry.score}
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm">
-                        {entry.reviewOverdue ? (
+                        {/* A permanently banned pet carries a review date only
+                            because the backend trigger stamps one for any score
+                            under 100. There is no review pending, so showing it
+                            would be worse than showing nothing. */}
+                        {entry.status === "permanently_banned" ? (
+                          <span className="text-muted-foreground">
+                            {copy.trust.permanentNoReview}
+                          </span>
+                        ) : entry.reviewOverdue ? (
                           <span className="flex items-center gap-1 font-medium text-destructive">
                             <TriangleAlert className="size-3.5" aria-hidden="true" />
                             {formatDate(entry.reviewDueAt)}

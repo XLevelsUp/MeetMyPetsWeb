@@ -36,6 +36,24 @@ export type TrustStatus = (typeof TRUST_STATUSES)[number];
 export const TRUST_RESTORE_SCORE = 555;
 
 /**
+ * The score a moderator's permanent ban writes.
+ *
+ * Their band is `<= 0`, so any non-positive value bans — but `0` is the
+ * canonical one. A negative would be indistinguishable in effect while looking
+ * like an arithmetic accident to anyone reading the row, and their ladder
+ * treats `<= 0` as permanent precisely so a deeply negative score can't be
+ * mistaken for a temporary ban.
+ *
+ * ⚠️ Writing this ALSO stamps a 7-day review window on a pet that had none:
+ * their `trust_status_on_score_change` trigger sets `temporary_banned_at` /
+ * `temporary_ban_until` for anything `< 100` without distinguishing permanent
+ * from temporary. The date is meaningless for a permanent ban, so the UI
+ * suppresses it. We cannot clear it ourselves — the grant is column-scoped to
+ * `trust_score` — and a trigger fix is an open ask with the app team.
+ */
+export const TRUST_PERMANENT_BAN_SCORE = 0;
+
+/**
  * Thresholds, mirroring `pets.get_pet_trust_status`.
  *
  * Note `<= 0` rather than `= 0`: their migration documents the deviation from

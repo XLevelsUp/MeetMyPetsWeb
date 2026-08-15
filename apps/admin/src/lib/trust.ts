@@ -3,8 +3,10 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/reference";
 import { writeAuditLog } from "@/lib/audit";
+import { insertRestriction, liftRestrictions } from "@/lib/restrictions";
 import type { AdminRole } from "@/lib/roles";
 import {
+  TRUST_PERMANENT_BAN_SCORE,
   TRUST_RESTORE_SCORE,
   TRUST_REVIEW_SCORE_CEILING,
   trustStatusFor,
@@ -196,9 +198,18 @@ export async function listTrustQueue(query: TrustQuery): Promise<TrustResult<Tru
 
         banStartedAt: row.temporary_banned_at,
         reviewDueAt: dueAt,
-        // Only meaningful while still banned — a restored pet has no window.
+        /**
+         * Only meaningful for a pet actually awaiting review. Excludes
+         * `permanently_banned` as well as `normal`: their trigger stamps a
+         * 7-day window for ANY score under 100, so a permanently banned pet
+         * carries a date nobody intends to act on. Filtering it out here keeps
+         * it out of the "overdue reviews only" view as well as the column.
+         */
         reviewOverdue:
-          Boolean(dueAt) && new Date(dueAt as string).getTime() < now && derived !== "normal",
+          Boolean(dueAt) &&
+          new Date(dueAt as string).getTime() < now &&
+          derived !== "normal" &&
+          derived !== "permanently_banned",
 
         warningAcknowledged: row.trust_warning_acknowledged ?? false,
         reportCount: reports.get(row.id) ?? 0,
@@ -303,6 +314,119 @@ export async function getTrustLedger(petId: string): Promise<TrustResult<TrustLe
  * Restore
  * ---------------------------------------------------------------------- */
 
+/**
+ * Permanently ban one pet: a moderator's decision expressed through the
+ * backend's own mechanism.
+ *
+ * TWO WRITES, deliberately, because a trust ban alone is weaker than it sounds.
+ * It stops the OWNER acting as that pet — their router redirects to the
+ * permanent-ban screen — but hides the pet from nobody: it stays in every other
+ * user's discovery and its posts stay in feeds. So we also record a
+ * `kind = 'banned'` restriction, which surfaces the ban in `/users` and puts the
+ * pet into `public.active_moderation_targets`, the view the app reads to filter
+ * moderated content out of discovery.
+ *
+ * Order matters: the score first. If the restriction insert fails afterwards
+ * the pet is still locked out of the app — the safety-critical half — and the
+ * audit row records that the restriction did not land.
+ *
+ * REVERSIBLE. `restoreTrust` writes 555, which their trigger turns back into
+ * `normal` and clears the ban columns. "Permanent" describes the effect on the
+ * user, not our ability to undo it.
+ */
+export async function banPetPermanently(
+  petId: string,
+  reason: string,
+  actor: Actor,
+): Promise<TrustActionResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, reason: "unconfigured", message: "Supabase env vars are not set." };
+  }
+  if (!UUID_RE.test(petId)) {
+    return { ok: false, reason: "not_found", message: "No pet with that id." };
+  }
+
+  try {
+    const { data: existing, error: readError } = await from(TABLES.pets)
+      .select("id,name,trust_score,temporary_banned_at")
+      .eq("id", petId)
+      .maybeSingle();
+    if (readError) throw new Error(`pets.pets: ${readError.message}`);
+    if (!existing) return { ok: false, reason: "not_found", message: "No pet with that id." };
+
+    const before = existing as {
+      id: string;
+      name: string | null;
+      trust_score: number | null;
+      temporary_banned_at: string | null;
+    };
+    const previousScore = before.trust_score ?? 0;
+    const previousStatus = trustStatusFor(previousScore);
+
+    if (previousStatus === "permanently_banned") {
+      return {
+        ok: false,
+        reason: "conflict",
+        message: "This pet is already permanently banned.",
+      };
+    }
+
+    // ONLY trust_score. Their trigger owns the lifecycle columns, and writing
+    // 0 will stamp a 7-day window on a pet that had none — an artifact of the
+    // trigger's `< 100` branch, recorded below and suppressed in the UI.
+    const { data: updated, error: updateError } = await from(TABLES.pets)
+      .update({ trust_score: TRUST_PERMANENT_BAN_SCORE })
+      .eq("id", petId)
+      .select("id");
+    if (updateError) throw new Error(`pets.pets: ${updateError.message}`);
+    if ((updated ?? []).length === 0) {
+      return { ok: false, reason: "not_found", message: "No pet with that id." };
+    }
+
+    // A duplicate means an active ban restriction already exists, which is
+    // benign here — the score write is the authoritative half and a second row
+    // would say nothing new.
+    const restriction = await insertRestriction("pet", petId, "banned", reason, actor, null);
+    const restrictionWritten = restriction.ok || restriction.reason === "duplicate";
+
+    const result = await writeAuditLog({
+      actorId: actor.userId,
+      actorEmail: actor.email,
+      actorRole: actor.role,
+      action: "trust.ban",
+      targetType: "pet",
+      targetId: petId,
+      reason,
+      metadata: {
+        previousScore,
+        newScore: TRUST_PERMANENT_BAN_SCORE,
+        previousStatus,
+        petName: before.name,
+        restrictionWritten,
+        ...(restrictionWritten ? {} : { restrictionError: restriction.ok ? null : restriction.message }),
+        // The trigger stamps a review window for anything under 100. True here
+        // means this ban created a review date that means nothing.
+        stampedReviewWindow: before.temporary_banned_at === null,
+      },
+    });
+    if (!result.ok) {
+      return {
+        ok: false,
+        reason: "unaudited",
+        message: `Pet banned, but the audit write failed: ${result.message}`,
+      };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: "action_failed",
+      message: error instanceof Error ? error.message : "Unknown action failure.",
+    };
+  }
+}
+
 export async function restoreTrust(
   petId: string,
   reason: string,
@@ -354,6 +478,12 @@ export async function restoreTrust(
       return { ok: false, reason: "not_found", message: "No pet with that id." };
     }
 
+    // Undo the other half of a permanent ban. Restoring only the score would
+    // leave an active `banned` restriction behind, keeping the pet in
+    // `active_moderation_targets` and therefore hidden from discovery — a pet
+    // that reads "normal" everywhere while still being suppressed in the app.
+    const liftedRestrictions = await liftRestrictions("pet", petId, ["banned"], actor);
+
     const result = await writeAuditLog({
       actorId: actor.userId,
       actorEmail: actor.email,
@@ -373,6 +503,8 @@ export async function restoreTrust(
         // visible in the columns we wrote.
         clearedBanWindow: true,
         previousReviewDueAt: before.temporary_ban_until,
+        /** Ban restrictions lifted alongside the score — 0 for a plain review. */
+        liftedRestrictions,
       },
     });
     if (!result.ok) {

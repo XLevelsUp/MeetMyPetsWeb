@@ -498,6 +498,32 @@ computed) and grant us the insert, or expose an RPC that does the update and the
 ledger row together. We'd take either; the RPC is cleaner and keeps the score
 arithmetic entirely yours.
 
+**4. We now also write `trust_score = 0` — a moderator's permanent ban.** Same
+column-scoped grant, the other end of your ladder. It pairs with a
+`kind = 'banned'` row in our `admin_restrictions`, so the pet appears in
+`active_moderation_targets` — **this is the first thing that will populate that
+view, so your discovery filter now has data to act on.** Restoring lifts the
+restriction as well as resetting the score.
+
+**Ask — one line in your trigger.** `trust_status_on_score_change` stamps a
+7-day review window for *anything* under 100:
+
+```sql
+IF NEW.trust_score < 100 AND NEW.temporary_banned_at IS NULL THEN
+```
+
+So a **permanently** banned pet gets a review date. Verified live: banning a
+warning-band pet set `temporary_ban_until = now() + 7 days` while
+`get_pet_trust_status` returned `permanently_banned`. A permanent ban has no
+review date by definition, and we can't clear the column ourselves. Suggested:
+
+```sql
+IF NEW.trust_score > 0 AND NEW.trust_score < 100 AND NEW.temporary_banned_at IS NULL THEN
+```
+
+Our UI suppresses the date meanwhile, so nothing is broken — but the column is
+currently lying, and anything else reading it will believe it.
+
 **Two observations while we were in there**, both yours to decide on:
 
 - **A trust ban hides a pet from nobody.** It stops the *owner* acting as that
