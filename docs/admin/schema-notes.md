@@ -439,6 +439,60 @@ document path column at all** (only `document_sha256` + `document_type`), and
 no ID-number field to redact — so there is nothing to queue and nothing to
 mask. Blocked on the backend populating it; see the handoff.
 
+### Taxonomy management (Step 5)
+
+`/settings` manages `pets.species` (6 rows) and `pets.breeds` (34) through
+`lib/taxonomy.ts` — **the first adapter that writes a backend-owned domain
+table, and the first that creates a row an admin authored.** Super-admin only
+(`SETTINGS_ROLES`), stricter than any moderation queue, because an edit here
+changes the pet-creation form for every user rather than acting on one person's
+content.
+
+⚠️ **Edits are live.** The mobile app reads `/rest/v1/species` and
+`/rest/v1/breeds` **directly from PostgREST** (confirmed in the edge logs,
+`Dart/3.12`). There is no cache layer, no FastAPI endpoint, and no deploy step
+between a write here and a dropdown there. The page carries a standing warning
+saying so.
+
+**Nothing can be deleted, and the grant reflects that.** Verified live in
+rolled-back transactions: deleting `Dog` (33 pets) raises
+`foreign_key_violation`, and so does deleting `Bird` — which has **zero pets**,
+because its own 4 breeds reference it. `pets.pets.species_id`/`breed_id` are
+NOT NULL with NO ACTION FKs. So the migration withholds DELETE rather than
+offering a button whose availability depends on live FK state. Retirement is
+`status`.
+
+**Three guards live in the adapter because the database has none:**
+
+- `status` has **no CHECK constraint** and every live row is `'active'`, so
+  `'inactive'` is our proposed value, not an observed one. Whether the mobile
+  app even filters on it is an open ask — until it's answered, retirement is
+  advisory rather than enforced.
+- `species.name` is UNIQUE but **case-sensitively**, and `breeds` has **no
+  uniqueness constraint at all**. The adapter enforces case-insensitive
+  uniqueness — scoped to the species for breeds, since `"Unknown/Mixed"`
+  legitimately appears once per species and a global check would reject the
+  platform's own convention.
+- Retiring a species or breed that **active** pets still use is refused, with
+  the count. Archived pets don't block it; live ones do.
+
+`updateBreed` never writes `species_id`: re-parenting a breed would silently
+move every pet using it, so if that's ever wanted it should be its own
+separately-audited action. A unit test pins this.
+
+**Hidden blast radius of a rename:** `analytics.ts` buckets the species chart
+**by name**, and `species-breakdown.tsx` uses the name as a React key — so two
+species renamed alike would merge counts and collide keys. The case-insensitive
+guard is what prevents it. Taxonomy mutations therefore invalidate `["users"]`
+and `["analytics"]` as well as `["taxonomy"]`.
+
+Two proposals went to the app team:
+[`taxonomy-schema-proposal.md`](./taxonomy-schema-proposal.md) (status CHECK,
+unique indexes, the missing `slug`/`icon_url`/`display_order`, and a request
+*not* to add CASCADE) and
+[`attribute-schema-proposal.md`](./attribute-schema-proposal.md) (why the
+dynamic-schema feature is blocked on a Flutter change, not a panel one).
+
 ## Applied 2026-08-15 (Step 3 prerequisites)
 
 - `20260815000000_admin_read_grants_reports` — `select` + column-scoped
@@ -447,6 +501,11 @@ mask. Blocked on the backend populating it; see the handoff.
   Grants only — no DDL on backend-owned tables. Verified under
   `set role service_role` that the status update succeeds and a `reason`
   update raises `insufficient_privilege`.
+- `20260816000000_admin_taxonomy_grants` (Step 5) — `select, insert, update` on
+  `pets.species` and `pets.breeds`. **No DELETE** (the FKs make it useless — see
+  the taxonomy section) and no DDL. Verified under `set role service_role` in a
+  rolled-back transaction: insert and update succeed, `delete` raises
+  `insufficient_privilege`.
 - `20260815000001_admin_verification_grants` (Step 4) — `select` +
   column-scoped `update (status, reviewed_by, reviewed_at, remarks)` on
   `pets.pet_certificates`; `select` on `pets.pet_verification_levels`.
@@ -472,6 +531,14 @@ mask. Blocked on the backend populating it; see the handoff.
   (`USING (true)`) — see security findings.
 - **KYC queue is impossible today**: `identity.account_verifications` is empty
   and has no document pointer or ID-number column.
+- **Taxonomy** (see [`taxonomy-schema-proposal.md`](./taxonomy-schema-proposal.md)):
+  confirm the retired `status` value + add a CHECK to `species`/`breeds`;
+  confirm the mobile app filters `status = 'active'`; add unique indexes on
+  `breeds (species_id, lower(name))` and `species (lower(name))` — both verified
+  to apply cleanly against current data. Do **not** add CASCADE to the taxonomy
+  FKs.
+- **Attribute schemas** are blocked on a Flutter change, not a panel one — see
+  [`attribute-schema-proposal.md`](./attribute-schema-proposal.md).
 - **Reports gap:** `matching.pet_reports` covers pets and posts only —
   account-level and chat-message reports have nowhere to go.
 - Confirm the intended distinction between report statuses `reviewed` and

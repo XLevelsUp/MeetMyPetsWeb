@@ -41,6 +41,11 @@ break each other.
    silently fails to award trust — please settle it and add a CHECK constraint
    (§3.4b). The KYC queue can't be built until `account_verifications` has rows
    and a document pointer (§3.4c).
+6. **The panel now edits your species and breed taxonomy** (§3.4d) — the first
+   time it writes one of your domain tables, super-admin only, and **your app
+   reads those tables live**. One question there needs an answer:
+   **does the app filter `status = 'active'`?** If not, "retiring" a species
+   does nothing for users while looking like it worked.
 
 ---
 
@@ -59,6 +64,7 @@ not a separate backend.
 | Users & Pets (`/users`) | Search/filter accounts and pet profiles; account detail view; suspend / ban / restore accounts; flag / unflag pet profiles |
 | Content Reports (`/reports`) | Triage queue over your `matching.pet_reports`; moves status only |
 | Verifications (`/verifications`) | Certificate review over your `pets.pet_certificates` — document viewer, approve / reject. ⚠️ approving awards +500 trust (§3.4) |
+| Settings (`/settings`) | Species and breed taxonomy — add / rename / retire. Super-admin only. ⚠️ **your app reads this live** (§3.4d) |
 | Audit log (`/audit`) | Every moderation action: who, what, when, and the mandatory reason |
 
 **Coming**: owner KYC queue (blocked — §3.4c), business directory.
@@ -391,6 +397,61 @@ document (mirroring `pet_certificates.file_path` would be ideal — same private
 bucket pattern, same signing path), and a decision on whether the ID number is
 stored at all. Tell us the shape and we'll build the queue the same way.
 
+### 3.4d Taxonomy — the panel now writes `pets.species` and `pets.breeds`
+
+**This is the first time the panel writes one of your domain tables.** Every
+write before it went into our own `public.admin_*` tables or was a column-scoped
+status update. Flagged prominently because it deserves your review.
+
+```sql
+grant select, insert, update on pets.species to service_role;
+grant select, insert, update on pets.breeds  to service_role;
+```
+
+Gated to **super_admin only** — stricter than any moderation queue, because
+this changes the pet-creation form for every user rather than acting on one
+person's content. Every change is audited with a mandatory reason.
+
+**No DELETE, and not merely out of caution.** We confirmed live that your FKs
+already make deletion impossible: deleting `Dog` fails, and so does deleting
+`Bird` — which has zero pets, because its own breeds reference it. A delete
+button would work for some rows and not others depending on live FK state, so
+there isn't one. Retirement is `status`.
+
+**Three questions in [`taxonomy-schema-proposal.md`](./taxonomy-schema-proposal.md),
+one of which matters more than the rest:**
+
+> **Does your app filter `status = 'active'` when it loads species and breeds?**
+>
+> `status` has no CHECK constraint and every row is `'active'`, so we had to
+> invent `'inactive'` for retirement. **If the app doesn't filter, retiring a
+> species hides it from us and changes nothing for users** — an admin would
+> believe they'd removed an option people can still pick. Please confirm, and
+> add the CHECK constraint.
+
+Also asked there: two unique indexes (`breeds (species_id, lower(name))` and
+`species (lower(name))` — both verified to apply cleanly against current data,
+since neither table constrains duplicates today), and a request **not** to add
+`CASCADE` to the taxonomy foreign keys, which the original brief specified and
+which would risk deleting user data on a taxonomy edit.
+
+### 3.4e Attribute schemas — blocked on the app, not on us
+
+The brief's headline feature was admin-defined per-species attribute schemas.
+We didn't build it, and the reason is worth a paragraph rather than silence:
+**it would have no consumer.** `pets.pets` has fixed columns, so there's nowhere
+to store a dynamically-defined value, and your own comment on
+`pets.pets.blood_group` says species-specific validation lives in
+`pet_blood_group_catalog.dart` — compiled into the app, where a panel can't
+reach. An admin would configure fields that never appear, which reads as a
+panel bug.
+
+[`attribute-schema-proposal.md`](./attribute-schema-proposal.md) sets out what
+it would take: somewhere to store values, an app that renders its form from
+data, and a contract. Blood group is the natural first field to migrate, since
+it's already a per-species attribute with a per-species value list. We'll build
+the editor whenever you're ready.
+
 ### 3.5 Two role systems — agreed, with one caveat
 
 - The panel reads admin roles from Supabase Auth `app_metadata.role`.
@@ -494,6 +555,9 @@ always safe.
 | `pets.species` | `id`, `name` |
 | `pets.breeds` | `id`, `name` |
 
+(The `/settings` screen additionally reads `description`, `status`,
+`created_at`, `updated_at` on both, through the **service** key — see §3.4d.)
+
 ### Storage buckets the panel reads
 
 | Bucket | Used for |
@@ -503,7 +567,8 @@ always safe.
 
 ### Grants that must not be revoked
 
-- `service_role`: full CRUD on `identity.*`; `SELECT` on `pets.pets`,
+- `service_role`: `SELECT, INSERT, UPDATE` on `pets.species` and `pets.breeds`
+  (no DELETE); full CRUD on `identity.*`; `SELECT` on `pets.pets`,
   `matching.matches`, `matching.pet_likes`, `chat.conversations`,
   `matching.pet_reports`, `pets.trust_score_events`, `pets.pet_certificates`,
   `pets.pet_verification_levels`, `social.posts`, `social.post_media`;
@@ -537,6 +602,7 @@ always safe.
 | `auth.users.banned_until` | via Auth admin API — suspend / ban / restore |
 | `matching.pet_reports.status` | update — **column-scoped grant, nothing else on the row is writable** |
 | `pets.pet_certificates` | update of `status`, `reviewed_by`, `reviewed_at`, `remarks` only — **column-scoped**. ⚠️ `status='approved'` fires your trust trigger (+500) |
+| `pets.species`, `pets.breeds` | insert + update (`name`, `description`, `status`). **No delete** — your FKs forbid it anyway. ⚠️ read live by your app (§3.4d) |
 | `public.admin_restrictions` | insert (apply), update (lift) — ours |
 | `public.admin_audit_logs` | insert only — ours, append-only |
 

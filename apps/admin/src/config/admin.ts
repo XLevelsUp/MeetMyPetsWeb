@@ -25,7 +25,7 @@ export const adminNav = [
   { label: "Content Reports", href: "/reports", icon: "flag", enabled: true },
   { label: "Business Directory", href: "/businesses", icon: "store", enabled: false },
   { label: "Audit Logs", href: "/audit", icon: "scroll-text", enabled: true },
-  { label: "Settings", href: "/settings", icon: "settings", enabled: false },
+  { label: "Settings", href: "/settings", icon: "settings", enabled: true },
 ] as const;
 
 export type AdminNavItem = (typeof adminNav)[number];
@@ -204,6 +204,8 @@ export const copy = {
       pet: "Pet",
       report: "Report",
       certificate: "Certificate",
+      species: "Species",
+      breed: "Breed",
     },
     /**
      * An empty audit log is the normal state on a fresh install, not an
@@ -232,6 +234,10 @@ export const copy = {
       "report.dismiss": "Report dismissed",
       "certificate.approve": "Certificate approved",
       "certificate.reject": "Certificate rejected",
+      "species.create": "Species added",
+      "species.update": "Species updated",
+      "breed.create": "Breed added",
+      "breed.update": "Breed updated",
     },
   },
   reports: {
@@ -405,6 +411,79 @@ export const copy = {
       submitting: "Saving…",
       error: "Could not save the decision.",
       conflict: "Someone else decided this certificate first.",
+    },
+  },
+  settings: {
+    title: "Settings",
+    description: "Platform taxonomy and configuration. Super-admin only.",
+    /**
+     * The warning that matters: these tables are read live by the mobile app,
+     * so there is no staging step between an edit here and pet creation there.
+     */
+    liveWarning:
+      "The mobile app reads this taxonomy live. Changes appear in pet creation immediately.",
+    tabs: { species: "Species", breeds: "Breeds", schemas: "Attribute schemas" },
+    statusLabels: { active: "Active", inactive: "Retired" },
+    filters: { status: "Status", species: "Species", all: "All", clear: "Clear filters" },
+    species: {
+      searchPlaceholder: "Search species…",
+      columns: { name: "Species", breeds: "Breeds", pets: "Active pets", status: "Status" },
+      empty: "No species configured yet.",
+      emptyFiltered: "No species match these filters.",
+      add: "Add species",
+      addTitle: "Add a species",
+      addDescription:
+        "It becomes selectable in the mobile app's pet creation flow as soon as you save.",
+      editTitle: "Edit species",
+      editDescription: "Renaming changes what every user sees for pets already using it.",
+    },
+    breeds: {
+      searchPlaceholder: "Search breeds…",
+      columns: { name: "Breed", species: "Species", pets: "Active pets", status: "Status" },
+      empty: "No breeds configured yet.",
+      emptyFiltered: "No breeds match these filters.",
+      add: "Add breed",
+      addTitle: "Add a breed",
+      addDescription: "Breeds are listed under one species and cannot be moved between them.",
+      editTitle: "Edit breed",
+      editDescription: "Renaming changes what every user sees for pets already using it.",
+    },
+    form: {
+      nameLabel: "Name",
+      namePlaceholder: "e.g. Rabbit",
+      descriptionLabel: "Description (optional)",
+      speciesLabel: "Species",
+      statusLabel: "Status",
+      reasonLabel: "Reason (recorded in the audit log)",
+      reasonPlaceholder: "Why are you making this change?",
+      cancel: "Cancel",
+      save: "Save",
+      saving: "Saving…",
+      error: "Could not save.",
+    },
+    retire: {
+      title: "Retire this entry?",
+      description:
+        "It stops being offered for new pets. Existing pets keep it. You can reactivate it later — nothing is deleted.",
+      /** Explains a refusal the database itself cannot express. */
+      blocked: "Active pets still use this. Move them to another entry first.",
+    },
+    /**
+     * Deletion is impossible, not merely disallowed — say why, so nobody goes
+     * looking for the button.
+     */
+    noDeleteNote:
+      "Entries can be retired but never deleted: pets reference them by a required foreign key, so the database itself refuses.",
+    schemas: {
+      heading: "Per-species attribute schemas",
+      body: "Not available yet — and it needs a mobile-app change, not a panel one. Pet attributes are fixed columns on the pets table today, and species-specific rules (blood groups, for example) are compiled into the Flutter app. A schema defined here would not reach pet creation until the app reads it. The proposal is written up for the app team.",
+      docLink: "See docs/admin/attribute-schema-proposal.md",
+    },
+    toast: {
+      speciesCreated: "Species added.",
+      speciesUpdated: "Species updated.",
+      breedCreated: "Breed added.",
+      breedUpdated: "Breed updated.",
     },
   },
 } as const;

@@ -20,6 +20,10 @@ export const AUDIT_ACTIONS = [
   "report.dismiss",
   "certificate.approve",
   "certificate.reject",
+  "species.create",
+  "species.update",
+  "breed.create",
+  "breed.update",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

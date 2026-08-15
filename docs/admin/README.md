@@ -138,6 +138,23 @@ Verified end-to-end: anonymous → redirect/401, `support` → 403,
 - **Notifications are backend work.** The panel writes the status and the audit
   row; Celery/notification dispatch lives in a repo that does not exist here.
 
+### Phase 3.5 — Settings & Taxonomy ✅ SHIPPED
+
+- `/settings` manages `pets.species` and `pets.breeds` — add, rename, retire.
+  Super-admin only. First panel surface that writes a backend-owned domain
+  table, and the first that creates an admin-authored row.
+- ⚠️ **No staging step**: the mobile app reads this taxonomy live from
+  PostgREST, so an edit changes pet creation immediately.
+- **Nothing is deletable** — `pets.pets` references both tables with NOT NULL,
+  NO ACTION foreign keys, and breeds reference species the same way, so not
+  even a zero-pet species can be dropped. Retirement is `status`.
+- **Attribute schemas are not built**, and the tab says why: pet attributes are
+  fixed columns and species-specific rules are compiled into the Flutter app
+  (`pet_blood_group_catalog.dart`). Making it real is a mobile-app change —
+  see `attribute-schema-proposal.md`.
+- Deferred: CSV bulk breed import (no upload/parsing precedent in the panel,
+  and 34 breeds don't warrant it yet).
+
 ### Phase 4 — Business Directory & Monetization
 
 - **Directory CRUD**: vets/groomers/trainers/stores/photographers; license

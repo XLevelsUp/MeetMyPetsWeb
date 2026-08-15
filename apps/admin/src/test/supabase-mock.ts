@@ -23,10 +23,25 @@ export type TableResult = {
   error?: { message: string };
 };
 
+export type MockFilter = { method: string; args: unknown[] };
+
 export type MockCall = {
   op: "select" | "insert" | "update" | "rpc" | "auth.updateUserById";
   key: string;
   values?: unknown;
+  /**
+   * Filters applied to this call, in order, with their arguments.
+   *
+   * The builder does not actually filter the fixture rows — it returns whatever
+   * is configured for the table. So when an adapter's correctness depends on a
+   * filter being present (scoping a uniqueness check to one species, say),
+   * assert on this rather than on the returned rows: the rows cannot tell you
+   * whether the filter was applied, and a test that reads them would pass just
+   * as happily against an adapter that forgot it.
+   *
+   * Populated by reference — read it after awaiting the call.
+   */
+  filters?: MockFilter[];
 };
 
 const CHAIN_METHODS = [
@@ -65,6 +80,8 @@ export function makeSupabaseMock(
   function builderFor(key: string) {
     let head = false;
     let mode: "select" | "insert" | "update" = "select";
+    /** Shared by reference with whichever call record this chain produces. */
+    const filters: MockFilter[] = [];
 
     const builder: Record<string, unknown> = {};
 
@@ -77,24 +94,27 @@ export function makeSupabaseMock(
 
     builder.select = (_sel?: string, opts?: { head?: boolean; count?: string }) => {
       if (opts?.head) head = true;
-      if (mode === "select") calls.push({ op: "select", key });
+      if (mode === "select") calls.push({ op: "select", key, filters });
       return builder;
     };
 
     builder.insert = (values: unknown) => {
       mode = "insert";
-      calls.push({ op: "insert", key, values });
+      calls.push({ op: "insert", key, values, filters });
       return builder;
     };
 
     builder.update = (values: unknown) => {
       mode = "update";
-      calls.push({ op: "update", key, values });
+      calls.push({ op: "update", key, values, filters });
       return builder;
     };
 
     for (const method of CHAIN_METHODS) {
-      builder[method] = () => builder;
+      builder[method] = (...args: unknown[]) => {
+        filters.push({ method, args });
+        return builder;
+      };
     }
 
     builder.maybeSingle = () => {
