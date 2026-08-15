@@ -89,36 +89,42 @@ swipe-volume charts, skeletons, error boundaries, 60s auto-refetch).
 Verified end-to-end: anonymous → redirect/401, `support` → 403,
 `moderator` → data.
 
-### Phase 2 — User & Content Moderation (NEXT)
+### Phase 2 — User & Content Moderation (IN PROGRESS)
 
-- **User search & management table**: paginated/filterable (email, phone,
-  user ID, KYC status); detail drawer with pet profiles, verification
-  status, activity; actions: suspend, ban, reset verification, force logout.
-- **Species-agnostic pet profile review**: universal attributes + dynamic
-  `species_attributes` payload, media via Cloudflare R2 signed URLs;
-  approve / flag / delete with mandatory reason.
-- **Content & report moderation queue**: side-by-side reported content vs
-  reporter; dismiss / remove content / ban offender. ⚠️ **No reports table
-  exists yet in the database** — coordinate with the backend team on where
-  it lands before building this queue.
-- **Audit logging** for every admin action (admin UUID, action type, target
-  entity, timestamp) — the `Audit Logs` nav entry exists disabled; an
-  `admin_audit_logs` table must be created (none exists).
+- ✅ **User search & management table** — shipped (`8a05409`). Paginated and
+  filterable, account detail route, suspend / ban / restore / flag with
+  mandatory reasons. "Reset verification" and "force logout" were **dropped**:
+  the latter is impossible server-side (`auth.admin.signOut` needs the target's
+  own JWT). See `schema-notes.md`.
+- ✅ **Audit logging** — shipped (`21d4211`). `public.admin_audit_logs` exists
+  and `/audit` reads it.
+- **Content & report moderation queue** — reads the app team's existing
+  **`matching.pet_reports`** (13 live rows). The earlier plan to create
+  `public.admin_reports` is withdrawn; see `reports-schema-proposal.md`, kept
+  only as a superseded record.
+- **Pet profile review**: universal attributes + dynamic `species_attributes`
+  payload; approve / flag / delete with mandatory reason. Pet media lives in
+  Supabase Storage (`pet-images` / `pet-videos`), **not** R2.
 - UX: keyboard-first tables, confirmation dialogs with reason input,
-  real-time urgent-report badges, optimistic dismissals.
+  optimistic dismissals.
 
 ### Phase 3 — Verification Review Queues
 
-- **Vaccination certificate queue**: split-pane OCR-extract vs original
-  document (R2 signed URL, zoom/pan); approve → pet badge; reject → reason
-  dropdown + notification. `A`/`R` keyboard shortcuts; optimistic queue
-  progression.
+- **Vaccination certificate queue**: split-pane extract vs original document
+  (zoom/pan); approve → pet badge; reject → reason dropdown + notification.
+  `A`/`R` keyboard shortcuts; optimistic queue progression.
 - **KYC / government-ID queue**: redacted view (mask ID numbers — privacy
   directive), Digio webhook fallbacks, approval triggers badge + notification.
-- Integrates with backend Celery notification tasks; endpoints must generate
-  short-lived R2 presigned URLs server-side.
-- DB today: `identity.account_verifications` exists (empty);
-  `pets.pet_verification_levels` / `pet_certificates` exist.
+- **Documents are in Supabase Storage, not R2** (corrected 2026-08-15). The
+  private `pet-certificates` bucket has existed since 2026-07-08 and
+  `pets.pet_certificates.file_path` is populated; the panel's existing service
+  client signs them. The earlier "R2 presigned URLs" line in this roadmap was
+  never verified and produced a wrong ask to the app team — it is retracted.
+- DB today: `identity.account_verifications` exists (empty, no CHECK
+  constraint); `pets.pet_verification_levels` and `pets.pet_certificates`
+  exist (15 rows, all `pending`). **Blocked on** a `service_role` SELECT grant
+  for `pet_certificates`, and on whether a panel approval may cascade `+500`
+  through the backend's trust trigger.
 
 ### Phase 4 — Business Directory & Monetization
 
@@ -170,15 +176,23 @@ Verified end-to-end: anonymous → redirect/401, `support` → 403,
 
 ## 6. Current blockers / asks (keep in sync with schema-notes)
 
-- `GRANT SELECT ON matching.pet_likes TO service_role;` — unlocks the swipe
-  chart (backend team, one line in the SQL editor).
-- **P0 security**: `identity` schema exposed to the Data API with RLS
-  disabled and full `anon` CRUD grants — real PII readable/writable with the
-  browser key. Backend team must remediate; details + advisor links in
-  schema-notes §Security.
-- Reports table + audit-log table don't exist → blocks Phase 2 queues.
-- Role-system merge decision (`app_metadata.role` vs
-  `identity.accounts.is_platform_*`).
-- Timeseries migration rewrite + apply once grants exist.
+- 🚨 **P0 security (STILL OPEN, backend team)**: RLS is disabled with zero
+  policies on all 8 `identity` tables, so any signed-in user can read and
+  write every other user's PII through PostgREST. The `anon` half was fixed
+  2026-08-06 (`20260806000002`); the `authenticated` half needs owner-scoped
+  policies only the mobile team can write. Re-confirmed unremediated
+  2026-08-15. Details + advisor links in schema-notes §Security.
+- **Step 4 blockers**: `GRANT SELECT ON pets.pet_certificates TO
+  service_role`, and a decision on whether approving a certificate in the
+  panel may cascade `+500` through the backend's trust trigger.
+- Confirm `identity.account_verifications.status` vocabulary and add the CHECK
+  constraint (app team proposes `pending`/`verified`/`rejected` — agreed).
+- `matching.pet_reports` has no home for **account-level or chat-message**
+  reports — pets and posts only.
 - Hosting: repoint the landing deploy's root directory to `apps/landing`;
   create the `apps/admin` project on `admin.meetmypets.app`.
+
+Resolved: ~~`pet_likes` grant~~ (`20260806000001`), ~~audit-log table~~
+(`20260806000003`), ~~reports table~~ (adopted `matching.pet_reports`,
+2026-08-15), ~~timeseries migration~~ (`20260805000000`), ~~role-system
+decision~~ (agreed on `app_metadata.role`; app team drops their booleans).

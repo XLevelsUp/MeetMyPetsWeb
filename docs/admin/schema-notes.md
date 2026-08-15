@@ -1,10 +1,25 @@
 # Admin panel ↔ Supabase schema notes
 
-Status: **VERIFIED 2026-08-06** against project `owfrnkafevdfzduuqnic` via the
-Supabase MCP (read-only SQL over `pg_catalog` / `information_schema`, plus
+Status: **RE-VERIFIED 2026-08-15** against project `owfrnkafevdfzduuqnic` via
+the Supabase MCP (read-only SQL over `pg_catalog` / `information_schema`, plus
 live PostgREST probes). Supersedes the 2026-08-05 REST-only introspection,
 which could only see the `public` schema and wrongly concluded the app data
 didn't exist.
+
+> **2026-08-15 re-verification.** Triggered by the mobile team's
+> synchronization document. Every claim in it was checked against the live
+> database and **they were right**: `matching.pet_reports`, the `pets` trust
+> engine, and the `pet-certificates` storage bucket all exist. Two corrections
+> to this file are recorded inline below and marked **CORRECTED 08-15**:
+>
+> 1. **Reports** — the "no reports table exists" line was true on 08-06 (the
+>    earliest report row is dated **08-11**), so this was staleness rather than
+>    a mis-read. The panel now consumes `matching.pet_reports`; the
+>    `public.admin_reports` proposal is withdrawn.
+> 2. **Certificates were never in R2** — this was a real error. The private
+>    `pet-certificates` bucket has existed since **2026-07-08**, a month before
+>    we asked the app team for Cloudflare credentials. The R2 assumption was
+>    inherited from the original roadmap and never verified. Ask retracted.
 
 > **Sharing this with the mobile-app / FastAPI team?** Send them
 > [app-team-handoff.md](app-team-handoff.md) instead — same facts, written for
@@ -25,20 +40,37 @@ schemas**, all of which are exposed to the Data API (PostgREST
 
 | Schema | Tables (≈ rows) |
 |--------|-----------------|
-| `identity` | `accounts` (36), `account_profiles` (17), `account_settings` (5), `account_verifications` (0), `account_devices`, `account_sessions`, `account_privacy_settings`, `account_email_history`, `deleted_account_registry`, `deleted_pet_registry`, `pending_auth_deletions` |
-| `pets` | `pets` (58), `pet_media` (106), `pet_activities` (84), `pet_goals` (47), `pet_traits` (52), `pet_verification_levels` (21), `pet_certificates`, `share_links` + reference: `species`, `breeds`, `activities`, `goals`, `traits` |
-| `matching` | `pet_likes` (≈1,169), `matches` (50), `pet_follows` (11), `pet_blocks` (0), `undo_quota` (21) |
-| `chat` | `conversations` (30), `messages` (≈237), `read_receipts` (183), `pet_presence` (41) |
-| `social` | `posts` (≈104), `post_likes` (65), `post_comments`, `post_media` |
+| `identity` | `accounts` (40), `account_profiles`, `account_settings`, `account_verifications` (0), `account_devices`, `account_sessions`, `account_privacy_settings`, `account_email_history`, `deleted_account_registry`, `deleted_pet_registry`, `pending_auth_deletions` |
+| `pets` | `pets` (60), `pet_media`, `pet_activities`, `pet_goals`, `pet_traits`, `pet_verification_levels`, `pet_certificates` (15), **`trust_score_events`**, `share_links` + reference: `species`, `breeds`, `activities`, `goals`, `traits` |
+| `matching` | `pet_likes` (1,492), `matches` (51), `pet_follows` (17), `pet_blocks` (13), **`pet_reports` (13)**, `undo_quota` (28) |
+| `chat` | `conversations` (30), `messages`, `read_receipts`, `pet_presence` |
+| `social` | `posts`, `post_likes`, `post_comments`, `post_media` |
 
-Notable columns: `identity.accounts` has `auth_user_id`, `status`
-(active/archived), `deleted_at`, and its own `is_platform_admin` /
-`is_platform_moderator` booleans (a second, FastAPI-side role system —
-see decision notes). `pets.pets` has `species_id` (FK → `pets.species`),
-`status` (active/archived), `deleted_at`. `chat.conversations` really has
-`last_message_at`. `matching.pet_likes` is the swipes table
-(`interaction_type`, `status`, `created_at`). **No reports/moderation table
-exists in any schema**, and there is no `business_listings` either.
+Notable columns: `identity.accounts` has `auth_user_id`, `status`, `deleted_at`,
+and its own `is_platform_admin` / `is_platform_moderator` booleans (a second,
+FastAPI-side role system — see decision notes). `pets.pets` has `species_id`
+(FK → `pets.species`), `status`, `deleted_at`, plus the trust columns
+(`trust_score`, `trust_warning_acknowledged`, `temporary_banned_at`,
+`temporary_ban_until`). `chat.conversations` really has `last_message_at`.
+`matching.pet_likes` is the swipes table (`interaction_type`, `status`,
+`created_at`).
+
+⚠️ **`identity.accounts.status` and `pets.pets.status` have NO check
+constraint** — the `active`/`archived` vocabulary is convention, not enforced.
+Live values today are `active` (37) / `archived` (3) for accounts and
+`active` (55) / `archived` (5) for pets. `restriction-badge.tsx` renders any
+unrecognized value as "Active", so a third lifecycle value would display wrong.
+
+**CORRECTED 08-15 — reports.** `matching.pet_reports` now exists (13 rows,
+earliest 2026-08-11; the 08-06 finding of "no reports table in any schema" was
+accurate when made). Pet-scoped: `reporter_pet_id`, `reported_pet_id`,
+`reporter_account_id`, plus a polymorphic `context_entity_type` /
+`context_entity_id` pair — a row with no context reports the **pet profile**,
+one with `context_entity_type='post'` reports a single post. CHECK-constrained
+`status` (`pending|reviewed|actioned|dismissed`) and `reason`
+(`spam|harassment|inappropriate_content|fake_profile|animal_welfare|scam|other`).
+Note the gap: **there is no home for reports against an account or a chat
+message** — only pets and posts. There is still no `business_listings`.
 
 ## What the admin service key can actually read
 
@@ -50,12 +82,68 @@ narrow and looks deliberate:
 - `pets.pets`, `matching.matches`, `matching.pet_likes`,
   `chat.conversations` — SELECT only (`pet_likes` granted 2026-08-06,
   migration `20260806000001`)
-- everything else (incl. `pets.species`, all of `social`) — **no access**;
-  `social` lacks even schema USAGE
+- `matching.pet_reports` — SELECT + **`UPDATE (status)` only**;
+  `pets.trust_score_events`, `social.posts`, `social.post_media` — SELECT
+  (all granted 2026-08-15, migration `20260815000000`)
+- everything else (incl. `pets.species`, `pets.pet_certificates`) — **no
+  access**
 
 Reference tables `pets.species` / `pets.breeds` are anon-readable
 (verified live) — the adapter uses the publishable-key client for species
 names.
+
+The `UPDATE (status)` grant is column-scoped on purpose: Postgres rejects any
+attempt by the panel to alter a reporter-supplied field (`reason`, `details`,
+either reporter id), so "the panel only moves the queue state" is a privilege,
+not a convention. Same reasoning as the append-only grant on
+`admin_audit_logs`.
+
+⚠️ **`pets.pet_certificates` has no `service_role` grant** — only
+`authenticated` can read it, so the Step 4 verification queue is blocked on
+`grant select on pets.pet_certificates to service_role`.
+
+## Storage buckets (verified 2026-08-15)
+
+| Bucket | Public | Created | Panel use |
+|--------|--------|---------|-----------|
+| `pet-certificates` | **no** | 2026-07-08 | Step 4 — sign `pet_certificates.file_path`, 60s TTL |
+| `post-media` | yes | 2026-07-14 | Thumbnail for a post-scoped report |
+| `avatars`, `pet-images`, `pet-videos` | yes | — | not used yet |
+| `chat-images` | no | 2026-07-14 | not used |
+
+**CORRECTED 08-15:** certificate documents were never in Cloudflare R2. That
+assumption came from the original Phase 3 roadmap and was never verified
+against the database; it survived into an ask sent to the app team. All 15
+`pet_certificates` rows have a populated `file_path`, and the service client
+already in the panel can sign them — no external credentials are needed.
+
+## The trust engine (`pets`) — read-only for the panel
+
+Verified live 2026-08-15. Automated, per-**pet** (not per-account), and
+entirely owned by the backend:
+
+- `pets.pets.trust_score` — `integer default 555`; ledger of every change in
+  `pets.trust_score_events` (`target_pet_id`, `actor_pet_id`, `reason`,
+  `delta`, `event_ref`, `created_at`).
+- Deltas (`pets.trust_score_delta`): like `+5`, follow `+10`, match `+30`
+  (both pets), block `-80`, profile report `-80`, post report `-20`,
+  certificate verified `+500`.
+- Status (`pets.get_pet_trust_status`): `<= 0` permanently_banned, `< 100`
+  temporary_banned, `<= 250` warning, else normal. Live spread today: 58
+  normal, 1 warning, 1 temporary_banned, 0 permanent; range 5–600.
+- `pets.trust_status_on_score_change` opens a **7-day** ban window on the first
+  drop below 100, and treats a score reset to exactly `555` as full restoration.
+
+**The panel never writes any of this.** It reads `trust_score` and the ledger
+as moderator context only. Two facts that constrain future work:
+
+- `pets.adjust_pet_trust_score` grants EXECUTE to **neither** `service_role`
+  nor `authenticated` — only the backend's own triggers can move a score, so
+  the panel *could not* lift an automated ban even if we decided it should.
+  Raised with the app team; an RPC granted to `service_role` is the ask.
+- Trust bans and admin bans are **independent vectors**. One account can own
+  several pets, so a pet may be trust-banned while its owner is unrestricted,
+  and vice versa. The panel must show both without conflating them.
 
 ## Verification results (updated)
 
@@ -74,8 +162,8 @@ names.
 | activePets | `pets.pets` where `status='active'` | 55 of 58 today |
 | totalMatches | `matching.matches` | |
 | activeChats | `chat.conversations.last_message_at` ≥ 7d | column verified |
-| pendingVerifications | `identity.account_verifications` where `status='pending'` | table empty today; `'pending'` is an assumed enum value — recheck on first real row |
-| openReports | — | no table exists; hardcoded true-zero until the feature lands |
+| pendingVerifications | `identity.account_verifications` where `status='pending'` | table still empty (re-checked 08-15) and still no CHECK constraint; `'pending'` remains an assumption that silently renders 0 if wrong |
+| openReports | `matching.pet_reports` where `status='pending'` | **CORRECTED 08-15** — was a hardcoded zero; now a real count (13 today) with week-over-week trend via the existing `queueMetric` |
 | speciesBreakdown | `pets.pets.species_id` + `pets.species` names | species via anon reference client |
 | userAcquisition (chart) | `public.admin_analytics_timeseries` rpc → `identity.accounts.created_at` | |
 | swipeVolume (chart) | `public.admin_analytics_timeseries` rpc → `matching.pet_likes.created_at` | ✅ unblocked 2026-08-06 |
@@ -93,7 +181,10 @@ swipes on 2026-08-06).
 ## 🚨 Security findings (advisors + live probe)
 
 1. **P0 — public PII exposure. `anon` half FIXED 2026-08-06; `authenticated`
-   half OPEN (backend team).** The `identity` schema is exposed to the Data
+   half STILL OPEN — re-confirmed unremediated 2026-08-15** (all 8 tables:
+   `relrowsecurity = false`, zero policies). The mobile team's 2026-08-15 doc
+   agrees the fix is owner-scoped RLS but assigns no owner or date. This is the
+   oldest open item in the file. The `identity` schema is exposed to the Data
    API and 8 of its tables (`accounts`, `account_profiles`,
    `account_sessions`, `account_devices`, `account_settings`,
    `account_privacy_settings`, `account_email_history`,
@@ -151,14 +242,17 @@ are needed for reads. Residual asks for the backend team:
 
 - ~~run the `pet_likes` GRANT (unlocks the swipe chart)~~ — done
   2026-08-06 (`20260806000001`);
-- **reports table** — column contract drafted for the backend team in
-  [`reports-schema-proposal.md`](./reports-schema-proposal.md)
-  (`public.admin_reports`, jointly written by the panel and FastAPI).
-  Awaiting sign-off before the Step 3 migration; the panel's `openReports`
-  metric stays a hardcoded zero until it lands;
-- decide whether admin roles stay in `app_metadata.role` or should merge
-  with `identity.accounts.is_platform_admin/_moderator` — today they are
-  two disconnected role systems (`dal.ts` reads only the former);
+- ~~**reports table** — column contract drafted in
+  `reports-schema-proposal.md` (`public.admin_reports`)~~ — **WITHDRAWN
+  2026-08-15.** `matching.pet_reports` already exists; a second table would
+  have fractured the data. The proposal is marked SUPERSEDED and kept only as
+  a record. Step 3 reads theirs, and `openReports` is now a real count;
+- **roles** — the app team's 08-15 doc agrees to drop
+  `identity.accounts.is_platform_admin/_moderator` in favour of
+  `app_metadata.role`. Nothing in the panel reads those columns, so the drop
+  costs us nothing. Caveat passed back: two booleans cannot encode our three
+  roles (`support` has no boolean equivalent), so nothing downstream should
+  try to reconstruct a role from them;
 - **finish the P0 fix** — the `anon` half is done; the `authenticated` +
   RLS half (item 1 above) still needs owner-scoped policies from the team
   that owns the mobile access patterns.
@@ -248,12 +342,34 @@ matching label in `copy.audit.actionLabels`.
 - `20260806000003_admin_moderation_tables` (Step 1) — `admin_audit_logs` +
   `admin_restrictions` with the revokes and constraints described above.
 
+## Applied 2026-08-15 (Step 3 prerequisites)
+
+- `20260815000000_admin_read_grants_reports` — `select` + column-scoped
+  `update (status)` on `matching.pet_reports`; `usage` on schema `social`;
+  `select` on `social.posts`, `social.post_media`, `pets.trust_score_events`.
+  Grants only — no DDL on backend-owned tables. Verified under
+  `set role service_role` that the status update succeeds and a `reason`
+  update raises `insufficient_privilege`.
+
 ## Still pending
 
 - **`authenticated` + RLS half of the P0** (backend team) — enable RLS on
   the 8 `identity` tables with owner-scoped policies; see security finding 1.
-- Confirm the `account_verifications.status = 'pending'` enum value once
-  real verification rows exist.
+  **Oldest open item; re-confirmed unremediated 2026-08-15.**
+- Confirm the `account_verifications.status = 'pending'` enum value and add
+  the CHECK constraint (app team proposes `pending`/`verified`/`rejected` —
+  agreed, not yet applied). Table still empty.
+- **Step 4 blockers:** `grant select on pets.pet_certificates to
+  service_role`, and a decision on whether a panel approval may cascade
+  `+500` trust through `pets.trust_on_certificate_verified`.
+- **Reports gap:** `matching.pet_reports` covers pets and posts only —
+  account-level and chat-message reports have nowhere to go.
+- Confirm the intended distinction between report statuses `reviewed` and
+  `dismissed` (panel currently treats `reviewed` as "looked at, no action"
+  and `dismissed` as "not legitimate").
+- Ask the app team for an RPC if moderators should be able to lift an
+  automated trust ban — `pets.adjust_pet_trust_score` grants EXECUTE to
+  nobody, so it is currently impossible.
 - Rotate the secret key if it was ever exposed outside `.env.local`.
 - Remaining advisor cleanup (unindexed FKs, `auth_rls_initplan`,
   leaked-password protection) — non-blocking, backend-owned.

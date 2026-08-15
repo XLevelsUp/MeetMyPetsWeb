@@ -1,9 +1,35 @@
 # Proposal: `public.admin_reports` — the content-report table
 
-**Status:** DRAFT — awaiting backend sign-off. Nothing has been created in the
-database. This document is the column contract for a table the admin panel and
-the FastAPI backend will **both** write to; please red-line the DDL in §3 and
-answer the checklist in §7.
+> # ⛔ SUPERSEDED — DO NOT IMPLEMENT
+>
+> **Withdrawn 2026-08-15. No sign-off needed; please ignore the checklist in §7.**
+>
+> `matching.pet_reports` **already exists** and is live — 13 rows as of
+> 2026-08-15, RLS enabled, an insert-only policy for `authenticated`, statuses
+> `pending | reviewed | actioned | dismissed`, and a table comment that reads
+> *"moderators read and update status through service_role."* Creating
+> `public.admin_reports` alongside it would have fractured reporting data across
+> two tables. **The admin panel consumes `matching.pet_reports` instead.**
+>
+> **Why this document existed:** when the database was introspected on
+> **2026-08-06**, the table genuinely did not exist in any schema — that
+> verification was correct at the time. The mobile team shipped it shortly
+> after; the earliest report row is dated **2026-08-11**. This was staleness,
+> not a mis-read, but it still cost a document — see
+> [`app-team-handoff.md`](./app-team-handoff.md) §3.7 for the coordination fix.
+>
+> **Kept, not deleted,** because it records why the decision went the other way,
+> and because §3's target-type analysis (`account` / `pet` / `post` / `message`)
+> remains the open question: `matching.pet_reports` is pet-scoped with a
+> polymorphic `context_entity_type`, so reports against **accounts** and
+> **chat messages** still have no home. Revisit this document if that gap needs
+> filling — do not revive it as written.
+>
+> **Current reality:** [`schema-notes.md`](./schema-notes.md) ·
+> **Adopted contract:** [`app-team-handoff.md`](./app-team-handoff.md) §3.2
+
+**Status:** ~~DRAFT — awaiting backend sign-off~~ → **SUPERSEDED**. Everything
+below is preserved verbatim as a historical record.
 
 **Audience:** MeetMyPets backend team.
 **Author:** admin-panel work (Control-Panel branch).
