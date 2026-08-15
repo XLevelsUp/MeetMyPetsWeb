@@ -100,9 +100,21 @@ either reporter id), so "the panel only moves the queue state" is a privilege,
 not a convention. Same reasoning as the append-only grant on
 `admin_audit_logs`.
 
-⚠️ **`pets.pet_certificates` has no `service_role` grant** — only
-`authenticated` can read it, so the Step 4 verification queue is blocked on
-`grant select on pets.pet_certificates to service_role`.
+~~⚠️ `pets.pet_certificates` has no `service_role` grant~~ — **resolved
+2026-08-15** by migration `20260815000001`: SELECT plus a column-scoped
+`UPDATE (status, reviewed_by, reviewed_at, remarks)`, and SELECT on
+`pets.pet_verification_levels`.
+
+🔓 **Certificate rows are readable by every signed-in user.**
+`pets.pet_certificates` carries the policy
+`"Users can view any pet certificates" USING (true)`, so any `authenticated`
+caller can read every certificate on the platform — certificate numbers,
+veterinarian and clinic names for every pet. Not identity-PII severity (the
+document files themselves are behind a private bucket), but almost certainly
+not intended: the same table has correctly owner-scoped policies for INSERT,
+UPDATE and DELETE, and a *second* SELECT policy that is properly owner-scoped
+— the permissive one makes that second policy redundant. Raised with the app
+team; backend-owned.
 
 ## Storage buckets (verified 2026-08-15)
 
@@ -374,6 +386,59 @@ The panel reads `trust_score` alongside each report as context and never writes
 it; the status thresholds are duplicated in `trustStatusFor` (unit-tested
 against the SQL's boundaries) rather than fetched per row, which would be N+1.
 
+### The certificate verification queue (Step 4)
+
+`/verifications` reads `pets.pet_certificates` through `listCertificates` in
+`lib/verifications.ts` — **15 rows, all `pending`**, across three types
+(`vaccination` 6, `health` 5, `license` 4). Ordered **oldest first**, unlike
+the report queue and audit log: a review queue should surface what has waited
+longest. Cross-schema hydration to `pets.pets`, `identity.accounts` and
+`pets.pet_verification_levels` via the usual Map-merge fan-out.
+
+**There is no OCR anywhere in this database.** Verified across every schema:
+zero columns matching `%confidence%`, `%ocr%` or `%extract%`, and no
+extraction-output table. The fields the reviewer checks (`certificate_number`,
+`issued_by`, `veterinarian`, `clinic_name`, …) are **typed by the owner at
+upload** and sparsely filled (7–15 of 15 depending on the field). The UI says
+so explicitly — this is a human transcription check, not an OCR diff, and
+labelling it otherwise would imply a machine had already agreed.
+
+**Status vocabulary is inferred, not constrained.** `pet_certificates.status`
+has **no CHECK constraint**. `'approved'` is read off the backend's own trigger
+(`trust_on_certificate_verified` fires `IF NEW.status = 'approved'`) and
+`'rejected'` by symmetry. ⚠️ This **conflicts with the
+`pending`/`verified`/`rejected` vocabulary the app team proposed** for
+`identity.account_verifications` — writing `'verified'` here would silently
+fail to award trust. `lib/certificate-constants.ts` is the contract until they
+add the constraint; a unit test asserts the adapter writes `'approved'`.
+
+⚠️ **Approving moves their trust engine.** The write fires
+`trg_trust_on_certificate_verified` → `+500`. Verified live inside a
+rolled-back transaction: a pet went **575 → 1075**. This is the one place a
+panel action reaches into the trust engine, and it is deliberate — it is the
+backend's designed consequence of approval. The confirmation dialog states the
++500 in words, the audit metadata records `trustAwarded: true`, and
+`decideCertificate` refuses anything already decided so a repeat cannot award
+it twice (approving a previously *rejected* certificate would otherwise).
+
+**Documents.** `signDocument` in `lib/storage.ts` mints a 300s signed URL from
+the private `pet-certificates` bucket, **one document at a time via
+`/api/v1/admin/verifications/[id]/document`** — never embedded in the list
+payload, where a short-lived URL would expire before the reviewer reached the
+third row. `file_path` is deliberately absent from the client payload (asserted
+by both a unit test and the e2e spec). Verified live: signing and fetching work
+for `image/jpeg` and `application/pdf`, and unsigned access is refused.
+
+**The panel does not write `pets.pet_verification_levels`.** No trigger
+maintains it, and its data contradicts any obvious rule — level 2 appears as
+both `verified` and `vaccination_verified`; level 3 `fully_verified` has
+`ownership_verified = false`. Displayed read-only; the rule is an open ask.
+
+**KYC is not built.** `identity.account_verifications` is empty, has **no
+document path column at all** (only `document_sha256` + `document_type`), and
+no ID-number field to redact — so there is nothing to queue and nothing to
+mask. Blocked on the backend populating it; see the handoff.
+
 ## Applied 2026-08-15 (Step 3 prerequisites)
 
 - `20260815000000_admin_read_grants_reports` — `select` + column-scoped
@@ -382,6 +447,12 @@ against the SQL's boundaries) rather than fetched per row, which would be N+1.
   Grants only — no DDL on backend-owned tables. Verified under
   `set role service_role` that the status update succeeds and a `reason`
   update raises `insufficient_privilege`.
+- `20260815000001_admin_verification_grants` (Step 4) — `select` +
+  column-scoped `update (status, reviewed_by, reviewed_at, remarks)` on
+  `pets.pet_certificates`; `select` on `pets.pet_verification_levels`.
+  Verified under `set role service_role` in a rolled-back transaction: the
+  approve path works and awards +500 (575 → 1075), while `file_path` and
+  `certificate_number` updates both raise `insufficient_privilege`.
 
 ## Still pending
 
@@ -389,11 +460,18 @@ against the SQL's boundaries) rather than fetched per row, which would be N+1.
   the 8 `identity` tables with owner-scoped policies; see security finding 1.
   **Oldest open item; re-confirmed unremediated 2026-08-15.**
 - Confirm the `account_verifications.status = 'pending'` enum value and add
-  the CHECK constraint (app team proposes `pending`/`verified`/`rejected` —
-  agreed, not yet applied). Table still empty.
-- **Step 4 blockers:** `grant select on pets.pet_certificates to
-  service_role`, and a decision on whether a panel approval may cascade
-  `+500` trust through `pets.trust_on_certificate_verified`.
+  the CHECK constraint. ⚠️ The app team proposed `pending`/`verified`/`rejected`
+  and we agreed — but `pets.pet_certificates` uses **`approved`**, per its
+  trigger. Both tables need the same word or neither vocabulary is safe to
+  assume. Not yet applied; `account_verifications` still empty.
+- **Add a CHECK constraint to `pets.pet_certificates.status`** — it has none,
+  so `'approved'` is inferred from a trigger body rather than declared.
+- **Define the `pet_verification_levels` badge rule** — nothing updates it, so
+  approving a certificate currently moves trust but not the pet's badge.
+- **`pet_certificates` is world-readable to `authenticated`**
+  (`USING (true)`) — see security findings.
+- **KYC queue is impossible today**: `identity.account_verifications` is empty
+  and has no document pointer or ID-number column.
 - **Reports gap:** `matching.pet_reports` covers pets and posts only —
   account-level and chat-message reports have nowhere to go.
 - Confirm the intended distinction between report statuses `reviewed` and

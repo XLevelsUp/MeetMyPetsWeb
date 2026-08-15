@@ -18,6 +18,8 @@ export const AUDIT_ACTIONS = [
   "report.review",
   "report.action",
   "report.dismiss",
+  "certificate.approve",
+  "certificate.reject",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

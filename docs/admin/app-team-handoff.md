@@ -35,9 +35,12 @@ break each other.
    2026-08-15 RLS is still disabled with zero policies on all 8 tables.
 4. **We depend on a specific read surface** (grants + column names). Renaming a
    column in §5 breaks the panel silently. Please flag those changes.
-5. **Two decisions are left with you** — the verification status enum and role
-   reconciliation (§3). Plus one small grant so we can actually read
-   `matching.pet_reports` (§3.2).
+5. **The panel now approves certificates, which awards +500 trust** through
+   your own trigger (§3.4). Two of your tables also disagree on whether the
+   approved status is `'approved'` or `'verified'`, and writing the wrong one
+   silently fails to award trust — please settle it and add a CHECK constraint
+   (§3.4b). The KYC queue can't be built until `account_verifications` has rows
+   and a document pointer (§3.4c).
 
 ---
 
@@ -54,10 +57,11 @@ not a separate backend.
 |---|---|
 | Analytics dashboard | Platform counts and 30-day trends (users, pets, matches, chats, verifications, swipes) — aggregates only, no PII |
 | Users & Pets (`/users`) | Search/filter accounts and pet profiles; account detail view; suspend / ban / restore accounts; flag / unflag pet profiles |
+| Content Reports (`/reports`) | Triage queue over your `matching.pet_reports`; moves status only |
+| Verifications (`/verifications`) | Certificate review over your `pets.pet_certificates` — document viewer, approve / reject. ⚠️ approving awards +500 trust (§3.4) |
 | Audit log (`/audit`) | Every moderation action: who, what, when, and the mandatory reason |
 
-**Coming** (queued): report queue over your `matching.pet_reports`,
-verification queues (vaccination certificates + KYC), business directory.
+**Coming**: owner KYC queue (blocked — §3.4c), business directory.
 
 **Access model:** three admin roles stored in Supabase Auth `app_metadata.role`
 — `super_admin`, `moderator`, `support`. Regular app users have no role and are
@@ -308,16 +312,84 @@ was written into our Phase 3 roadmap before any of this introspection happened,
 and we carried it forward without ever checking. The bucket has existed since
 **2026-07-08** — a month before we wrote the ask. We should have verified.
 
-**What we do still need for that queue** (Step 4, not yet built):
+**The certificate queue is now built** (2026-08-15) and we took the grants
+ourselves, same grants-only boundary as before:
 
-- `grant select on pets.pet_certificates to service_role` — currently only
-  `authenticated` has access, so the panel can't see the queue at all.
-- A decision on approvals: setting `pet_certificates.status` fires
-  `pets.trust_on_certificate_verified` and awards **+500 trust**. We'd rather
-  agree explicitly that a moderator approving a certificate *should* move a
-  pet's score by that much than discover it in production. Per §2.5 we've kept
-  the panel out of trust writes so far, and this is the one place where a
-  legitimate admin action cascades into your engine.
+```sql
+grant select on pets.pet_certificates to service_role;
+grant update (status, reviewed_by, reviewed_at, remarks)
+  on pets.pet_certificates to service_role;   -- column-scoped
+grant select on pets.pet_verification_levels to service_role;
+```
+
+The `UPDATE` is scoped to the four review columns, so Postgres rejects any
+attempt by the panel to alter `file_path` or anything the owner typed.
+
+⚠️ **We are now writing `status = 'approved'`, which fires your
+`trust_on_certificate_verified` trigger and awards +500.** We verified this in
+a rolled-back transaction — a pet went 575 → 1075. We've accepted it because it
+is *your* designed consequence of approval, not something to route around, and
+the moderator's confirmation dialog states the +500 in words. Two guards: the
+adapter refuses to re-decide anything already decided (approving a previously
+rejected certificate would otherwise award a second +500), and the audit row
+records `trustAwarded: true`. **If you'd rather approvals not move trust, say
+so and we'll change it — but then the trigger needs to change too.**
+
+### 3.4b New asks from building the certificate queue
+
+Four things surfaced while wiring it up. None block what shipped; the first two
+will bite someone if left.
+
+**1. Your two verification tables disagree on the approved word.**
+`pets.pet_certificates` uses **`'approved'`** — we know because your trigger
+tests `IF NEW.status = 'approved'`. §3.3 above proposes standardising on
+`pending`/`verified`/`rejected` for `account_verifications`. Those cannot both
+be right. If anything ever writes `'verified'` to a certificate, **it will
+silently fail to award trust** — no error, no constraint, just a pet that
+should have +500 and doesn't. Please pick one word and **add a CHECK
+constraint to `pet_certificates.status`**, which currently has none at all.
+Until then our `lib/certificate-constants.ts` is the only written contract, and
+a unit test pins it.
+
+**2. Nothing updates `pets.pet_verification_levels`.** Your schema has exactly
+two triggers and both are trust-related, so approving a certificate moves a
+pet's score but **not its badge**. We did not guess at the rule, because the
+existing data contradicts the obvious ones: level 2 appears as both `verified`
+and `vaccination_verified`, and level 3 `fully_verified` has
+`ownership_verified = false`. Please define how a level and its four booleans
+should follow from approved certificates. We display the level read-only and
+will wire the write when the rule exists.
+
+**3. Every signed-in user can read every certificate.**
+`pet_certificates` has the policy `"Users can view any pet certificates"
+USING (true)` — certificate numbers, vet names and clinic names for all pets,
+platform-wide. It looks unintended: the same table has correctly owner-scoped
+INSERT/UPDATE/DELETE policies *and* a second, properly owner-scoped SELECT
+policy that this permissive one makes redundant. The document files themselves
+are safe (private bucket), so this is not a P0 — but it is probably a
+one-line fix.
+
+**4. Owner notifications are yours.** We write the status, the reviewer, the
+timestamp and a structured reason into `remarks`; we don't send anything. If
+you want owners told on approve/reject, trigger it off that column.
+
+### 3.4c KYC queue — we can't build it yet
+
+Your brief asks for a government-ID review queue with masked ID numbers. As the
+schema stands there is nothing to build against:
+
+- `identity.account_verifications` is **empty** (0 rows).
+- It has **no document path or URL column** — only `document_sha256`, which is
+  a hash, and `document_type` (`AADHAAR`, `PASSPORT`, …). There is no way to
+  fetch the document a reviewer would look at.
+- There is **no ID-number column**, so there is nothing to redact — the privacy
+  requirement has no target.
+- `Digio` appears nowhere in the database.
+
+To make it buildable we'd need: rows, a storage pointer for the uploaded
+document (mirroring `pet_certificates.file_path` would be ideal — same private
+bucket pattern, same signing path), and a decision on whether the ID number is
+stored at all. Tell us the shape and we'll build the queue the same way.
 
 ### 3.5 Two role systems — agreed, with one caveat
 
@@ -406,6 +478,8 @@ always safe.
 | `identity.account_verifications` | `id`, `account_id`, `verification_type`, `status`, `created_at`, `verified_at` |
 | `pets.pets` | `id`, `name`, `species_id`, `breed_id`, `status`, `owner_account_id`, `created_at`, `deleted_at`, `profile_photo_url`, `trust_score`, `temporary_ban_until` |
 | `pets.trust_score_events` | `target_pet_id`, `reason`, `delta`, `created_at` (moderator context) |
+| `pets.pet_certificates` | `id`, `pet_id`, `certificate_type`, `certificate_number`, `issued_by`, `issued_at`, `expires_at`, `next_due_at`, `title`, `veterinarian`, `clinic_name`, `notes`, `status`, `reviewed_at`, `remarks`, `file_path`, `file_mime_type`, `created_at` |
+| `pets.pet_verification_levels` | `pet_id`, `level`, `level_code`, `ownership_verified`, `vaccination_verified`, `health_verified`, `breeding_verified` (read-only badge display) |
 | `matching.pet_reports` | `id`, `reporter_pet_id`, `reported_pet_id`, `reporter_account_id`, `reason`, `details`, `status`, `context_entity_type`, `context_entity_id`, `created_at` |
 | `matching.matches` | `created_at` (counts only) |
 | `matching.pet_likes` | `created_at` (counts only, via the timeseries function) |
@@ -431,11 +505,15 @@ always safe.
 
 - `service_role`: full CRUD on `identity.*`; `SELECT` on `pets.pets`,
   `matching.matches`, `matching.pet_likes`, `chat.conversations`,
-  `matching.pet_reports`, `pets.trust_score_events`, `social.posts`,
-  `social.post_media`; `UPDATE (status)` on `matching.pet_reports`;
-  `USAGE` on schema `social`; `EXECUTE` on
+  `matching.pet_reports`, `pets.trust_score_events`, `pets.pet_certificates`,
+  `pets.pet_verification_levels`, `social.posts`, `social.post_media`;
+  `UPDATE (status)` on `matching.pet_reports`;
+  `UPDATE (status, reviewed_by, reviewed_at, remarks)` on
+  `pets.pet_certificates`; `USAGE` on schema `social`; `EXECUTE` on
   `public.admin_analytics_timeseries(int)`.
 - `anon`: `SELECT` on `pets.species`, `pets.breeds`.
+- Read access to the private `pet-certificates` storage bucket via the service
+  key (short-lived signed URLs, minted per document).
 
 ### Values the panel filters on
 
@@ -445,6 +523,10 @@ always safe.
   anything unrecognized as "Active")
 - `matching.pet_reports.status` — `'pending'` / `'reviewed'` / `'actioned'` /
   `'dismissed'`, and `reason` across your seven values
+- `pets.pet_certificates.status` — `'pending'` / `'approved'` / `'rejected'`,
+  and `certificate_type` across `'vaccination'` / `'health'` / `'license'`.
+  ⚠️ **No CHECK constraint exists on either** — `'approved'` is inferred from
+  your trigger (§3.4b)
 - `identity.account_verifications.status = 'pending'` ← **still assumed, needs
   confirming (§3.3)**
 
@@ -454,11 +536,13 @@ always safe.
 |---|---|
 | `auth.users.banned_until` | via Auth admin API — suspend / ban / restore |
 | `matching.pet_reports.status` | update — **column-scoped grant, nothing else on the row is writable** |
+| `pets.pet_certificates` | update of `status`, `reviewed_by`, `reviewed_at`, `remarks` only — **column-scoped**. ⚠️ `status='approved'` fires your trust trigger (+500) |
 | `public.admin_restrictions` | insert (apply), update (lift) — ours |
 | `public.admin_audit_logs` | insert only — ours, append-only |
 
 Explicitly **not** written by the panel: `pets.pets.trust_score` (and every
-other column of `pets.pets`), `identity.accounts.status`, and every row in
+other column of `pets.pets`), `identity.accounts.status`,
+`pets.pet_verification_levels` (badge rule undefined — §3.4b), and every row in
 `pets.trust_score_events`.
 
 ### Owned by the panel (please don't modify)

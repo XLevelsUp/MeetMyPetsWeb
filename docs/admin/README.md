@@ -110,21 +110,33 @@ Verified end-to-end: anonymous → redirect/401, `support` → 403,
 
 ### Phase 3 — Verification Review Queues
 
-- **Vaccination certificate queue**: split-pane extract vs original document
-  (zoom/pan); approve → pet badge; reject → reason dropdown + notification.
-  `A`/`R` keyboard shortcuts; optimistic queue progression.
-- **KYC / government-ID queue**: redacted view (mask ID numbers — privacy
-  directive), Digio webhook fallbacks, approval triggers badge + notification.
+- ✅ **Certificate queue** — shipped. `/verifications` over
+  `pets.pet_certificates`, covering all three types (`vaccination`, `health`,
+  `license`), not vaccination alone. Split-pane, zoom/pan document viewer for
+  images and PDFs, `A`/`R` shortcuts, queue progression, approve/reject with a
+  structured rejection reason and a mandatory audited reason.
+- **No OCR exists in this system.** The original roadmap promised an
+  "OCR-extract vs original" diff with confidence scores. Verified 2026-08-15:
+  there are no extraction columns, no confidence scores and no OCR output table
+  anywhere in the database. The fields shown are what the **owner typed at
+  upload**, so the screen is a transcription check and says so. If an OCR
+  pipeline lands later, this pane is where its output would go.
 - **Documents are in Supabase Storage, not R2** (corrected 2026-08-15). The
   private `pet-certificates` bucket has existed since 2026-07-08 and
   `pets.pet_certificates.file_path` is populated; the panel's existing service
   client signs them. The earlier "R2 presigned URLs" line in this roadmap was
   never verified and produced a wrong ask to the app team — it is retracted.
-- DB today: `identity.account_verifications` exists (empty, no CHECK
-  constraint); `pets.pet_verification_levels` and `pets.pet_certificates`
-  exist (15 rows, all `pending`). **Blocked on** a `service_role` SELECT grant
-  for `pet_certificates`, and on whether a panel approval may cascade `+500`
-  through the backend's trust trigger.
+- ⚠️ **Approving awards +500 trust** via the backend's
+  `trust_on_certificate_verified` trigger, and the panel cannot reverse it.
+  The confirmation says so in words.
+- ❌ **KYC / government-ID queue — not buildable yet.**
+  `identity.account_verifications` is empty, has **no document path column**
+  (only a SHA-256 hash and a document type), and **no ID-number field to
+  redact** — so there is nothing to display and nothing to mask. Digio appears
+  nowhere in the database or this repo. Blocked on the backend team; tracked in
+  the handoff.
+- **Notifications are backend work.** The panel writes the status and the audit
+  row; Celery/notification dispatch lives in a repo that does not exist here.
 
 ### Phase 4 — Business Directory & Monetization
 
@@ -182,11 +194,17 @@ Verified end-to-end: anonymous → redirect/401, `support` → 403,
   2026-08-06 (`20260806000002`); the `authenticated` half needs owner-scoped
   policies only the mobile team can write. Re-confirmed unremediated
   2026-08-15. Details + advisor links in schema-notes §Security.
-- **Step 4 blockers**: `GRANT SELECT ON pets.pet_certificates TO
-  service_role`, and a decision on whether approving a certificate in the
-  panel may cascade `+500` through the backend's trust trigger.
-- Confirm `identity.account_verifications.status` vocabulary and add the CHECK
-  constraint (app team proposes `pending`/`verified`/`rejected` — agreed).
+- **KYC queue is blocked on schema**: `identity.account_verifications` needs
+  rows, a document pointer, and (if IDs are to be masked) a field holding the
+  number. None exist today.
+- **Status vocabulary conflict**: `pets.pet_certificates` uses `approved`
+  (per its trigger, no CHECK constraint); the agreed vocabulary for
+  `identity.account_verifications` is `pending`/`verified`/`rejected`. Pick one
+  word and constrain both.
+- **Badge rule undefined**: nothing updates `pets.pet_verification_levels`, so
+  an approval moves trust but not the pet's badge.
+- **`pets.pet_certificates` is readable by every signed-in user**
+  (`USING (true)`) — backend-owned, see schema-notes §Security.
 - `matching.pet_reports` has no home for **account-level or chat-message**
   reports — pets and posts only.
 - Hosting: repoint the landing deploy's root directory to `apps/landing`;

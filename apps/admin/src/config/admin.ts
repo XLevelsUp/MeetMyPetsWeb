@@ -21,7 +21,7 @@ export const admin = {
 export const adminNav = [
   { label: "Dashboard", href: "/", icon: "layout-dashboard", enabled: true },
   { label: "Users & Pets", href: "/users", icon: "users", enabled: true },
-  { label: "Verifications", href: "/verifications", icon: "badge-check", enabled: false },
+  { label: "Verifications", href: "/verifications", icon: "badge-check", enabled: true },
   { label: "Content Reports", href: "/reports", icon: "flag", enabled: true },
   { label: "Business Directory", href: "/businesses", icon: "store", enabled: false },
   { label: "Audit Logs", href: "/audit", icon: "scroll-text", enabled: true },
@@ -199,7 +199,12 @@ export const copy = {
       target: "Target",
       reason: "Reason",
     },
-    targetTypes: { account: "Account", pet: "Pet", report: "Report" },
+    targetTypes: {
+      account: "Account",
+      pet: "Pet",
+      report: "Report",
+      certificate: "Certificate",
+    },
     /**
      * An empty audit log is the normal state on a fresh install, not an
      * error — the copy should reassure rather than alarm.
@@ -225,6 +230,8 @@ export const copy = {
       "report.review": "Report reviewed",
       "report.action": "Report actioned",
       "report.dismiss": "Report dismissed",
+      "certificate.approve": "Certificate approved",
+      "certificate.reject": "Certificate rejected",
     },
   },
   reports: {
@@ -306,6 +313,98 @@ export const copy = {
       submit: "Confirm",
       submitting: "Saving…",
       error: "Could not resolve the report.",
+    },
+  },
+  verifications: {
+    title: "Verifications",
+    description: "Pet certificates awaiting review — vaccination, health and licence documents.",
+    searchPlaceholder: "Search certificate number, vet, clinic, or paste an ID…",
+    filters: {
+      status: "Status",
+      type: "Type",
+      all: "All",
+      clear: "Clear filters",
+    },
+    columns: {
+      submitted: "Submitted",
+      pet: "Pet",
+      type: "Type",
+      document: "Document",
+      status: "Status",
+    },
+    /** An empty queue is the goal state here, not an error. */
+    empty: "Nothing awaiting review. The queue is clear.",
+    emptyFiltered: "No certificates match these filters.",
+    statusLabels: {
+      pending: "Pending",
+      approved: "Approved",
+      rejected: "Rejected",
+    },
+    typeLabels: {
+      vaccination: "Vaccination",
+      health: "Health",
+      license: "Licence",
+    },
+    rejectionLabels: {
+      illegible: "Illegible or unreadable",
+      expired: "Expired document",
+      wrong_pet: "Does not match this pet",
+      wrong_document_type: "Wrong document type",
+      incomplete: "Incomplete or partial",
+      suspected_forgery: "Suspected forgery",
+      other: "Other",
+    },
+    /** The review pane. */
+    review: {
+      heading: "Review",
+      selectPrompt: "Select a certificate from the queue to review it.",
+      claimsHeading: "What the owner entered",
+      /**
+       * Says plainly what this comparison is. There is no OCR in this system —
+       * calling it an "extraction" would imply a machine had already read the
+       * document and agreed.
+       */
+      claimsHint:
+        "Typed by the owner at upload — not extracted from the document. Check each field against the scan.",
+      notProvided: "Not provided",
+      levelHeading: "Current verification level",
+      levelHint: "Maintained by the app backend. The panel never changes it.",
+      noLevel: "This pet has no verification record yet.",
+      documentHeading: "Uploaded document",
+      noDocument: "No document was attached to this record.",
+      documentError: "Could not load the document.",
+      documentExpired: "This preview link expired.",
+      reload: "Reload document",
+      loading: "Loading document…",
+      openInNewTab: "Open in new tab",
+      pdfFallback: "This PDF cannot be displayed inline.",
+      zoomIn: "Zoom in",
+      zoomOut: "Zoom out",
+      resetView: "Reset view",
+      shortcutHint: "Press A to approve, R to reject.",
+    },
+    decide: {
+      approve: "Approve",
+      reject: "Reject",
+      approveTitle: "Approve this certificate?",
+      /**
+       * The +500 is stated in words. A moderator should never learn the
+       * consequence of their click by reading the schema.
+       */
+      approveDescription:
+        "This marks the certificate approved and awards the pet +500 trust through the app backend's scoring engine. The panel cannot undo either — reversing it needs the backend team.",
+      rejectTitle: "Reject this certificate?",
+      rejectDescription:
+        "This marks the certificate rejected and records your reason. It does not change the pet's trust score.",
+      reasonLabel: "Reason (recorded in the audit log)",
+      reasonPlaceholder: "What did you check, and what did you conclude?",
+      rejectionReasonLabel: "Rejection reason",
+      cancel: "Cancel",
+      confirmApprove: "Approve and award trust",
+      confirmReject: "Reject certificate",
+      submitting: "Saving…",
+      error: "Could not save the decision.",
+      conflict: "Someone else decided this certificate first.",
     },
   },
 } as const;

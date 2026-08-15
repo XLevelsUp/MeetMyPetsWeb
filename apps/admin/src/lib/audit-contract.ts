@@ -12,7 +12,7 @@ import { AUDIT_ACTIONS } from "@/lib/audit-actions";
  * opaque id the reader can follow to /users/{id} if their role allows it.
  */
 
-export const AUDIT_TARGET_TYPES = ["account", "pet", "report"] as const;
+export const AUDIT_TARGET_TYPES = ["account", "pet", "report", "certificate"] as const;
 
 export const auditEntrySchema = z.object({
   id: z.string(),
