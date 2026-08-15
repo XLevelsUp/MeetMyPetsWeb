@@ -6,11 +6,11 @@ import { writeAuditLog } from "@/lib/audit";
 import type { AuditAction } from "@/lib/audit-actions";
 import type { AdminRole } from "@/lib/roles";
 import type { ReportResolution, ReportScope, ReportStatus } from "@/lib/report-constants";
+import { trustStatusFor } from "@/lib/trust-constants";
 import type {
   ReportSummary,
   ReportsQuery,
   ReportsResponse,
-  TrustSignal,
 } from "@/lib/reports-contract";
 
 /**
@@ -76,21 +76,11 @@ function sanitizeSearch(term: string): string {
 }
 
 /**
- * Same thresholds as the backend's `pets.get_pet_trust_status` (verified
- * 2026-08-15). Derived here rather than called as an RPC because we already
- * hold the score from the pet lookup, and a per-row RPC would be N+1.
- *
- * Kept deliberately close to the SQL, including the `<= 0` case: a score can go
- * negative, and treating that as anything but permanently banned would let a
- * deeply negative pet read as merely warned.
+ * Re-exported for the existing callers and tests. The thresholds moved to
+ * `lib/trust-constants.ts` when the trust review queue landed — two copies of
+ * the same ladder would be exactly the drift the constants file warns about.
  */
-export function trustStatusFor(score: number | null): TrustSignal["status"] {
-  if (score === null) return null;
-  if (score <= 0) return "permanently_banned";
-  if (score < 100) return "temporary_banned";
-  if (score <= 250) return "warning";
-  return "normal";
-}
+export { trustStatusFor };
 
 type ReportRow = {
   id: string;

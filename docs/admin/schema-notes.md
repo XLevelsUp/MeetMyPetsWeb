@@ -439,6 +439,75 @@ document path column at all** (only `document_sha256` + `document_type`), and
 no ID-number field to redact — so there is nothing to queue and nothing to
 mask. Blocked on the backend populating it; see the handoff.
 
+### Trust review queue (Step 6)
+
+`/trust` is the human half of the app's automated moderation. Read the app
+repo's trust design before changing anything here — the notes below are the
+short version, and [`app-team-reply-notes.md`](./app-team-reply-notes.md) has
+the rest.
+
+**Why it exists.** Their engine bans pets with no moderator in the loop, and the
+ban screen tells the owner *"Our moderation team will manually review this pet.
+Please visit again after 7 days to view the review result."* That review had
+nowhere to happen. **`temporary_ban_until` is informational** — their own column
+comment says `get_pet_trust_status` does not consult it — so a temporary ban is
+lifted by an admin restoring the score **and by nothing else**. Without this
+screen, "temporary" meant permanent. Live proof when it was built: `Mano`,
+score 5, banned 2026-08-12, review date 2026-08-19, with no queue anywhere.
+
+**⚠️ Read `get_pet_trust_status`, never `my_pet_trust_status`.** The latter is
+the *app's* view of its own pet and deliberately reports `normal` for a warning
+the owner has already dismissed. Worked example, live: `Mouzy` at 173 has
+`trust_warning_acknowledged = true`, so the app sees `normal` while the true
+state is `warning`. A queue built on the app's RPC would silently drop most of
+its own population. We derive the status from the score instead
+(`lib/trust-constants.ts`) rather than an RPC per row.
+
+**⚠️ Restore is exactly 555.** Their `trust_status_on_score_change` trigger
+branches on `IF NEW.trust_score = 555` — an equality test. In that branch it
+clears `trust_warning_acknowledged`, `temporary_banned_at` and
+`temporary_ban_until`. Any other value skips it and leaves a pet reading
+unbanned while still carrying a ban window. There is no partial restoration, so
+the contract has no score parameter. Verified live in a rolled-back
+transaction: 5 → 555 moved status `temporary_banned` → `normal`, cleared both
+ban timestamps and reset the acknowledgement.
+
+**The grant is column-scoped to `trust_score` alone** (migration
+`20260816000001`). The three lifecycle columns belong to the trigger, and their
+footer warns that *"a manual reset that forgets one column leaves a pet banned
+with no ban date"* — so Postgres refuses rather than us promising not to.
+Verified: writing `trust_warning_acknowledged` raises `insufficient_privilege`.
+
+**`pets.adjust_pet_trust_score` grants EXECUTE to nobody** — not `authenticated`,
+not `anon`, not even `service_role`. So there is no audited partial adjustment
+and no way to put a score back. **A restore is irreversible from the panel**,
+which is why the e2e spec must never perform one.
+
+**Gap we introduced, and told them about:** a manual restore writes **no row** to
+`pets.trust_score_events`. Their ledger is trigger-driven and we hold no insert
+grant, so a restored pet's score no longer reconciles against its own history.
+Our `admin_audit_logs` carries the restore with `previousScore`, `newScore`,
+`previousStatus` and `clearedBanWindow`, and the ledger UI says so rather than
+letting the timeline look complete. Asked them for a ledger reason.
+
+**Thresholds are duplicated** from `pets.get_pet_trust_status` into
+`lib/trust-constants.ts` and pinned by `trust-constants.test.ts` at every
+boundary (0/1/99/100/250/251/555). Their app never sees a number, so they can
+move a threshold in one SQL line with no app release — and our copy would
+silently disagree. That test is the tripwire. Note `<= 0` rather than `= 0` is
+deliberate on their side: otherwise a pet at −400 falls through to `< 100` and
+is treated *more* leniently than one at 50.
+
+**Never leak the score to their surface.** They enforce this with a Flutter test
+scanning for `trust_score`, `trustScore` and the string "Trust Score", because
+*"telling someone they are 30 points from a ban turns a moderation signal into a
+budget."* Showing it in an admin-only panel is the exception, not a precedent.
+
+**Their ban ≠ our ban.** Theirs is per **pet** and automatic; ours is per **auth
+user** and manual. One account can be trust-banned on one pet and fully active
+on another, and can be admin-suspended while every pet reads `normal`. Never
+render them in one column.
+
 ### Taxonomy management (Step 5)
 
 `/settings` manages `pets.species` (6 rows) and `pets.breeds` (34) through
@@ -501,6 +570,16 @@ dynamic-schema feature is blocked on a Flutter change, not a panel one).
   Grants only — no DDL on backend-owned tables. Verified under
   `set role service_role` that the status update succeeds and a `reason`
   update raises `insufficient_privilege`.
+- `20260816000001_admin_trust_review` (Step 6) — column-scoped
+  `update (trust_score)` on `pets.pets`, making the restore path their own
+  migration footer documents actually executable (service_role previously had
+  **no** update privilege on that table at all). Plus
+  `public.active_moderation_targets`, a view over our `admin_restrictions`
+  exposing only `target_type`/`target_id`/`kind` to `authenticated` — answering
+  their ask for a discovery filter without handing a mobile client our
+  moderators' free-text reasons. Verified rolled-back: restore works and clears
+  the ban window; lifecycle-column writes and deletes are denied; the view reads
+  as `authenticated` while both base tables stay closed.
 - `20260816000000_admin_taxonomy_grants` (Step 5) — `select, insert, update` on
   `pets.species` and `pets.breeds`. **No DELETE** (the FKs make it useless — see
   the taxonomy section) and no DDL. Verified under `set role service_role` in a
@@ -539,6 +618,14 @@ dynamic-schema feature is blocked on a Flutter change, not a panel one).
   FKs.
 - **Attribute schemas** are blocked on a Flutter change, not a panel one — see
   [`attribute-schema-proposal.md`](./attribute-schema-proposal.md).
+- **A ledger reason for admin trust restores** — our restore writes no row to
+  `pets.trust_score_events`, so a restored score stops reconciling against its
+  own history. Theirs to define; see the trust section.
+- **Trust bans hide nothing from other users.** A banned pet still appears in
+  everyone's discovery — the ban only stops its owner acting as it. The new
+  `active_moderation_targets` view is the mechanism; the filter is theirs to add.
+- **The app still does not handle our suspensions** — they confirmed there is no
+  GoTrue banned-user handling anywhere in `lib/`.
 - **Reports gap:** `matching.pet_reports` covers pets and posts only —
   account-level and chat-message reports have nowhere to go.
 - Confirm the intended distinction between report statuses `reviewed` and

@@ -23,6 +23,7 @@ export const adminNav = [
   { label: "Users & Pets", href: "/users", icon: "users", enabled: true },
   { label: "Verifications", href: "/verifications", icon: "badge-check", enabled: true },
   { label: "Content Reports", href: "/reports", icon: "flag", enabled: true },
+  { label: "Trust Review", href: "/trust", icon: "shield-alert", enabled: true },
   { label: "Business Directory", href: "/businesses", icon: "store", enabled: false },
   { label: "Audit Logs", href: "/audit", icon: "scroll-text", enabled: true },
   { label: "Settings", href: "/settings", icon: "settings", enabled: true },
@@ -238,6 +239,7 @@ export const copy = {
       "species.update": "Species updated",
       "breed.create": "Breed added",
       "breed.update": "Breed updated",
+      "trust.restore": "Trust restored",
     },
   },
   reports: {
@@ -412,6 +414,78 @@ export const copy = {
       error: "Could not save the decision.",
       conflict: "Someone else decided this certificate first.",
     },
+  },
+  trust: {
+    title: "Trust Review",
+    description:
+      "Pets restricted by the app's automated trust system. These bans are applied without a moderator — and are only ever lifted by one.",
+    /**
+     * The fact that makes this screen necessary rather than merely useful.
+     * `temporary_ban_until` is informational in the database; nothing consults
+     * it, so "temporary" means permanent until someone acts here.
+     */
+    clockWarning:
+      "A temporary ban never expires on its own. The owner was told a review date — only restoring the pet here ends it.",
+    searchPlaceholder: "Search pet name, or paste a pet / owner ID…",
+    filters: { status: "Status", all: "All", overdue: "Overdue reviews only", clear: "Clear filters" },
+    columns: {
+      pet: "Pet",
+      status: "Trust",
+      score: "Score",
+      reviewDue: "Review due",
+      reports: "Reports",
+    },
+    statusLabels: {
+      permanently_banned: "Permanently banned",
+      temporary_banned: "Temporarily banned",
+      warning: "Warning",
+      normal: "Normal",
+    },
+    /** Mirrors pets.trust_score_delta — display only, never computed here. */
+    eventLabels: {
+      like: "Received a like",
+      follow: "Gained a follower",
+      match: "Matched",
+      block: "Blocked by another pet",
+      report: "Profile reported",
+      post_report: "Post reported",
+      certificate_verified: "Certificate approved",
+    },
+    empty: "No pets are restricted. The automated system has banned nobody.",
+    emptyFiltered: "No pets match these filters.",
+    overdueBadge: "Overdue",
+    noReviewDate: "—",
+    acknowledgedNote:
+      "The owner has already dismissed the warning dialog, so the app now reports this pet as normal. The true state is shown here.",
+    review: "Review",
+    ledger: {
+      heading: "Trust history",
+      description: "Every automatic change to this pet's score, newest first.",
+      empty: "No recorded events. This pet's score has never moved automatically.",
+      /** Admin restores are not in their ledger — say so rather than let it look complete. */
+      restoreNote:
+        "Admin restores are not recorded here — the app backend's ledger only tracks automatic events. Restores appear in the audit log.",
+      columns: { when: "When", event: "Event", delta: "Change", actor: "Triggered by" },
+      close: "Close",
+    },
+    restore: {
+      action: "Restore trust",
+      title: "Restore this pet?",
+      /**
+       * States every consequence, including the two that are invisible in the
+       * column we write and happen via the backend's trigger.
+       */
+      description:
+        "This sets the pet's trust score back to 555, which immediately ends the ban, clears its review date, and re-arms the one-time warning dialog for the owner. It does not resolve any open reports against the pet — do that in Content Reports if it's warranted.",
+      reasonLabel: "Reason (recorded in the audit log)",
+      reasonPlaceholder: "What did you review, and why is the restriction being lifted?",
+      cancel: "Cancel",
+      confirm: "Restore to good standing",
+      submitting: "Restoring…",
+      error: "Could not restore the pet.",
+      alreadyNormal: "This pet is already in good standing.",
+    },
+    toast: { restored: "Trust restored." },
   },
   settings: {
     title: "Settings",

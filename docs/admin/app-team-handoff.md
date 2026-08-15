@@ -64,6 +64,7 @@ not a separate backend.
 | Users & Pets (`/users`) | Search/filter accounts and pet profiles; account detail view; suspend / ban / restore accounts; flag / unflag pet profiles |
 | Content Reports (`/reports`) | Triage queue over your `matching.pet_reports`; moves status only |
 | Verifications (`/verifications`) | Certificate review over your `pets.pet_certificates` — document viewer, approve / reject. ⚠️ approving awards +500 trust (§3.4) |
+| Trust Review (`/trust`) | The human review your ban screens promise. Pets restricted by *your* automated engine, ordered by the review date the owner was shown, with the event ledger and a restore (§3.4f) |
 | Settings (`/settings`) | Species and breed taxonomy — add / rename / retire. Super-admin only. ⚠️ **your app reads this live** (§3.4d) |
 | Audit log (`/audit`) | Every moderation action: who, what, when, and the mandatory reason |
 
@@ -452,6 +453,64 @@ data, and a contract. Blood group is the natural first field to migrate, since
 it's already a per-species attribute with a per-species value list. We'll build
 the editor whenever you're ready.
 
+### 3.4f ✅ Your discovery-filter ask — answered, and a trust review queue
+
+**Thank you for the reply document.** We've recorded what it settled in
+[`app-team-reply-notes.md`](./app-team-reply-notes.md), re-verified against the
+live database as you asked. Three things came out of it.
+
+**1. Your `admin_restrictions` ask: yes, and it's live.** We did not grant the
+table — `reason` is moderator free text and `created_by` names the admin,
+neither of which belongs in a mobile client. Instead, migration
+`20260816000001` adds a view with exactly what a discovery filter needs:
+
+```sql
+select target_type, target_id, kind
+from public.active_moderation_targets;   -- granted to `authenticated`
+```
+
+Rows are already filtered to *currently active* (not lifted, not expired), so
+you don't have to encode our semantics. Add columns whenever you need them —
+just ask rather than reading the base table, which stays closed.
+
+**2. We built the trust review queue.** Your §4 was right that the trust engine
+would surprise us, but the thing that actually stopped us was narrower: your
+migration footer documents restoring a pet with
+`UPDATE pets.pets SET trust_score = 555`, and **`service_role` had no update
+privilege on `pets.pets` at all** — so the documented path could not be run by
+anyone but you. We've granted ourselves `update (trust_score)`, column-scoped,
+so your trigger keeps sole ownership of the three lifecycle columns.
+
+Why it was urgent: `Mano` has been temp-banned since 2026-08-12 with a review
+date of **2026-08-19**, and your ban screen promised its owner a manual review.
+`temporary_ban_until` is informational, so nothing was ever going to lift it.
+`/trust` is now that review, sorted by the date you told the user.
+
+**3. One gap we've opened, and can't close from here.** A manual restore writes
+**no row** to `pets.trust_score_events` — your ledger is trigger-driven and
+`adjust_pet_trust_score` grants EXECUTE to nobody, including `service_role`. So
+after a restore, a pet's score no longer reconciles against its own history. We
+record it in our audit log and the UI says the ledger is incomplete, but that's
+a workaround.
+
+**Ask:** either add a ledger reason for admin restores (`admin_restore`, delta
+computed) and grant us the insert, or expose an RPC that does the update and the
+ledger row together. We'd take either; the RPC is cleaner and keeps the score
+arithmetic entirely yours.
+
+**Two observations while we were in there**, both yours to decide on:
+
+- **A trust ban hides a pet from nobody.** It stops the *owner* acting as that
+  pet, but the pet stays in everyone else's discovery, its posts stay in feeds,
+  and its matches are untouched. If that's intended, fine — but §4 of your doc
+  reads as though a ban removes a pet from circulation, and it doesn't. The view
+  in (1) is the mechanism if you want it to.
+- **Your `<= 0` deviation is right and we copied it.** A pet at −400 falling
+  through to `< 100` and being treated more leniently than one at 50 would have
+  been a real bug. Noting it so you know our copy of the ladder matches, and that
+  we pin every boundary in a test — if you move a threshold, tell us, because
+  your app follows automatically and our panel will not.
+
 ### 3.5 Two role systems — agreed, with one caveat
 
 - The panel reads admin roles from Supabase Auth `app_metadata.role`.
@@ -603,6 +662,7 @@ always safe.
 | `matching.pet_reports.status` | update — **column-scoped grant, nothing else on the row is writable** |
 | `pets.pet_certificates` | update of `status`, `reviewed_by`, `reviewed_at`, `remarks` only — **column-scoped**. ⚠️ `status='approved'` fires your trust trigger (+500) |
 | `pets.species`, `pets.breeds` | insert + update (`name`, `description`, `status`). **No delete** — your FKs forbid it anyway. ⚠️ read live by your app (§3.4d) |
+| `pets.pets.trust_score` | update to **555 only** — column-scoped, the restore your migration footer documents. Your trigger clears the three lifecycle columns; we cannot write them (§3.4f) |
 | `public.admin_restrictions` | insert (apply), update (lift) — ours |
 | `public.admin_audit_logs` | insert only — ours, append-only |
 
