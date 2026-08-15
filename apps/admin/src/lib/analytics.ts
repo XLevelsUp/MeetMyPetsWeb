@@ -31,19 +31,37 @@ export type AnalyticsResult<T> =
   | { ok: true; data: T }
   | { ok: false; reason: "unconfigured" | "query_failed"; message: string };
 
-/** Verified table locations — one place to fix if the schema moves again. */
+/**
+ * Verified table locations — one place to fix if the schema moves again.
+ *
+ * `createdColumn` names the timestamp the week-over-week trend measures, and
+ * defaults to `created_at`. Set it ONLY where the table disagrees.
+ */
 const TABLES = {
   users: { schema: "identity", table: "accounts" },
   pets: { schema: "pets", table: "pets" },
   species: { schema: "pets", table: "species" },
-  matches: { schema: "matching", table: "matches" },
+  /**
+   * ⚠️ `matching.matches` has NO `created_at` column — it records `matched_at`,
+   * because a match is an event with a moment rather than a row that was
+   * created. Filtering it on `created_at` returns HTTP 400 from PostgREST, and
+   * since every metric here shares one Promise.all and one catch, that single
+   * bad column blanked the whole dashboard. Verified live 2026-08-16: this is
+   * the only analytics table without `created_at`.
+   */
+  matches: { schema: "matching", table: "matches", createdColumn: "matched_at" },
   chats: { schema: "chat", table: "conversations" },
   verifications: { schema: "identity", table: "account_verifications" },
   swipes: { schema: "matching", table: "pet_likes" },
   reports: { schema: "matching", table: "pet_reports" },
 } as const;
 
-type TableRef = (typeof TABLES)[keyof typeof TABLES];
+type TableRef = { schema: string; table: string; createdColumn?: string };
+
+/** The column a trend measures. Defaults to the near-universal `created_at`. */
+function createdColumn(ref: TableRef): string {
+  return ref.createdColumn ?? "created_at";
+}
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -83,10 +101,11 @@ export async function fetchAnalyticsSummary(): Promise<
     ref: TableRef,
     currentFilter?: (q: CountQuery) => CountQuery,
   ): Promise<MetricValue> => {
+    const col = createdColumn(ref);
     const [total, thisWeek, priorWeek] = await Promise.all([
       countRows(ref, currentFilter),
-      countRows(ref, (q) => q.gte("created_at", weekAgo)),
-      countRows(ref, (q) => q.gte("created_at", twoWeeksAgo).lt("created_at", weekAgo)),
+      countRows(ref, (q) => q.gte(col, weekAgo)),
+      countRows(ref, (q) => q.gte(col, twoWeeksAgo).lt(col, weekAgo)),
     ]);
     return { current: total, previous: priorWeek, changePct: changePct(thisWeek, priorWeek) };
   };
@@ -98,10 +117,14 @@ export async function fetchAnalyticsSummary(): Promise<
    * constantly moves.
    */
   const queueMetric = async (ref: TableRef, statusValue: string): Promise<MetricValue> => {
+    // Reads the same per-table column as stockMetric. Both queue tables use
+    // `created_at` today, but hardcoding it here is exactly what broke the
+    // matches metric, so the lookup is shared rather than repeated.
+    const col = createdColumn(ref);
     const [open, thisWeek, priorWeek] = await Promise.all([
       countRows(ref, (q) => q.eq("status", statusValue)),
-      countRows(ref, (q) => q.gte("created_at", weekAgo)),
-      countRows(ref, (q) => q.gte("created_at", twoWeeksAgo).lt("created_at", weekAgo)),
+      countRows(ref, (q) => q.gte(col, weekAgo)),
+      countRows(ref, (q) => q.gte(col, twoWeeksAgo).lt(col, weekAgo)),
     ]);
     return { current: open, previous: priorWeek, changePct: changePct(thisWeek, priorWeek) };
   };

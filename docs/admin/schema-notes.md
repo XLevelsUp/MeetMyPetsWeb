@@ -174,13 +174,34 @@ as moderator context only. Two facts that constrain future work:
 |--------|--------|-------|
 | totalUsers | `identity.accounts` | trend on `created_at` |
 | activePets | `pets.pets` where `status='active'` | 55 of 58 today |
-| totalMatches | `matching.matches` | |
+| totalMatches | `matching.matches` | ⚠️ **trend uses `matched_at`, not `created_at`** — this table has no `created_at` (see below). Counts ended matches too |
 | activeChats | `chat.conversations.last_message_at` ≥ 7d | column verified |
 | pendingVerifications | `identity.account_verifications` where `status='pending'` | table still empty (re-checked 08-15) and still no CHECK constraint; `'pending'` remains an assumption that silently renders 0 if wrong |
 | openReports | `matching.pet_reports` where `status='pending'` | **CORRECTED 08-15** — was a hardcoded zero; now a real count (13 today) with week-over-week trend via the existing `queueMetric` |
 | speciesBreakdown | `pets.pets.species_id` + `pets.species` names | species via anon reference client |
 | userAcquisition (chart) | `public.admin_analytics_timeseries` rpc → `identity.accounts.created_at` | |
 | swipeVolume (chart) | `public.admin_analytics_timeseries` rpc → `matching.pet_likes.created_at` | ✅ unblocked 2026-08-06 |
+
+### ⚠️ `matching.matches` has no `created_at` (fixed 2026-08-16)
+
+The dashboard was **fully broken** — one error card, no metrics — because
+`stockMetric` hardcoded `.gte("created_at", …)` for its week-over-week trend and
+`matching.matches` does not have that column. Its timestamps are `matched_at`,
+`ended_at`, `updated_at`. PostgREST answers `created_at=gte.…` with **HTTP 400**.
+
+Two things made a one-column mistake this expensive:
+
+1. **All six metrics share one `Promise.all` inside one `try/catch`**, so a
+   single throw returns `query_failed` for the whole summary. Five working
+   metrics were hidden by one broken one. Still true — worth revisiting.
+2. **The unit test could not catch it.** The mock returned its configured count
+   regardless of which filters were chained, so a query that 400s in production
+   was green in CI. `analytics.test.ts` now asserts on the *filters the adapter
+   builds*, checked against a map of each table's real timestamp columns.
+
+`TABLES` entries now carry an optional `createdColumn`; only `matches` sets it.
+Verified live 2026-08-16: **`matches` is the only analytics table without
+`created_at`**, and all three of its rebuilt queries return 200.
 
 **Timeseries is now server-side.** As of 2026-08-06 the charts call
 `public.admin_analytics_timeseries(days)` (SECURITY INVOKER,
