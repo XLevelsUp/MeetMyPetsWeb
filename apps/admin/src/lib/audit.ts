@@ -23,7 +23,7 @@ export type AuditEntryInput = {
   actorEmail: string;
   actorRole: AdminRole;
   action: AuditAction;
-  targetType: "account" | "pet";
+  targetType: "account" | "pet" | "report";
   targetId: string;
   reason: string;
   /** Action-specific context: durations, before/after state, etc. */

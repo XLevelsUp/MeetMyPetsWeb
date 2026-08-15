@@ -238,8 +238,14 @@ coordination gap §3.7 is about, and it cost a document.
 **What we need — the panel cannot read a single report today.** The table
 comment says *"moderators read and update status through `service_role`"*, but
 that role holds **no grant on `matching.pet_reports` at all**, and no `USAGE`
-on the `social` schema (10 of your 13 reports carry
+on the `social` schema (roughly three quarters of the reports carry
 `context_entity_type = 'post'`, so the queue can't show what was reported).
+
+They are also arriving faster than they're being triaged — the pending count
+rose from 13 to 15 during the hour we spent building this, and **every report
+in the table is still `pending`**, i.e. nothing has ever been actioned. That is
+the case for shipping the queue, not a criticism: until now there was no
+surface on which anyone could have triaged them.
 
 We are applying this ourselves as a grants-only migration — flagged here so it
 isn't a surprise, and so you can object:

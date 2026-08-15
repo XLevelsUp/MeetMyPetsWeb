@@ -61,9 +61,11 @@ Live values today are `active` (37) / `archived` (3) for accounts and
 `active` (55) / `archived` (5) for pets. `restriction-badge.tsx` renders any
 unrecognized value as "Active", so a third lifecycle value would display wrong.
 
-**CORRECTED 08-15 — reports.** `matching.pet_reports` now exists (13 rows,
-earliest 2026-08-11; the 08-06 finding of "no reports table in any schema" was
-accurate when made). Pet-scoped: `reporter_pet_id`, `reported_pet_id`,
+**CORRECTED 08-15 — reports.** `matching.pet_reports` now exists (15 rows and
+growing, earliest 2026-08-11; the 08-06 finding of "no reports table in any
+schema" was accurate when made). **Every row is still `pending`** — nothing
+has ever been triaged, because until Step 3 there was no surface to triage it
+on. Pet-scoped: `reporter_pet_id`, `reported_pet_id`,
 `reporter_account_id`, plus a polymorphic `context_entity_type` /
 `context_entity_id` pair — a row with no context reports the **pet profile**,
 one with `context_entity_type='post'` reports a single post. CHECK-constrained
@@ -341,6 +343,36 @@ matching label in `copy.audit.actionLabels`.
   `public.swipes`) and applied; `analytics.ts` now calls it via `rpc`.
 - `20260806000003_admin_moderation_tables` (Step 1) — `admin_audit_logs` +
   `admin_restrictions` with the revokes and constraints described above.
+
+### The report queue (Step 3)
+
+`/reports` reads `matching.pet_reports` through `listReports` in
+`lib/reports.ts`, with filters for status, reason, scope (profile vs post) and
+free text over `details` (a uuid matches the report / reported pet / reporter
+pet exactly). It opens on `status=pending` rather than `all` — the screen is a
+work queue, so it should show the work.
+
+Because PostgREST cannot join across schemas, a page of reports fans out into
+parallel lookups against `pets.pets` (name, owner, trust score),
+`identity.accounts` (owner email) and `social.posts` (the reported post),
+merged through Maps — the same shape `users.ts` uses for restrictions. Owner
+emails are a second hop, since the owner id comes from the pet row.
+
+Verified live 2026-08-15 against the real table with the real service key: the
+adapter's exact column list returns `206` with a correct count header, the
+`is.null` / `eq.post` scope filters and the `or=(id.eq…)` uuid search are
+accepted by PostgREST, `limit`/`offset` pagination works, and all three
+hydration schemas are reachable.
+
+**Resolution writes only `status`**, then an audit row (`report.review` /
+`report.action` / `report.dismiss`, `target_type = 'report'`). Resolving a
+report deliberately does **not** flag the pet or restrict the owner — those
+stay separate, individually-audited actions on `/users` with their own narrower
+role checks, so a reviewer can always tell what a moderator actually did.
+
+The panel reads `trust_score` alongside each report as context and never writes
+it; the status thresholds are duplicated in `trustStatusFor` (unit-tested
+against the SQL's boundaries) rather than fetched per row, which would be N+1.
 
 ## Applied 2026-08-15 (Step 3 prerequisites)
 

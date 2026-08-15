@@ -4,8 +4,8 @@
 >
 > **Withdrawn 2026-08-15. No sign-off needed; please ignore the checklist in §7.**
 >
-> `matching.pet_reports` **already exists** and is live — 13 rows as of
-> 2026-08-15, RLS enabled, an insert-only policy for `authenticated`, statuses
+> `matching.pet_reports` **already exists** and is live — 15 rows and climbing
+> as of 2026-08-15, RLS enabled, an insert-only policy for `authenticated`, statuses
 > `pending | reviewed | actioned | dismissed`, and a table comment that reads
 > *"moderators read and update status through service_role."* Creating
 > `public.admin_reports` alongside it would have fractured reporting data across

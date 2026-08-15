@@ -22,7 +22,7 @@ export const adminNav = [
   { label: "Dashboard", href: "/", icon: "layout-dashboard", enabled: true },
   { label: "Users & Pets", href: "/users", icon: "users", enabled: true },
   { label: "Verifications", href: "/verifications", icon: "badge-check", enabled: false },
-  { label: "Content Reports", href: "/reports", icon: "flag", enabled: false },
+  { label: "Content Reports", href: "/reports", icon: "flag", enabled: true },
   { label: "Business Directory", href: "/businesses", icon: "store", enabled: false },
   { label: "Audit Logs", href: "/audit", icon: "scroll-text", enabled: true },
   { label: "Settings", href: "/settings", icon: "settings", enabled: false },
@@ -199,7 +199,7 @@ export const copy = {
       target: "Target",
       reason: "Reason",
     },
-    targetTypes: { account: "Account", pet: "Pet" },
+    targetTypes: { account: "Account", pet: "Pet", report: "Report" },
     /**
      * An empty audit log is the normal state on a fresh install, not an
      * error — the copy should reassure rather than alarm.
@@ -215,13 +215,97 @@ export const copy = {
       noMetadata: "No additional metadata.",
       close: "Close",
     },
-    /** Mirrors AUDIT_ACTIONS in lib/audit.ts. */
+    /** Mirrors AUDIT_ACTIONS in lib/audit-actions.ts. */
     actionLabels: {
       "account.suspend": "Account suspended",
       "account.ban": "Account banned",
       "account.restore": "Account restored",
       "pet.flag": "Pet flagged",
       "pet.unflag": "Pet flag removed",
+      "report.review": "Report reviewed",
+      "report.action": "Report actioned",
+      "report.dismiss": "Report dismissed",
+    },
+  },
+  reports: {
+    title: "Content Reports",
+    description: "Reports filed from the app against pet profiles and posts.",
+    searchPlaceholder: "Search report text, or paste a report / pet ID…",
+    filters: {
+      status: "Status",
+      reason: "Reason",
+      scope: "About",
+      all: "All",
+      clear: "Clear filters",
+    },
+    columns: {
+      when: "Filed",
+      reported: "Reported pet",
+      reason: "Reason",
+      scope: "About",
+      trust: "Trust",
+      status: "Status",
+    },
+    /**
+     * An empty queue is the goal state, not an error — but an empty *filtered*
+     * view usually means the filter, so the two read differently.
+     */
+    empty: "No reports in the queue. Nothing needs attention.",
+    emptyFiltered: "No reports match these filters.",
+    statusLabels: {
+      pending: "Pending",
+      reviewed: "Reviewed",
+      actioned: "Actioned",
+      dismissed: "Dismissed",
+    },
+    reasonLabels: {
+      spam: "Spam",
+      harassment: "Harassment",
+      inappropriate_content: "Inappropriate content",
+      fake_profile: "Fake profile",
+      animal_welfare: "Animal welfare",
+      scam: "Scam",
+      other: "Other",
+    },
+    scopeLabels: { profile: "Pet profile", post: "A post" },
+    trustLabels: {
+      permanently_banned: "Permanently banned",
+      temporary_banned: "Temporarily banned",
+      warning: "Warning",
+      normal: "Normal",
+    },
+    /** Trust is the backend's automated signal; the panel only displays it. */
+    trustHint: "Automated trust score, owned by the app backend. The panel never changes it.",
+    noTrustScore: "Unknown",
+    details: "Review",
+    detailDialog: {
+      title: "Report",
+      description: "Filed from the app. The panel can change its status and nothing else.",
+      reporterNote: "Reporter's note",
+      noReporterNote: "The reporter left no note.",
+      reportedPet: "Reported pet",
+      reporterPet: "Filed by",
+      owner: "Owner",
+      post: "Reported post",
+      postDeleted: "This post has since been deleted.",
+      noCaption: "This post has no caption.",
+      history: "Reports against this pet",
+      openAccount: "Open owner's account",
+      close: "Close",
+    },
+    resolve: {
+      reviewed: "Mark reviewed",
+      actioned: "Mark actioned",
+      dismissed: "Dismiss",
+      reasonLabel: "Reason (recorded in the audit log)",
+      reasonPlaceholder: "What did you find, and what did you do about it?",
+      confirmTitle: "Resolve this report?",
+      confirmDescription:
+        "This changes the report's status and writes an audit row. It does not by itself flag the pet or restrict the owner — do that from the pet or account if it's warranted.",
+      cancel: "Cancel",
+      submit: "Confirm",
+      submitting: "Saving…",
+      error: "Could not resolve the report.",
     },
   },
 } as const;

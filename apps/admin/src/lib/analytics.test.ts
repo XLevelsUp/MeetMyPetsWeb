@@ -40,6 +40,7 @@ describe("fetchAnalyticsSummary", () => {
       "matching.matches": { count: 50 },
       "chat.conversations": { count: 12 },
       "identity.account_verifications": { count: 0 },
+      "matching.pet_reports": { count: 13 },
     });
     holder.reference = makeSupabaseMock({
       "pets.species": { rows: [{ id: "d", name: "Dog" }, { id: "c", name: "Cat" }] },
@@ -53,8 +54,11 @@ describe("fetchAnalyticsSummary", () => {
     expect(result.data.metrics.activePets.current).toBe(55);
     expect(result.data.metrics.totalMatches.current).toBe(50);
     expect(result.data.metrics.activeChats.current).toBe(12);
-    // No reports table exists — always a true zero.
-    expect(result.data.metrics.openReports).toEqual({ current: 0, previous: 0, changePct: null });
+    // Real count off matching.pet_reports since 2026-08-15 — it was a hardcoded
+    // zero before the backend's table was adopted. A non-zero fixture is the
+    // point: with an unconfigured table the mock also returns 0, so asserting
+    // zero here would pass whether or not the metric is wired up at all.
+    expect(result.data.metrics.openReports.current).toBe(13);
     expect(result.data.activePetsBySpecies).toEqual([
       { species: "Dog", count: 2 },
       { species: "Cat", count: 1 },
@@ -69,6 +73,7 @@ describe("fetchAnalyticsSummary", () => {
       "matching.matches": { count: 0 },
       "chat.conversations": { count: 0 },
       "identity.account_verifications": { count: 0 },
+      "matching.pet_reports": { count: 0 },
     });
     holder.reference = makeSupabaseMock({ "pets.species": { rows: [] } });
 

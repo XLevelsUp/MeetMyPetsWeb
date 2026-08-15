@@ -15,6 +15,9 @@ export const AUDIT_ACTIONS = [
   "account.restore",
   "pet.flag",
   "pet.unflag",
+  "report.review",
+  "report.action",
+  "report.dismiss",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -13,13 +13,14 @@ import {
 /**
  * Analytics query adapter — the ONE file that knows the database schema.
  *
- * SCHEMA: verified 2026-08-06 via Supabase MCP introspection (see
+ * SCHEMA: verified 2026-08-06, re-verified 2026-08-15 (see
  * docs/admin/schema-notes.md). The app data lives in domain schemas
  * (`identity`, `pets`, `matching`, `chat`, `social`), all exposed to the
  * Data API — NOT in `public`. The service_role read surface is deliberately
  * narrow: all of `identity`, plus SELECT on exactly `pets.pets`,
- * `matching.matches`, and `chat.conversations`. Everything queried here must
- * stay inside that surface (or the anon-readable reference tables).
+ * `matching.matches`, `matching.pet_likes`, `matching.pet_reports`, and
+ * `chat.conversations`. Everything queried here must stay inside that surface
+ * (or the anon-readable reference tables).
  *
  * House adapter pattern (apps/landing/src/lib/waitlist.ts): discriminated
  * union results, never throws. Uses the service client — RLS is bypassed,
@@ -39,18 +40,12 @@ const TABLES = {
   chats: { schema: "chat", table: "conversations" },
   verifications: { schema: "identity", table: "account_verifications" },
   swipes: { schema: "matching", table: "pet_likes" },
+  reports: { schema: "matching", table: "pet_reports" },
 } as const;
 
 type TableRef = (typeof TABLES)[keyof typeof TABLES];
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
-/**
- * No reports/moderation table exists anywhere in the database yet (verified
- * across every schema, 2026-08-06). Zero is the true count until the
- * feature lands; revisit TABLES when it does.
- */
-const NO_REPORTS_YET: MetricValue = { current: 0, previous: 0, changePct: null };
 
 export async function fetchAnalyticsSummary(): Promise<
   AnalyticsResult<AnalyticsSummaryResponse>
@@ -156,17 +151,27 @@ export async function fetchAnalyticsSummary(): Promise<
   };
 
   try {
-    const [totalUsers, activePets, totalMatches, activeChats, pendingVerifications, bySpecies] =
-      await Promise.all([
-        stockMetric(TABLES.users),
-        stockMetric(TABLES.pets, (q) => q.eq("status", "active")),
-        stockMetric(TABLES.matches),
-        activeChatsMetric(),
-        // Table is empty today; "pending" is the assumed FastAPI status value —
-        // recheck when the first real verification lands.
-        queueMetric(TABLES.verifications, "pending"),
-        speciesBreakdown(),
-      ]);
+    const [
+      totalUsers,
+      activePets,
+      totalMatches,
+      activeChats,
+      pendingVerifications,
+      openReports,
+      bySpecies,
+    ] = await Promise.all([
+      stockMetric(TABLES.users),
+      stockMetric(TABLES.pets, (q) => q.eq("status", "active")),
+      stockMetric(TABLES.matches),
+      activeChatsMetric(),
+      // Table is empty today; "pending" is the assumed FastAPI status value —
+      // recheck when the first real verification lands.
+      queueMetric(TABLES.verifications, "pending"),
+      // The backend's own table (adopted 2026-08-15 — we no longer plan our
+      // own). "pending" here is CHECK-constrained, not assumed.
+      queueMetric(TABLES.reports, "pending"),
+      speciesBreakdown(),
+    ]);
 
     const metrics: Record<MetricKey, MetricValue> = {
       totalUsers,
@@ -174,7 +179,7 @@ export async function fetchAnalyticsSummary(): Promise<
       totalMatches,
       activeChats,
       pendingVerifications,
-      openReports: NO_REPORTS_YET,
+      openReports,
     };
 
     return {
