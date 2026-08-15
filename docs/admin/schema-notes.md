@@ -292,12 +292,34 @@ are needed for reads. Residual asks for the backend team:
   RLS half (item 1 above) still needs owner-scoped policies from the team
   that owns the mobile access patterns.
 
-## Test users (created 2026-08-05, passwords delivered in-session)
+## Admin users
 
-| Email | Role | Purpose |
-|-------|------|---------|
-| `admin.moderator.test@meetmypets.dev` | `moderator` | Can sign in + call analytics APIs |
-| `admin.support.test@meetmypets.dev` | `support` | Signs in but gets 403 from analytics — proves the role allowlist |
+| Email | Role | Created | Purpose |
+|-------|------|---------|---------|
+| `xlevelsup.tech@gmail.com` | **`super_admin`** | 2026-08-16 | The real operator account — first and only super_admin |
+| `admin.moderator.test@meetmypets.dev` | `moderator` | 2026-08-05 | Can sign in + call analytics APIs |
+| `admin.support.test@meetmypets.dev` | `support` | 2026-08-05 | Signs in but gets 403 from analytics — proves the role allowlist |
+
+Passwords are delivered in-session and never recorded here.
+
+**About the super_admin account (created 2026-08-16):** made through the GoTrue
+admin API with `email_confirm: true`, so it works without an email round-trip —
+relevant because the app team's own `EMAIL_DELIVERABILITY.md` documents
+verification mail landing in spam. Verified end to end: sign-in succeeds and the
+**access token carries `app_metadata.role = super_admin`**, which is what
+`proxy.ts` checks via `getClaims()` and `dal.ts` reads.
+
+⚠️ **It is also a regular app account.** Their `identity.handle_new_user()`
+trigger fires on any `auth.users` insert, so this admin now has an
+`identity.accounts` row (`display_name` "xlevelsup.tech", status `active`) and
+appears in `/users` and in the `totalUsers` metric like any other user. That is
+their trigger's design, not something the panel can opt out of — worth knowing
+before someone wonders why the user count went up by one.
+
+⚠️ **Until 2026-08-16 there were ZERO super_admins.** Every super-admin-only
+surface built so far — `/settings` taxonomy, trust restore, account ban/restore
+— was unreachable by any existing account, which is also why the authenticated
+render of those screens had never been verifiable.
 
 Both re-verified in `auth.users` on 2026-08-06. Assign real admins with:
 
@@ -655,6 +677,9 @@ dynamic-schema feature is blocked on a Flutter change, not a panel one).
 - Ask the app team for an RPC if moderators should be able to lift an
   automated trust ban — `pets.adjust_pet_trust_score` grants EXECUTE to
   nobody, so it is currently impossible.
+- **Enable leaked-password protection** in Auth (advisor finding, still off).
+  It matters more now that a real `super_admin` exists: nothing currently
+  rejects a known-breached password on the account with full PII access.
 - Rotate the secret key if it was ever exposed outside `.env.local`.
 - Remaining advisor cleanup (unindexed FKs, `auth_rls_initplan`,
   leaked-password protection) — non-blocking, backend-owned.
