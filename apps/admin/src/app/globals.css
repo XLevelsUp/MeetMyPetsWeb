@@ -8,10 +8,10 @@
    MeetMyPets design tokens — admin panel copy.
 
    DELIBERATE DUPLICATION: the token layer below (@theme inline, :root, .dark)
-   is copied from apps/landing/src/app/globals.css. The landing site is a
+   is copied from apps/marketing/src/app/globals.css. The marketing site is a
    static export whose build must stay untouched, and there is no shared
    package infrastructure yet, so token edits must be mirrored in BOTH files
-   by hand. Landing-only layers (marquee, .prose-legal, .legal-todo,
+   by hand. Marketing-only layers (marquee, .prose-legal, .legal-todo,
    .mask-edges, typography plugin) are dropped here; admin-only tokens
    (--chart-*, --sidebar-*) exist only in this file.
 
@@ -148,7 +148,7 @@
   --sidebar-ring: #c2531f;
 }
 
-/* Unlike the landing site, the admin panel ships a real dark mode toggle
+/* Unlike the marketing site, the admin panel ships a real dark mode toggle
    (next-themes, attribute="class"). */
 .dark {
   --background: #16120f;

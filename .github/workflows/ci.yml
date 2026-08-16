@@ -31,7 +31,7 @@ jobs:
       - run: npm run lint
       - run: npm run test
       - run: npm run build:admin
-      - run: npm run build:landing
+      - run: npm run build:marketing
 
   e2e:
     name: Auth + RBAC smoke (Playwright)

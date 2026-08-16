@@ -6,10 +6,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Repo layout
 
-npm-workspaces monorepo. `apps/landing` is the static-export marketing site
+npm-workspaces monorepo. `apps/marketing` is the static-export marketing site
 (`output: "export"` — no middleware/proxy, cookies, Route Handlers, or Server
 Actions there). `apps/admin` is the server-rendered admin panel. Run scripts
-from the root: `npm run dev:landing` / `dev:admin` / `build:landing` /
+from the root: `npm run dev:marketing` / `dev:admin` / `build:marketing` /
 `build:admin` / `typecheck` / `lint`. `node_modules` is hoisted to the root,
 so the Next.js docs path above is unchanged.
 
@@ -17,7 +17,7 @@ Working on `apps/admin`? Read `docs/admin/README.md` first — it is the
 master plan (purpose, 4-phase roadmap, architecture decisions, working
 rules) — plus `docs/admin/schema-notes.md` for verified database reality.
 
-# Landing page: responsive rules
+# Marketing site: responsive rules
 
 The breakpoint ladder is **375 / 768 / 1024 / 1440**. Every new section must
 have a `md:` (768) tier, not just `sm:` and `lg:`. The site was once built with
@@ -37,6 +37,6 @@ Two Tailwind traps that caused real bugs here:
   tablet layout look unconsidered even where the grid was correct.
 
 Verify layout changes by rendering, not by reading classes: build, serve
-`apps/landing/out`, and check all four widths for `scrollWidth > clientWidth`.
+`apps/marketing/out`, and check all four widths for `scrollWidth > clientWidth`.
 Reveal animations use IntersectionObserver, so a full-page screenshot must
 scroll the page first or every off-screen section captures at `opacity: 0`.

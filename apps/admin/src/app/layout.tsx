@@ -8,7 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { admin } from "@/config/admin";
 import "./globals.css";
 
-// Same brand fonts as the landing site, self-hosted at build time by
+// Same brand fonts as the marketing site, self-hosted at build time by
 // next/font — no external request to Google.
 const display = Bricolage_Grotesque({
   variable: "--font-display",

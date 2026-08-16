@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/server";
  * every server-side read of "who is this and what may they do" happens here,
  * next to the data access, per the Next 16 auth guidance.
  *
- * House adapter pattern (see apps/landing/src/lib/waitlist.ts): results are
+ * House adapter pattern (see apps/marketing/src/lib/waitlist.ts): results are
  * discriminated unions, this module never throws.
  *
  * SCHEMA ASSUMPTION (docs/admin/schema-notes.md #1): the role is a single

@@ -26,10 +26,10 @@ deliberately narrow, service-key-granted surface (see schema-notes).
 ## 2. Architecture
 
 ```
-┌────────────────────── this repo (npm workspaces) ─────────────────────┐
-│ apps/landing  → meetmypets.app        static export, NO server runtime │
-│ apps/admin    → admin.meetmypets.app  Next 16 server-rendered, :3001   │
-└───────────────────────────────────────────────────────────────────────┘
+┌─────────────────────── this repo (npm workspaces) ──────────────────────┐
+│ apps/marketing → meetmypets.app        static export, NO server runtime │
+│ apps/admin     → admin.meetmypets.app  Next 16 server-rendered, :3001   │
+└─────────────────────────────────────────────────────────────────────────┘
                      │ @supabase/ssr (cookies)  │ service-key (server-only)
                      ▼                          ▼
      Supabase Auth (shared user pool)   Postgres domain schemas
@@ -63,10 +63,10 @@ Key decisions (made in the approved Phase 1 plan; do not silently reverse):
   feature adapters following the same pattern). When the schema shifts, those
   files change and nothing else does.
 - **Design tokens are deliberately duplicated** between
-  `apps/landing/src/app/globals.css` and `apps/admin/src/app/globals.css`
+  `apps/marketing/src/app/globals.css` and `apps/admin/src/app/globals.css`
   (no shared package yet; cross-referenced header comments). Token edits must
   be mirrored by hand.
-- **Never add server-only features to `apps/landing`** — it is
+- **Never add server-only features to `apps/marketing`** — it is
   `output: "export"` (no middleware/proxy, cookies, Route Handlers, Server
   Actions). That constraint is why the admin panel is a separate app.
 
@@ -253,8 +253,8 @@ Verified end-to-end: anonymous → redirect/401, `support` → 403,
    the repo root; `npm run build:admin`; for auth-path changes, re-run the
    three-way RBAC check (anonymous / support / moderator) against a dev
    server.
-7. **The landing app must not regress**: if a change touches shared root
-   config, rebuild `apps/landing` and confirm output is unchanged.
+7. **The marketing app must not regress**: if a change touches shared root
+   config, rebuild `apps/marketing` and confirm output is unchanged.
 8. **Database access from sessions is read-only by default.** Writes (grants,
    migrations, user changes) happen only with explicit human sign-off, and
    schema changes ship as files in `supabase/migrations/`.
@@ -288,7 +288,7 @@ Verified end-to-end: anonymous → redirect/401, `support` → 403,
   the page-boundary behaviour of the computed `pet_count` sort, and the URL
   round-trip are covered by unit tests, live PostgREST probes and an e2e spec,
   but no one has clicked through them as super_admin.
-- Hosting: repoint the landing deploy's root directory to `apps/landing`;
+- Hosting: repoint the marketing deploy's root directory to `apps/marketing`;
   create the `apps/admin` project on `admin.meetmypets.app`.
 
 Resolved: ~~`pet_likes` grant~~ (`20260806000001`), ~~audit-log table~~

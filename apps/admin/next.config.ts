@@ -2,7 +2,7 @@ import path from "node:path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Unlike apps/landing this app is server-rendered: RBAC needs proxy.ts,
+  // Unlike apps/marketing this app is server-rendered: RBAC needs proxy.ts,
   // cookies() and Route Handlers, all of which `output: "export"` forbids.
 
   // npm-workspaces monorepo: the lockfile lives at the repo root, two levels

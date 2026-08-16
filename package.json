@@ -6,9 +6,9 @@
     "apps/*"
   ],
   "scripts": {
-    "dev:landing": "npm run dev --workspace apps/landing",
+    "dev:marketing": "npm run dev --workspace apps/marketing",
     "dev:admin": "npm run dev --workspace apps/admin",
-    "build:landing": "npm run build --workspace apps/landing",
+    "build:marketing": "npm run build --workspace apps/marketing",
     "build:admin": "npm run build --workspace apps/admin",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",

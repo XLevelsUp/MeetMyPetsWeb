@@ -1,6 +1,6 @@
 MeetMyPets web — an npm-workspaces monorepo:
 
-- `apps/landing` — the public marketing/waitlist site (`meetmypets.app`), fully static export.
+- `apps/marketing` — the public marketing/waitlist site (`meetmypets.app`), fully static export.
 - `apps/admin` — the moderator/founder admin panel (`admin.meetmypets.app`), server-rendered.
 
 ## Getting Started
@@ -10,17 +10,17 @@ From the repo root:
 ```bash
 npm install
 
-npm run dev:landing   # landing site on http://localhost:3000
-npm run dev:admin     # admin panel on http://localhost:3001
+npm run dev:marketing   # marketing site on http://localhost:3000
+npm run dev:admin       # admin panel on http://localhost:3001
 
-npm run build:landing # static export to apps/landing/out
+npm run build:marketing # static export to apps/marketing/out
 npm run build:admin
 
-npm run typecheck     # both workspaces
-npm run lint          # both workspaces
+npm run typecheck       # both workspaces
+npm run lint            # both workspaces
 ```
 
-The landing page lives at `apps/landing/src/app/page.tsx`; it auto-updates as you edit.
+The marketing site's home page lives at `apps/marketing/src/app/page.tsx`; it auto-updates as you edit.
 
 ### Admin panel setup
 
@@ -38,7 +38,7 @@ that still needs verifying against the live database, and
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Android App Links — `apps/landing/public/.well-known/assetlinks.json`
+## Android App Links — `apps/marketing/public/.well-known/assetlinks.json`
 
 That file is a Digital Asset Links statement. It is what lets
 `https://meetmypets.app/pet/<uuid>` and `/post/<uuid>` open the MeetMyPets Android app

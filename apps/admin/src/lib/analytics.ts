@@ -22,7 +22,7 @@ import {
  * `chat.conversations`. Everything queried here must stay inside that surface
  * (or the anon-readable reference tables).
  *
- * House adapter pattern (apps/landing/src/lib/waitlist.ts): discriminated
+ * House adapter pattern (apps/marketing/src/lib/waitlist.ts): discriminated
  * union results, never throws. Uses the service client — RLS is bypassed,
  * so nothing here may ever select PII columns; counts and aggregates only.
  */

@@ -82,7 +82,7 @@
      Fluid display type.
 
      NOT mirrored in apps/admin — unlike the colour tokens above, these are
-     landing-specific. The admin panel is a dense data UI and wants a fixed
+     marketing-specific. The admin panel is a dense data UI and wants a fixed
      scale, not marketing display sizes.
 
      Why clamp instead of breakpoint steps: the site previously went

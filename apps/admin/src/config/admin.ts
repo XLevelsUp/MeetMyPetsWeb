@@ -1,6 +1,6 @@
 /**
  * Single source of truth for every user-facing string and the navigation
- * model of the admin panel — the same pattern as apps/landing/src/config/
+ * model of the admin panel — the same pattern as apps/marketing/src/config/
  * site.ts. Copy is never hardcoded in components.
  */
 
