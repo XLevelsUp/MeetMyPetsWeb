@@ -28,6 +28,26 @@ test.describe("support role", () => {
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   });
 
+  /**
+   * The account menu lives in the dashboard LAYOUT, so this covers every page
+   * at once — and a crash there escapes the segment error boundary entirely.
+   *
+   * This is the test that would have caught the Base UI `Menu.GroupLabel`
+   * regression: the menu portals its content and only renders it on the open
+   * transition, so nothing is wrong until something clicks the trigger.
+   */
+  test("the account menu opens without crashing the page", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+
+    await page.goto("/users");
+    await page.getByRole("button", { name: "Account menu" }).click();
+
+    await expect(page.getByRole("menuitem", { name: /sign out/i })).toBeVisible();
+    await expect(page.getByText("admin.support.test@meetmypets.dev")).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
   test("is forbidden from the analytics API", async ({ request }) => {
     const res = await request.get(SUMMARY_API);
     expect(res.status()).toBe(403);

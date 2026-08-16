@@ -77,6 +77,32 @@ Stack: Next 16.2 (Turbopack, `proxy.ts` not `middleware.ts`, async
 sonner, next-themes. Read `node_modules/next/dist/docs/` before writing
 Next-facing code — training-data conventions are stale (see AGENTS.md).
 
+⚠️ **Base UI is not Radix, and the differences throw at runtime.** Most shadcn
+snippets online are written against Radix; pasting them here compiles and then
+crashes on interaction. Known traps:
+
+- **Composition is `render={<X/>}`, never `asChild`.**
+- **`DropdownMenuLabel` must be inside `DropdownMenuGroup`.** It is Base UI's
+  `Menu.GroupLabel`, which calls `useMenuGroupRootContext()` at render and
+  throws `"MenuGroupContext is missing"` without a group ancestor. Radix's
+  equivalent works standalone. This shipped once and crashed every page from the
+  header account menu — guarded now by `components/ui/dropdown-menu.test.ts`.
+- **Menu content is portalled and not `keepMounted`**, so composition mistakes
+  inside a menu do not surface until something opens it. A page that renders
+  fine is not evidence its menus work.
+- `Select`'s `onValueChange` hands back `string | null`, not `string`.
+
+The general rule: if a primitive is named `XGroupY` or `XItem`, assume Base UI
+requires the matching parent and check `node_modules/@base-ui/react/**` rather
+than trusting a Radix example.
+
+**Error boundaries:** a segment's `error.tsx` wraps that segment's *children*,
+not its own `layout.tsx`. Anything thrown by the sidebar, header or a provider
+escapes `(dashboard)/error.tsx` — `app/global-error.tsx` is the floor beneath
+it, and is deliberately dependency-free (its own `<html>`, inline styles, no
+imports) because whatever broke may be one of the things it would otherwise
+import.
+
 ## 3. Roadmap (from the product PRD)
 
 ### Phase 1 — Foundation, RBAC, Analytics ✅ SHIPPED (branch `Control-Panel`)
