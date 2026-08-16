@@ -10,6 +10,7 @@ import {
   actionResponseSchema,
   petsResponseSchema,
   queryToSearchParams,
+  speciesOptionsResponseSchema,
   type AccountActionRequest,
   type AccountsQuery,
   type PetActionRequest,
@@ -74,6 +75,19 @@ export function usePets(query: PetsQuery) {
     queryFn: () => fetchJson(`/api/v1/admin/pets?${toSearchParams(query)}`, petsResponseSchema),
     placeholderData: keepPreviousData,
     staleTime: 15_000,
+  });
+}
+
+/**
+ * Species for the pets filter. Cached hard — the taxonomy changes about as
+ * often as someone opens the settings screen, and this drives a dropdown.
+ */
+export function useSpeciesOptions() {
+  return useQuery({
+    queryKey: ["users", "species-options"],
+    queryFn: () =>
+      fetchJson("/api/v1/admin/reference/species", speciesOptionsResponseSchema),
+    staleTime: 5 * 60_000,
   });
 }
 

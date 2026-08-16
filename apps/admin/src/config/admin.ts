@@ -165,6 +165,27 @@ export const copy = {
     /** Shown instead of `empty` when a filter is what emptied the table. */
     emptyFiltered: "No matches for these filters.",
     clearFilters: "Clear filters",
+    /**
+     * Filter labels. Phone is "has a number", not "verified": phone_verified is
+     * false for every account today, so a verified filter would always return
+     * nothing and read as a broken screen rather than an honest one.
+     */
+    filters: {
+      any: "Any",
+      yes: "Yes",
+      no: "No",
+      emailVerified: "Email verified",
+      hasPhone: "Has phone",
+      hasPets: "Has pets",
+      joinedFrom: "Joined from",
+      joinedTo: "Joined to",
+      species: "Species",
+      trust: "Trust",
+      trustAll: "Any",
+      trustAtRisk: "Needs review",
+      trustNormal: "Normal",
+      allSpecies: "All species",
+    },
     detail: {
       back: "Back to Users & Pets",
       notFound: "That account no longer exists.",

@@ -3,11 +3,13 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type MouseEvent } from "react";
+import { useCallback, useState, type MouseEvent } from "react";
 
 import { Pagination } from "@/components/shared/pagination";
 import { QueryErrorCard } from "@/components/shared/query-error-card";
 import { SortableHead } from "@/components/shared/sortable-head";
+import { AccountFilters } from "@/components/users/account-filters";
+import { EmptyState } from "@/components/users/list-empty-state";
 import { ListToolbar } from "@/components/users/list-toolbar";
 import { RestrictionBadge } from "@/components/users/restriction-badge";
 import { formatDate } from "@/components/users/users-format";
@@ -67,9 +69,35 @@ export function UsersTable() {
   };
 
   // Re-sorting returns to page 1: staying on page 4 of a different ordering
-  // shows rows the user never asked to skip past.
+  // shows rows the user never asked to skip past. Same for any filter change.
   const sortBy = (sort: AccountsQuery["sort"], dir: AccountsQuery["dir"]) =>
     setQuery((prev) => ({ ...prev, sort, dir, page: 1 }));
+
+  const applyFilters = useCallback(
+    (next: Partial<AccountsQuery>) => setQuery((prev) => ({ ...prev, ...next, page: 1 })),
+    [],
+  );
+
+  /**
+   * Sort is deliberately not counted as a filter: it changes the order, never
+   * which rows match, so "Clear filters" leaving the sort alone is the honest
+   * behaviour.
+   */
+  const hasFilters =
+    query.status !== DEFAULT_ACCOUNTS_QUERY.status ||
+    query.emailVerified !== DEFAULT_ACCOUNTS_QUERY.emailVerified ||
+    query.hasPhone !== DEFAULT_ACCOUNTS_QUERY.hasPhone ||
+    query.hasPets !== DEFAULT_ACCOUNTS_QUERY.hasPets ||
+    Boolean(query.q || query.joinedFrom || query.joinedTo);
+
+  const clearFilters = () =>
+    setQuery((prev) => ({
+      ...DEFAULT_ACCOUNTS_QUERY,
+      // Paging size and ordering are the user's view preferences, not filters.
+      pageSize: prev.pageSize,
+      sort: prev.sort,
+      dir: prev.dir,
+    }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -77,11 +105,13 @@ export function UsersTable() {
         initialSearch={query.q ?? ""}
         onSearchChange={(q) => setQuery((prev) => ({ ...prev, q: q || undefined, page: 1 }))}
         status={query.status}
-        onStatusChange={(status) =>
-          setQuery((prev) => ({ ...prev, status: status as AccountsQuery["status"], page: 1 }))
-        }
+        onStatusChange={(status) => applyFilters({ status: status as AccountsQuery["status"] })}
         statusOptions={ACCOUNT_STATUS_FILTERS}
-      />
+        hasFilters={hasFilters}
+        onClear={clearFilters}
+      >
+        <AccountFilters query={query} onChange={applyFilters} />
+      </ListToolbar>
 
       {accounts.isError ? (
         <QueryErrorCard message={accounts.error.message} onRetry={() => accounts.refetch()} />
@@ -150,11 +180,8 @@ export function UsersTable() {
                   ))
                 ) : accounts.data.items.length === 0 ? (
                   <TableRow>
-                    <TableCell
-                      colSpan={COLUMN_COUNT}
-                      className="py-10 text-center text-muted-foreground"
-                    >
-                      {copy.users.empty}
+                    <TableCell colSpan={COLUMN_COUNT} className="py-10 text-center">
+                      <EmptyState hasFilters={hasFilters} onClear={clearFilters} />
                     </TableCell>
                   </TableRow>
                 ) : (

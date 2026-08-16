@@ -16,6 +16,7 @@ import type {
   PetsResponse,
   Restriction,
   RestrictionKind,
+  SpeciesOption,
 } from "@/lib/users-contract";
 
 /**
@@ -191,6 +192,33 @@ async function referenceNames(ref: TableRef): Promise<Map<string, string>> {
 /* -------------------------------------------------------------------------
  * Reads
  * ---------------------------------------------------------------------- */
+
+/**
+ * Species for the pets filter, sorted by name.
+ *
+ * Reads through the anon reference client, the same path `decoratePets` uses —
+ * so this exposes nothing the mobile app cannot already see, and it does not
+ * need the SETTINGS_ROLES gate the taxonomy management endpoints carry.
+ */
+export async function listSpeciesOptions(): Promise<UsersResult<{ items: SpeciesOption[] }>> {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, reason: "unconfigured", message: "Supabase env vars are not set." };
+  }
+
+  try {
+    const names = await referenceNames(TABLES.species);
+    const items = [...names.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return { ok: true, data: { items } };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: "query_failed",
+      message: error instanceof Error ? error.message : "Unknown query failure.",
+    };
+  }
+}
 
 export async function listAccounts(query: AccountsQuery): Promise<UsersResult<AccountsResponse>> {
   if (!isSupabaseConfigured()) {

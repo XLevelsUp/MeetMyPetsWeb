@@ -227,6 +227,20 @@ export type PetsQuery = z.infer<typeof petsQuerySchema>;
 export const DEFAULT_ACCOUNTS_QUERY: AccountsQuery = accountsQuerySchema.parse({});
 export const DEFAULT_PETS_QUERY: PetsQuery = petsQuerySchema.parse({});
 
+/**
+ * Species for the pets filter: id and name, nothing else.
+ *
+ * A separate, tiny endpoint rather than reusing the taxonomy list, which is
+ * gated to SETTINGS_ROLES — a moderator would get a 403 and the filter would
+ * silently stay empty. Species names are anon-readable reference data the
+ * mobile app already fetches, so there is nothing to protect here.
+ */
+export const speciesOptionSchema = z.object({ id: z.string(), name: z.string() });
+export const speciesOptionsResponseSchema = z.object({
+  items: z.array(speciesOptionSchema),
+});
+export type SpeciesOption = z.infer<typeof speciesOptionSchema>;
+
 /* -------------------------------------------------------------------------
  * URL round-trip
  *

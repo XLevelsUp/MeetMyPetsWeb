@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { Pagination } from "@/components/shared/pagination";
@@ -9,7 +9,9 @@ import { QueryErrorCard } from "@/components/shared/query-error-card";
 import { SortableHead } from "@/components/shared/sortable-head";
 import { TrustCell } from "@/components/trust/trust-cell";
 import { ActionDialog } from "@/components/users/action-dialog";
+import { EmptyState } from "@/components/users/list-empty-state";
 import { ListToolbar } from "@/components/users/list-toolbar";
+import { PetFilters } from "@/components/users/pet-filters";
 import { RestrictionBadge } from "@/components/users/restriction-badge";
 import { formatDate } from "@/components/users/users-format";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -69,9 +71,28 @@ export function PetsTable({ role }: { role: AdminRole }) {
    */
   const columnCount = showActions ? 7 : 6;
 
-  // Re-sorting returns to page 1, as on the users tab.
+  // Re-sorting and re-filtering return to page 1, as on the users tab.
   const sortBy = (sort: PetsQuery["sort"], dir: PetsQuery["dir"]) =>
     setQuery((prev) => ({ ...prev, sort, dir, page: 1 }));
+
+  const applyFilters = useCallback(
+    (next: Partial<PetsQuery>) => setQuery((prev) => ({ ...prev, ...next, page: 1 })),
+    [],
+  );
+
+  const hasFilters =
+    query.status !== DEFAULT_PETS_QUERY.status ||
+    query.speciesId !== DEFAULT_PETS_QUERY.speciesId ||
+    query.trust !== DEFAULT_PETS_QUERY.trust ||
+    Boolean(query.q);
+
+  const clearFilters = () =>
+    setQuery((prev) => ({
+      ...DEFAULT_PETS_QUERY,
+      pageSize: prev.pageSize,
+      sort: prev.sort,
+      dir: prev.dir,
+    }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -79,11 +100,13 @@ export function PetsTable({ role }: { role: AdminRole }) {
         initialSearch={query.q ?? ""}
         onSearchChange={(q) => setQuery((prev) => ({ ...prev, q: q || undefined, page: 1 }))}
         status={query.status}
-        onStatusChange={(status) =>
-          setQuery((prev) => ({ ...prev, status: status as PetsQuery["status"], page: 1 }))
-        }
+        onStatusChange={(status) => applyFilters({ status: status as PetsQuery["status"] })}
         statusOptions={PET_STATUS_FILTERS}
-      />
+        hasFilters={hasFilters}
+        onClear={clearFilters}
+      >
+        <PetFilters query={query} onChange={applyFilters} />
+      </ListToolbar>
 
       {pets.isError ? (
         <QueryErrorCard message={pets.error.message} onRetry={() => pets.refetch()} />
@@ -138,11 +161,8 @@ export function PetsTable({ role }: { role: AdminRole }) {
                   ))
                 ) : pets.data.items.length === 0 ? (
                   <TableRow>
-                    <TableCell
-                      colSpan={columnCount}
-                      className="py-10 text-center text-muted-foreground"
-                    >
-                      {copy.users.empty}
+                    <TableCell colSpan={columnCount} className="py-10 text-center">
+                      <EmptyState hasFilters={hasFilters} onClear={clearFilters} />
                     </TableCell>
                   </TableRow>
                 ) : (
