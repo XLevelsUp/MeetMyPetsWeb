@@ -61,7 +61,7 @@ not a separate backend.
 | Surface | What it does |
 |---|---|
 | Analytics dashboard | Platform counts and 30-day trends (users, pets, matches, chats, verifications, swipes) — aggregates only, no PII |
-| Users & Pets (`/users`) | Search/filter accounts and pet profiles; account detail view; suspend / ban / restore accounts; flag / unflag pet profiles |
+| Users & Pets (`/users`) | Search, sort and filter accounts and pet profiles; account detail view; suspend / ban / restore accounts; flag / unflag pet profiles. Reads `trust_score` for display and links a pet in trouble to `/trust` — read-only, no write (§2.5) |
 | Content Reports (`/reports`) | Triage queue over your `matching.pet_reports`; moves status only |
 | Verifications (`/verifications`) | Certificate review over your `pets.pet_certificates` — document viewer, approve / reject. ⚠️ approving awards +500 trust (§3.4) |
 | Trust Review (`/trust`) | The human review your ban screens promise. Pets restricted by *your* automated engine, ordered by the review date the owner was shown, with the event ledger and a restore (§3.4f) |
@@ -573,6 +573,22 @@ Not blocking us, but worth your queue:
 - Performance: 18 unindexed foreign keys, and ~24 RLS policies calling
   `auth.uid()` per-row instead of `(select auth.uid())`.
 
+### 3.6b Two columns that look useful and are not (please confirm)
+
+Found while building sorting and filtering for `/users` — both are read by
+us and both are empty for the entire population, so we built around them.
+Neither is blocking; we'd just like to know which way they're going.
+
+| Column | Reality (verified 2026-08-16) | What we did |
+|---|---|---|
+| `identity.accounts.last_activity_at` | **null for all 41 accounts** — nothing appears to write it | Not offered as a list column or a sort. We sort on `last_login_at` instead, which is populated 41/41. The detail view still renders it, so if you start writing it, it lights up for free |
+| `identity.accounts.phone_verified` | **false for all 41 accounts** | No "phone verified" filter — it would always return zero rows and read as a broken screen. We offer "has a phone number" instead (24/41) |
+
+Either is fine as an answer: *"we intend to populate it"* means we leave the
+plumbing in place, and *"it's dead"* means it should be dropped rather than
+left as a column that reads like a feature. What we want to avoid is a third
+state where it stays half-wired indefinitely.
+
 ### 3.7 How we'd like to coordinate
 
 - [`schema-notes.md`](./schema-notes.md) is the **ground-truth record** of what
@@ -688,12 +704,12 @@ always safe.
 | `matching.pet_reports.status` | update — **column-scoped grant, nothing else on the row is writable** |
 | `pets.pet_certificates` | update of `status`, `reviewed_by`, `reviewed_at`, `remarks` only — **column-scoped**. ⚠️ `status='approved'` fires your trust trigger (+500) |
 | `pets.species`, `pets.breeds` | insert + update (`name`, `description`, `status`). **No delete** — your FKs forbid it anyway. ⚠️ read live by your app (§3.4d) |
-| `pets.pets.trust_score` | update to **555 only** — column-scoped, the restore your migration footer documents. Your trigger clears the three lifecycle columns; we cannot write them (§3.4f) |
+| `pets.pets.trust_score` | update to **555 (restore) or 0 (permanent ban) — those two values only**. Column-scoped: no other column of `pets.pets` is writable. 555 is the exact-equality branch your `trust_status_on_score_change` trigger tests for; 0 is the canonical value in your `<= 0` permanent band. ⚠️ Writing 0 also makes your trigger stamp a meaningless 7-day review window, which we suppress in the UI and cannot clear (§3.4f) |
 | `public.admin_restrictions` | insert (apply), update (lift) — ours |
 | `public.admin_audit_logs` | insert only — ours, append-only |
 
-Explicitly **not** written by the panel: `pets.pets.trust_score` (and every
-other column of `pets.pets`), `identity.accounts.status`,
+Explicitly **not** written by the panel: every column of `pets.pets` other than
+`trust_score` (including the three trust lifecycle columns), `identity.accounts.status`,
 `pets.pet_verification_levels` (badge rule undefined — §3.4b), and every row in
 `pets.trust_score_events`.
 

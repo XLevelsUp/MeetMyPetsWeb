@@ -38,6 +38,33 @@ test.describe("support role", () => {
     await page.goto("/");
     await expect(page).toHaveURL(/\/users$/);
   });
+
+  /**
+   * Read-only. Filter state lives in the URL so a view can be shared and
+   * survive a reload; the failure this guards is the one the feature exists to
+   * fix — coming back to the list and finding page 1 of everything.
+   */
+  test("carries a filter in the URL and restores it on reload", async ({ page }) => {
+    await page.goto("/users");
+
+    await page.getByLabel("Email verified").click();
+    await page.getByRole("option", { name: "No" }).click();
+
+    await expect(page).toHaveURL(/emailVerified=no/);
+
+    await page.reload();
+    // The control is repopulated from the URL, not reset to the default.
+    await expect(page.getByLabel("Email verified")).toHaveText(/No/);
+  });
+
+  test("opens the pets tab from a link and sorts by trust", async ({ page }) => {
+    await page.goto("/users?tab=pets&sort=trust_score&dir=asc");
+
+    const header = page.getByRole("columnheader", { name: /Trust/ });
+    // aria-sort is the assertion that matters: it is the only signal a screen
+    // reader gets about which column the table is ordered by.
+    await expect(header).toHaveAttribute("aria-sort", "ascending");
+  });
 });
 
 test.describe("moderator role", () => {

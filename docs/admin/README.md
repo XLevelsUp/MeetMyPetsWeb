@@ -137,6 +137,21 @@ Verified end-to-end: anonymous → redirect/401, `support` → 403,
   mandatory reasons. "Reset verification" and "force logout" were **dropped**:
   the latter is impossible server-side (`auth.admin.signOut` needs the target's
   own JWT). See `schema-notes.md`.
+- ✅ **`/users` sorting, filtering, trust visibility and URL state** — shipped
+  2026-08-16. Sorts on both tabs (`aria-sort`, not a decorative caret), account
+  filters for email-verified / has-phone / has-pets / joined range, pet filters
+  for species and trust band, a trust column that reuses `trustStatusFor` and
+  links a pet in trouble to `/trust`, an explicit **View** action per user row,
+  and the whole view mirrored into the URL so it survives a reload and a
+  back-navigation.
+  Two constraints worth carrying forward:
+  - **`petCount` and `restriction` are not columns.** Anything sorted or
+    filtered on them must be resolved to an id list BEFORE the page query.
+    Reordering the fetched page sorts within the page only and lies across a
+    page boundary; `listAccounts` has a dedicated path for this.
+  - **Filters were chosen from the data, not the column list.**
+    `last_activity_at` (null 41/41) and `phone_verified` (false 41/41) are
+    deliberately not offered — see handoff §3.6b.
 - ✅ **Audit logging** — shipped (`21d4211`). `public.admin_audit_logs` exists
   and `/audit` reads it.
 - **Content & report moderation queue** — reads the app team's existing
@@ -265,6 +280,14 @@ Verified end-to-end: anonymous → redirect/401, `support` → 403,
   (`USING (true)`) — backend-owned, see schema-notes §Security.
 - `matching.pet_reports` has no home for **account-level or chat-message**
   reports — pets and posts only.
+- **Two dead columns on `identity.accounts`** — `last_activity_at` (null for
+  all 41) and `phone_verified` (false for all 41). Neither blocks anything;
+  we've asked the app team to say whether they'll be populated or dropped, so
+  a filter can be built on them or the column removed (handoff §3.6b).
+- **`/users` was never verified in an authenticated browser.** The sorting,
+  the page-boundary behaviour of the computed `pet_count` sort, and the URL
+  round-trip are covered by unit tests, live PostgREST probes and an e2e spec,
+  but no one has clicked through them as super_admin.
 - Hosting: repoint the landing deploy's root directory to `apps/landing`;
   create the `apps/admin` project on `admin.meetmypets.app`.
 
