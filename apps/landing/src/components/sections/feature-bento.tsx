@@ -136,7 +136,20 @@ export function FeatureBento() {
           body="Discovery, trust, species coverage and local professionals — the four things every other pet app makes you leave to find."
         />
 
-        <div className="mt-14 grid gap-5 lg:grid-cols-6">
+        {/* One column on phones, an even 2x2 on tablets, the 6-col bento at lg.
+            At md every card spans one column deliberately: the asymmetric
+            2/4/4/2 rhythm needs six columns to read as a bento, and forcing it
+            into two produced a 1-2-2-1 stack with a hole beside each narrow
+            card. Four equal cards is the honest tablet shape. */}
+        {/* `grid-cols-1` is load-bearing, not redundant. Tailwind compiles
+            grid-cols-* to `minmax(0, 1fr)`; with NO grid-cols class the implicit
+            column is `auto`, whose min-width resolves to min-content. The
+            species card contains a `w-max` marquee track (~3066px), so the
+            column grew to fit it and the whole page scrolled sideways at
+            mobile widths. Measured: documentElement.scrollWidth was 3066 at
+            375px. The md/lg tiers never showed it because their explicit
+            tracks already clamp the minimum to 0. */}
+        <div className="mt-14 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-6">
           <BentoCard
             title={bentoFeatures.discovery.title}
             body={bentoFeatures.discovery.body}

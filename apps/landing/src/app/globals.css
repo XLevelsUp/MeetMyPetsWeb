@@ -77,6 +77,31 @@
 
   --animate-marquee: marquee 46s linear infinite;
   --animate-float: float 7s ease-in-out infinite;
+
+  /* ---------------------------------------------------------------------
+     Fluid display type.
+
+     NOT mirrored in apps/admin — unlike the colour tokens above, these are
+     landing-specific. The admin panel is a dense data UI and wants a fixed
+     scale, not marketing display sizes.
+
+     Why clamp instead of breakpoint steps: the site previously went
+     `text-[2.6rem] sm:text-6xl lg:text-[4.2rem]`, which meant every width
+     from 640px to 1023px rendered at the same 60px — a size chosen for a
+     640px phone, sitting in a 1000px column. Interpolating removes the dead
+     zone entirely rather than papering over it with one more breakpoint.
+
+     Both are anchored 375px -> 1280px and clamp at each end, so they never
+     overflow a small screen nor run away on a wide one.
+  --------------------------------------------------------------------- */
+
+  /* 41.6px @375  ->  52.8px @768  ->  67.2px @1280+ */
+  --text-hero: clamp(2.6rem, 1.94rem + 2.83vw, 4.2rem);
+  --text-hero--line-height: 1.04;
+
+  /* 30px @375  ->  34.3px @768  ->  40px @1280+ */
+  --text-section: clamp(1.875rem, 1.616rem + 1.1vw, 2.5rem);
+  --text-section--line-height: 1.15;
 }
 
 :root {
@@ -247,8 +272,11 @@
     border: 1px solid color-mix(in oklab, var(--card) 70%, var(--border));
   }
 
+  /* Page gutter. The md step matters more than it looks: between 640px and
+     1024px the container is wide but every section was single-column, so
+     content ran nearly edge to edge with only 32px of breathing room. */
   .section-shell {
-    @apply mx-auto w-full max-w-6xl px-5 sm:px-8;
+    @apply mx-auto w-full max-w-6xl px-5 sm:px-8 md:px-10;
   }
 
   /* Native <details> height animation. `interpolate-size` is what makes

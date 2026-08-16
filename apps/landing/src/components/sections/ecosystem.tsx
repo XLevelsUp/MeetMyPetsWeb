@@ -89,7 +89,7 @@ export function Ecosystem() {
             animate={reduced ? undefined : { opacity: 1, y: 0 }}
             exit={reduced ? undefined : { opacity: 0, y: -8 }}
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-8 grid gap-8 rounded-3xl border border-border bg-card p-6 sm:p-10 lg:grid-cols-[1fr_1fr]"
+            className="mt-8 grid gap-8 rounded-3xl border border-border bg-card p-6 sm:p-10 md:grid-cols-[1fr_1fr]"
           >
             <div>
               <h3 className="text-2xl leading-snug font-semibold sm:text-3xl">{current.title}</h3>

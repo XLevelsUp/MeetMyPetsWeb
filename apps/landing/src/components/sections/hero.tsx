@@ -53,7 +53,10 @@ export function Hero() {
             {hero.badge}
           </motion.span>
 
-          <h1 className="mt-6 text-[2.6rem] leading-[1.04] font-semibold sm:text-6xl lg:text-[4.2rem]">
+          {/* `text-hero` is a fluid clamp (see globals.css @theme). It replaced
+              text-[2.6rem]/sm:text-6xl/lg:text-[4.2rem], which pinned every
+              width from 640-1023px to the same 60px. */}
+          <h1 className="mt-6 text-hero font-semibold">
             {hero.headlineLines.map((line, i) => (
               <MaskedLine key={line} text={line} index={i} reduced={Boolean(reduced)} />
             ))}
@@ -101,7 +104,13 @@ export function Hero() {
 
         {/* Floating UI mockups — composed from live DOM, not screenshots. No
             image weight, and nothing that misrepresents an unbuilt product. */}
-        <div className="relative mx-auto aspect-[4/5] w-full max-w-sm lg:max-w-none" aria-hidden="true">
+        {/* The cards inside are positioned in percentages, so this wrapper's
+            width is the only thing that scales them. Capped at max-w-sm it
+            sat as a 384px island in the middle of a 1000px tablet page. */}
+        <div
+          className="relative mx-auto aspect-[4/5] w-full max-w-sm md:max-w-md lg:max-w-none"
+          aria-hidden="true"
+        >
           <ParallaxCard
             float
             className="absolute top-[6%] left-[4%] w-[62%] rounded-3xl border border-border bg-card p-4 shadow-float"

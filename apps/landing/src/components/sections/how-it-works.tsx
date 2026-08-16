@@ -68,7 +68,11 @@ export function HowItWorks() {
             </div>
           </div>
 
-          <ol className="grid gap-5 lg:gap-0">
+          {/* Two-up on tablet. The pinned panel above stays lg-only — a
+              sticky narrative needs a second column to pin against, and 768px
+              does not have one — but the four steps themselves have no reason
+              to run single-file down a 1000px page. */}
+          <ol className="grid gap-5 md:grid-cols-2 lg:grid-cols-1 lg:gap-0">
             {howItWorks.map((item, index) => (
               <motion.li
                 key={item.step}

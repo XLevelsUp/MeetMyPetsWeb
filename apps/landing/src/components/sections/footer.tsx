@@ -7,8 +7,10 @@ export function Footer() {
   return (
     <footer className="border-t border-border bg-secondary/40">
       <div className="section-shell py-14 sm:py-20">
-        <div className="grid gap-10 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
-          <div>
+        {/* Brand block full-width on tablet with the three link columns beneath
+            it, rather than four blocks stacked. */}
+        <div className="grid gap-10 md:grid-cols-3 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
+          <div className="md:col-span-3 lg:col-span-1">
             <Logo />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-ink-soft">{footer.blurb}</p>
             <p className="mt-4 text-sm font-medium text-ink-soft">{footer.note}</p>

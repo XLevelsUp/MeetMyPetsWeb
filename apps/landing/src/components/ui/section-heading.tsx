@@ -23,7 +23,10 @@ export function SectionHeading({
       )}
     >
       <p className="text-xs font-semibold tracking-[0.14em] text-brand-ink uppercase">{eyebrow}</p>
-      <h2 className="mt-3 text-3xl leading-tight font-semibold sm:text-4xl">{title}</h2>
+      {/* Fluid clamp — see globals.css. Every section uses this component, so
+          the old text-3xl/sm:text-4xl step froze all of them at 36px across
+          the whole tablet range. */}
+      <h2 className="mt-3 text-section font-semibold">{title}</h2>
       {body && <p className="mt-4 text-lg leading-relaxed text-ink-soft">{body}</p>}
     </Reveal>
   );
