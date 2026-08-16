@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 
 import { Pagination } from "@/components/shared/pagination";
@@ -24,6 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { copy } from "@/config/admin";
+import { useUrlSyncedQuery } from "@/hooks/use-url-query";
 import { usePetAction, usePets } from "@/hooks/use-users";
 import { canAct, type AdminRole } from "@/lib/roles";
 import {
@@ -32,8 +33,6 @@ import {
   type PetSummary,
   type PetsQuery,
 } from "@/lib/users-contract";
-
-const PAGE_SIZE = 25;
 
 function PetActions({ pet, role }: { pet: PetSummary; role: AdminRole }) {
   const action = usePetAction(pet.id);
@@ -56,10 +55,20 @@ function PetActions({ pet, role }: { pet: PetSummary; role: AdminRole }) {
   );
 }
 
-export function PetsTable({ role }: { role: AdminRole }) {
-  const [query, setQuery] = useState<PetsQuery>({
-    ...DEFAULT_PETS_QUERY,
-    pageSize: PAGE_SIZE,
+export function PetsTable({
+  role,
+  initialQuery,
+  active,
+}: {
+  role: AdminRole;
+  initialQuery: PetsQuery;
+  /** Only the visible tab writes to the URL. */
+  active: boolean;
+}) {
+  const [query, setQuery] = useUrlSyncedQuery(initialQuery, DEFAULT_PETS_QUERY, {
+    active,
+    // Keeps `?tab=pets` on the URL while this tab owns the query string.
+    extraParams: { tab: "pets" },
   });
   const pets = usePets(query);
   // Flag and unflag share an allowlist; a row shows whichever applies, so the
@@ -77,7 +86,7 @@ export function PetsTable({ role }: { role: AdminRole }) {
 
   const applyFilters = useCallback(
     (next: Partial<PetsQuery>) => setQuery((prev) => ({ ...prev, ...next, page: 1 })),
-    [],
+    [setQuery],
   );
 
   const hasFilters =

@@ -4,15 +4,38 @@ import { UsersTabs } from "@/components/users/users-tabs";
 import { copy } from "@/config/admin";
 import { requireRole } from "@/lib/dal";
 import { USERS_VIEW_ROLES } from "@/lib/roles";
+import {
+  accountsQuerySchema,
+  petsQuerySchema,
+  searchParamsToQuery,
+} from "@/lib/users-contract";
 
 /**
  * Users & Pets moderation. The role is resolved server-side via the DAL and
  * passed down so the client only renders actions the caller can perform — the
  * API enforces the same allowlist independently.
+ *
+ * Filters, sort and page come from the URL and are parsed HERE rather than with
+ * `useSearchParams` in the client, which would force a Suspense boundary and a
+ * second render. Both schemas `.catch()` every field, so a hand-edited or stale
+ * link degrades to the default view instead of 400-ing.
  */
-export default async function UsersPage() {
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = await requireRole(...USERS_VIEW_ROLES);
   if (!session.ok) redirect("/");
+
+  // Next 16 hands searchParams in as a promise; flatten the repeated-key form
+  // that URLSearchParams would otherwise reject.
+  const raw = await searchParams;
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value === "string") params.set(key, value);
+    else if (Array.isArray(value) && value[0]) params.set(key, value[0]);
+  }
 
   return (
     <main className="flex-1 p-4 md:p-6">
@@ -21,7 +44,12 @@ export default async function UsersPage() {
           <h1 className="font-heading text-2xl font-semibold">{copy.users.title}</h1>
           <p className="text-sm text-muted-foreground">{copy.users.subtitle}</p>
         </div>
-        <UsersTabs role={session.role} />
+        <UsersTabs
+          role={session.role}
+          initialTab={params.get("tab") === "pets" ? "pets" : "users"}
+          initialAccountsQuery={searchParamsToQuery(accountsQuerySchema, params)}
+          initialPetsQuery={searchParamsToQuery(petsQuerySchema, params)}
+        />
       </div>
     </main>
   );

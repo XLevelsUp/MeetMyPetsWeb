@@ -3,7 +3,7 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useState, type MouseEvent } from "react";
+import { useCallback, type MouseEvent } from "react";
 
 import { Pagination } from "@/components/shared/pagination";
 import { QueryErrorCard } from "@/components/shared/query-error-card";
@@ -23,14 +23,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { copy } from "@/config/admin";
+import { useUrlSyncedQuery } from "@/hooks/use-url-query";
 import { useAccounts } from "@/hooks/use-users";
 import {
   ACCOUNT_STATUS_FILTERS,
   DEFAULT_ACCOUNTS_QUERY,
   type AccountsQuery,
 } from "@/lib/users-contract";
-
-const PAGE_SIZE = 25;
 
 /**
  * Anywhere inside a row that already handles its own activation. A row click
@@ -44,12 +43,16 @@ const INTERACTIVE = "a,button,input,select,textarea,[role='menu'],[role='dialog'
  */
 const COLUMN_COUNT = 7;
 
-export function UsersTable() {
+export function UsersTable({
+  initialQuery,
+  active,
+}: {
+  initialQuery: AccountsQuery;
+  /** Only the visible tab writes to the URL. */
+  active: boolean;
+}) {
   const router = useRouter();
-  const [query, setQuery] = useState<AccountsQuery>({
-    ...DEFAULT_ACCOUNTS_QUERY,
-    pageSize: PAGE_SIZE,
-  });
+  const [query, setQuery] = useUrlSyncedQuery(initialQuery, DEFAULT_ACCOUNTS_QUERY, { active });
   const accounts = useAccounts(query);
 
   /**
@@ -75,7 +78,7 @@ export function UsersTable() {
 
   const applyFilters = useCallback(
     (next: Partial<AccountsQuery>) => setQuery((prev) => ({ ...prev, ...next, page: 1 })),
-    [],
+    [setQuery],
   );
 
   /**

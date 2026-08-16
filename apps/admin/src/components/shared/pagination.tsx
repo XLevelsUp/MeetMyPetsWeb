@@ -6,8 +6,10 @@ import { copy } from "@/config/admin";
 /**
  * Range summary + prev/next, shared by every paginated admin list.
  *
- * Hand-rolled rather than the shadcn pagination block, which is link-oriented;
- * these lists keep their query in component state, not the URL.
+ * Hand-rolled rather than the shadcn pagination block, which renders one link
+ * per page number. These lists page through a callback: some of them mirror the
+ * page into the URL (see `useUrlSyncedQuery`) and some do not, and neither
+ * wants a rendered link per page across an unbounded total.
  */
 export function Pagination({
   page,
