@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Pagination } from "@/components/shared/pagination";
 import { QueryErrorCard } from "@/components/shared/query-error-card";
+import { TrustCell } from "@/components/trust/trust-cell";
 import { ActionDialog } from "@/components/users/action-dialog";
 import { ListToolbar } from "@/components/users/list-toolbar";
 import { RestrictionBadge } from "@/components/users/restriction-badge";
@@ -60,6 +61,8 @@ export function PetsTable({ role }: { role: AdminRole }) {
   // Flag and unflag share an allowlist; a row shows whichever applies, so the
   // column is worth rendering if either is permitted.
   const showActions = canAct(role, "flag") || canAct(role, "unflag");
+  /** Pet, Species, Owner, Trust, Status, and Actions only for roles that have any. */
+  const columnCount = showActions ? 6 : 5;
 
   return (
     <div className="flex flex-col gap-4">
@@ -84,6 +87,7 @@ export function PetsTable({ role }: { role: AdminRole }) {
                   <TableHead>{copy.users.columns.pet}</TableHead>
                   <TableHead>{copy.users.columns.species}</TableHead>
                   <TableHead>{copy.users.columns.owner}</TableHead>
+                  <TableHead>{copy.users.columns.trust}</TableHead>
                   <TableHead>{copy.users.columns.status}</TableHead>
                   {showActions ? (
                     <TableHead className="text-right">{copy.users.columns.actions}</TableHead>
@@ -94,7 +98,7 @@ export function PetsTable({ role }: { role: AdminRole }) {
                 {pets.isPending ? (
                   Array.from({ length: 8 }).map((_, index) => (
                     <TableRow key={index}>
-                      {Array.from({ length: showActions ? 5 : 4 }).map((__, cell) => (
+                      {Array.from({ length: columnCount }).map((__, cell) => (
                         <TableCell key={cell}>
                           <Skeleton className="h-5 w-full" />
                         </TableCell>
@@ -104,7 +108,7 @@ export function PetsTable({ role }: { role: AdminRole }) {
                 ) : pets.data.items.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={showActions ? 5 : 4}
+                      colSpan={columnCount}
                       className="py-10 text-center text-muted-foreground"
                     >
                       {copy.users.empty}
@@ -133,6 +137,9 @@ export function PetsTable({ role }: { role: AdminRole }) {
                         ) : (
                           copy.dashboard.noData
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <TrustCell pet={pet} />
                       </TableCell>
                       <TableCell>
                         <RestrictionBadge restriction={pet.restriction} status={pet.status} />

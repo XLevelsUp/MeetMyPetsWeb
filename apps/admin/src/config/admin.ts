@@ -152,6 +152,8 @@ export const copy = {
       trust: "Trust",
       actions: "Actions",
     },
+    /** Prefix for the trust link's accessible name; the pet and band follow. */
+    trustAria: "Review trust for",
     /** Row-level navigation. The aria label names the row, not "this row". */
     view: {
       label: "View",

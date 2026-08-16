@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 
 import { QueryErrorCard } from "@/components/shared/query-error-card";
+import { TrustCell } from "@/components/trust/trust-cell";
 import { ActionDialog } from "@/components/users/action-dialog";
 import { RestrictionBadge } from "@/components/users/restriction-badge";
 import { Button } from "@/components/ui/button";
@@ -186,7 +187,10 @@ export function UserDetail({ id, role }: { id: string; role: AdminRole }) {
                         copy.dashboard.noData}
                     </p>
                   </div>
-                  <RestrictionBadge restriction={pet.restriction} status={pet.status} />
+                  <div className="flex items-center gap-3">
+                    <TrustCell pet={pet} />
+                    <RestrictionBadge restriction={pet.restriction} status={pet.status} />
+                  </div>
                 </li>
               ))}
             </ul>
