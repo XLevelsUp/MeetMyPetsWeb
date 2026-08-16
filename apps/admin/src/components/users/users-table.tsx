@@ -7,8 +7,10 @@ import { useState, type MouseEvent } from "react";
 
 import { Pagination } from "@/components/shared/pagination";
 import { QueryErrorCard } from "@/components/shared/query-error-card";
+import { SortableHead } from "@/components/shared/sortable-head";
 import { ListToolbar } from "@/components/users/list-toolbar";
 import { RestrictionBadge } from "@/components/users/restriction-badge";
+import { formatDate } from "@/components/users/users-format";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -34,17 +36,11 @@ const PAGE_SIZE = 25;
  */
 const INTERACTIVE = "a,button,input,select,textarea,[role='menu'],[role='dialog']";
 
-/** User, Contact, Pets, Status, Joined, View — drives the skeleton and colSpan. */
-const COLUMN_COUNT = 6;
-
-function formatDate(value: string | null): string {
-  if (!value) return copy.dashboard.noData;
-  return new Date(value).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
+/**
+ * User, Contact, Pets, Status, Joined, Last sign-in, View — drives the skeleton
+ * and the empty row's colSpan.
+ */
+const COLUMN_COUNT = 7;
 
 export function UsersTable() {
   const router = useRouter();
@@ -70,6 +66,11 @@ export function UsersTable() {
     router.push(`/users/${id}`);
   };
 
+  // Re-sorting returns to page 1: staying on page 4 of a different ordering
+  // shows rows the user never asked to skip past.
+  const sortBy = (sort: AccountsQuery["sort"], dir: AccountsQuery["dir"]) =>
+    setQuery((prev) => ({ ...prev, sort, dir, page: 1 }));
+
   return (
     <div className="flex flex-col gap-4">
       <ListToolbar
@@ -90,11 +91,47 @@ export function UsersTable() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{copy.users.columns.user}</TableHead>
-                  <TableHead>{copy.users.columns.contact}</TableHead>
-                  <TableHead className="text-right">{copy.users.columns.pets}</TableHead>
+                  <SortableHead
+                    column="display_name"
+                    label={copy.users.columns.user}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    onSort={sortBy}
+                  />
+                  <SortableHead
+                    column="email"
+                    label={copy.users.columns.contact}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    onSort={sortBy}
+                  />
+                  <SortableHead
+                    column="pet_count"
+                    label={copy.users.columns.pets}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    // Counts read most-first; "0, 0, 0…" is not a useful page one.
+                    defaultDirection="desc"
+                    align="end"
+                    onSort={sortBy}
+                  />
                   <TableHead>{copy.users.columns.status}</TableHead>
-                  <TableHead>{copy.users.columns.joined}</TableHead>
+                  <SortableHead
+                    column="created_at"
+                    label={copy.users.columns.joined}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    defaultDirection="desc"
+                    onSort={sortBy}
+                  />
+                  <SortableHead
+                    column="last_login_at"
+                    label={copy.users.columns.lastLogin}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    defaultDirection="desc"
+                    onSort={sortBy}
+                  />
                   <TableHead className="w-0 text-right">
                     <span className="sr-only">{copy.users.columns.actions}</span>
                   </TableHead>
@@ -150,6 +187,11 @@ export function UsersTable() {
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {formatDate(account.createdAt)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {account.lastLoginAt
+                          ? formatDate(account.lastLoginAt)
+                          : copy.users.detail.neverActive}
                       </TableCell>
                       <TableCell className="text-right">
                         <Link

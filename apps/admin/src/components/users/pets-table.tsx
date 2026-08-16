@@ -6,10 +6,12 @@ import { toast } from "sonner";
 
 import { Pagination } from "@/components/shared/pagination";
 import { QueryErrorCard } from "@/components/shared/query-error-card";
+import { SortableHead } from "@/components/shared/sortable-head";
 import { TrustCell } from "@/components/trust/trust-cell";
 import { ActionDialog } from "@/components/users/action-dialog";
 import { ListToolbar } from "@/components/users/list-toolbar";
 import { RestrictionBadge } from "@/components/users/restriction-badge";
+import { formatDate } from "@/components/users/users-format";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -61,8 +63,15 @@ export function PetsTable({ role }: { role: AdminRole }) {
   // Flag and unflag share an allowlist; a row shows whichever applies, so the
   // column is worth rendering if either is permitted.
   const showActions = canAct(role, "flag") || canAct(role, "unflag");
-  /** Pet, Species, Owner, Trust, Status, and Actions only for roles that have any. */
-  const columnCount = showActions ? 6 : 5;
+  /**
+   * Pet, Species, Owner, Trust, Status, Added — and Actions only for roles that
+   * have one.
+   */
+  const columnCount = showActions ? 7 : 6;
+
+  // Re-sorting returns to page 1, as on the users tab.
+  const sortBy = (sort: PetsQuery["sort"], dir: PetsQuery["dir"]) =>
+    setQuery((prev) => ({ ...prev, sort, dir, page: 1 }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -84,11 +93,33 @@ export function PetsTable({ role }: { role: AdminRole }) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{copy.users.columns.pet}</TableHead>
+                  <SortableHead
+                    column="name"
+                    label={copy.users.columns.pet}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    onSort={sortBy}
+                  />
                   <TableHead>{copy.users.columns.species}</TableHead>
                   <TableHead>{copy.users.columns.owner}</TableHead>
-                  <TableHead>{copy.users.columns.trust}</TableHead>
+                  <SortableHead
+                    column="trust_score"
+                    label={copy.users.columns.trust}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    // Lowest first: the pets in trouble are the ones worth seeing.
+                    defaultDirection="asc"
+                    onSort={sortBy}
+                  />
                   <TableHead>{copy.users.columns.status}</TableHead>
+                  <SortableHead
+                    column="created_at"
+                    label={copy.users.columns.added}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    defaultDirection="desc"
+                    onSort={sortBy}
+                  />
                   {showActions ? (
                     <TableHead className="text-right">{copy.users.columns.actions}</TableHead>
                   ) : null}
@@ -143,6 +174,9 @@ export function PetsTable({ role }: { role: AdminRole }) {
                       </TableCell>
                       <TableCell>
                         <RestrictionBadge restriction={pet.restriction} status={pet.status} />
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDate(pet.createdAt)}
                       </TableCell>
                       {showActions ? (
                         <TableCell className="text-right">
