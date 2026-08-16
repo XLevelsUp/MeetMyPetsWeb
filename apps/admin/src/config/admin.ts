@@ -144,13 +144,25 @@ export const copy = {
       status: "Status",
       joined: "Joined",
       lastActive: "Last active",
+      lastLogin: "Last sign-in",
       pet: "Pet",
       species: "Species",
       owner: "Owner",
       added: "Added",
+      trust: "Trust",
       actions: "Actions",
     },
+    /** Row-level navigation. The aria label names the row, not "this row". */
+    view: {
+      label: "View",
+      /** `{name}` is substituted with the display name or the account id. */
+      aria: "View {name}",
+      unnamed: "unnamed account",
+    },
     empty: "No matches. Try a different search or filter.",
+    /** Shown instead of `empty` when a filter is what emptied the table. */
+    emptyFiltered: "No matches for these filters.",
+    clearFilters: "Clear filters",
     detail: {
       back: "Back to Users & Pets",
       notFound: "That account no longer exists.",
