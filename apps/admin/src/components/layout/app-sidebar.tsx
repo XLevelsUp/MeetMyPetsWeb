@@ -26,7 +26,8 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { adminNav, admin, copy } from "@/config/admin";
+import { adminNav, admin, copy, navForRole } from "@/config/admin";
+import type { AdminRole } from "@/lib/roles";
 import { StatusIndicator } from "./status-indicator";
 
 /**
@@ -44,8 +45,17 @@ const icons: Record<(typeof adminNav)[number]["icon"], LucideIcon> = {
   settings: Settings,
 };
 
-export function AppSidebar() {
+/**
+ * `role` comes from the DAL-verified session in the dashboard layout, never
+ * from the client. Entries outside the role are hidden rather than greyed out —
+ * see the `adminNav` comment for why that differs from `enabled: false`.
+ *
+ * This is presentation only. Every route still runs its own `requireRole`, so
+ * typing a hidden URL redirects exactly as before.
+ */
+export function AppSidebar({ role }: { role: AdminRole }) {
   const pathname = usePathname();
+  const items = navForRole(role);
 
   return (
     <Sidebar collapsible="icon">
@@ -64,7 +74,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {adminNav.map((item) => {
+              {items.map((item) => {
                 const Icon = icons[item.icon];
 
                 if (!item.enabled) {

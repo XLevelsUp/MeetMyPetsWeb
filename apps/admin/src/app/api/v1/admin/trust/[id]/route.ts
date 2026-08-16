@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import type { ApiError } from "@/lib/api-contract";
 import { requireRole } from "@/lib/dal";
-import { ANALYTICS_ROLES, USER_ACTION_ROLES } from "@/lib/roles";
+import { TRUST_ROLES, USER_ACTION_ROLES } from "@/lib/roles";
 import { banPetPermanently, getTrustLedger, restoreTrust } from "@/lib/trust";
 import { trustActionSchema } from "@/lib/trust-contract";
 
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 /** The ledger is evidence — same audience as the queue itself. */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await requireRole(...ANALYTICS_ROLES);
+  const session = await requireRole(...TRUST_ROLES);
   if (!session.ok) {
     const status = session.reason === "unauthenticated" ? 401 : 403;
     return NextResponse.json<ApiError>(

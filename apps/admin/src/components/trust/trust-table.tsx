@@ -31,8 +31,7 @@ import {
 import { copy } from "@/config/admin";
 import { useTrustQueue } from "@/hooks/use-trust";
 import { DEFAULT_PAGE_SIZE } from "@/lib/contract-shared";
-import type { AdminRole } from "@/lib/roles";
-import { USER_ACTION_ROLES } from "@/lib/roles";
+import { canAct, type AdminRole } from "@/lib/roles";
 import { TRUST_STATUSES } from "@/lib/trust-constants";
 import type { TrustQuery } from "@/lib/trust-contract";
 
@@ -61,8 +60,8 @@ export function TrustTable({ role }: { role: AdminRole }) {
 
   const trust = useTrustQueue(query);
   // The route enforces this independently; hiding it here just avoids offering
-  // a button that would 403.
-  const canRestore = USER_ACTION_ROLES.restore.includes(role);
+  // a button that would 403. Gates the permanent ban too — same allowlist.
+  const canRestore = canAct(role, "restore");
   const isFiltered = Boolean(query.q) || query.status !== "all" || query.overdueOnly;
 
   return (

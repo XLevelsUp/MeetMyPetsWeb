@@ -96,6 +96,21 @@ The general rule: if a primitive is named `XGroupY` or `XItem`, assume Base UI
 requires the matching parent and check `node_modules/@base-ui/react/**` rather
 than trusting a Radix example.
 
+**Role gating — one source, two consumers.** The per-feature allowlists in
+`lib/roles.ts` drive *both* the route's `requireRole(...)` and the sidebar's
+visibility (`adminNav[].roles` → `navForRole(role)`), so what a role can see and
+what it can open cannot drift. Changing access is a one-line edit there.
+
+- **`requireRole` in `lib/dal.ts` is the boundary. Hiding is UX.** A hidden nav
+  item still redirects if the URL is typed, and every API route still 403s.
+  Never treat a hidden control as protection.
+- **Components must never compare role literals** — ask `canAct(role, action)`
+  or an allowlist. A component once used `role === "…" || role === "…"` in place
+  of `USER_ACTION_ROLES.flag`; it agreed by coincidence and would have drifted
+  silently. Enforced by `components/role-literals.test.ts`.
+- `enabled: false` and `roles` are different gates: "coming in a later phase"
+  (greyed, visible) versus "not yours" (hidden). Don't collapse them.
+
 **Error boundaries:** a segment's `error.tsx` wraps that segment's *children*,
 not its own `layout.tsx`. Anything thrown by the sidebar, header or a provider
 escapes `(dashboard)/error.tsx` — `app/global-error.tsx` is the floor beneath

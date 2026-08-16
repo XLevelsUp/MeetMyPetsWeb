@@ -34,6 +34,18 @@ export const REPORTS_ROLES: readonly AdminRole[] = ["super_admin", "moderator"];
 /** View and act on the verification queues. */
 export const VERIFICATION_ROLES: readonly AdminRole[] = ["super_admin", "moderator"];
 
+/**
+ * Read the trust review queue over the app's automated bans.
+ *
+ * Same value as ANALYTICS_ROLES today, and deliberately a separate constant:
+ * "who reviews automated bans" and "who reads the analytics dashboard" are
+ * different questions that currently share an answer. Tying them together
+ * means a future decision to widen analytics silently widens who can see
+ * moderation queues. Restoring or banning is narrower still — that goes
+ * through USER_ACTION_ROLES.
+ */
+export const TRUST_ROLES: readonly AdminRole[] = ["super_admin", "moderator"];
+
 /** Settings and admin-role management. */
 export const SETTINGS_ROLES: readonly AdminRole[] = ["super_admin"];
 
@@ -56,6 +68,26 @@ export const USER_ACTION_ROLES: Record<
   flag: ["super_admin", "moderator"],
   unflag: ["super_admin", "moderator"],
 };
+
+export type UserAction = keyof typeof USER_ACTION_ROLES;
+
+/**
+ * Can this role perform this moderation action?
+ *
+ * ⚠️ A UX AFFORDANCE, NOT A SECURITY BOUNDARY. The route checks the same map
+ * independently (`USER_ACTION_ROLES[action].includes(session.role)`), so a
+ * hand-crafted POST is rejected whatever the UI chose to render. Hiding a
+ * button only spares someone a 403 they were going to get anyway.
+ *
+ * Exists so components stop re-deriving it. Three of them used to: two read
+ * USER_ACTION_ROLES correctly and one hardcoded `role === "super_admin" ||
+ * role === "moderator"`, which silently ignored the allowlist it was meant to
+ * mirror. `roles.test.ts` now pins every role×action pair, and a source scan
+ * keeps role literals out of `components/`.
+ */
+export function canAct(role: AdminRole, action: UserAction): boolean {
+  return USER_ACTION_ROLES[action].includes(role);
+}
 
 /** Human-readable badge labels. */
 export const ROLE_LABELS: Record<AdminRole, string> = {

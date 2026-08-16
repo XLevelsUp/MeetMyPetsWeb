@@ -20,21 +20,19 @@ import {
 } from "@/components/ui/table";
 import { copy } from "@/config/admin";
 import { usePetAction, usePets } from "@/hooks/use-users";
-import type { AdminRole } from "@/lib/roles";
+import { canAct, type AdminRole } from "@/lib/roles";
 import { PET_STATUS_FILTERS, type PetSummary, type PetsQuery } from "@/lib/users-contract";
 
 const PAGE_SIZE = 25;
-
-/** Mirrors USER_ACTION_ROLES — the API enforces this independently. */
-function canModeratePets(role: AdminRole): boolean {
-  return role === "super_admin" || role === "moderator";
-}
 
 function PetActions({ pet, role }: { pet: PetSummary; role: AdminRole }) {
   const action = usePetAction(pet.id);
   const isFlagged = pet.restriction?.kind === "flagged";
 
-  if (!canModeratePets(role)) return null;
+  // `canAct` reads USER_ACTION_ROLES, which the route enforces independently.
+  // This previously compared role strings inline and so ignored the allowlist
+  // it was meant to mirror — see roles.test.ts and role-literals.test.ts.
+  if (!canAct(role, isFlagged ? "unflag" : "flag")) return null;
 
   return (
     <ActionDialog
@@ -56,7 +54,9 @@ export function PetsTable({ role }: { role: AdminRole }) {
     status: "all",
   });
   const pets = usePets(query);
-  const showActions = canModeratePets(role);
+  // Flag and unflag share an allowlist; a row shows whichever applies, so the
+  // column is worth rendering if either is permitted.
+  const showActions = canAct(role, "flag") || canAct(role, "unflag");
 
   return (
     <div className="flex flex-col gap-4">

@@ -38,7 +38,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/">) {
 
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar role={session.role} />
       <SidebarInset>
         <AppHeader email={session.email} role={session.role} />
         {children}

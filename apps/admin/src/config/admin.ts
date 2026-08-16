@@ -4,6 +4,18 @@
  * site.ts. Copy is never hardcoded in components.
  */
 
+import {
+  ADMIN_ROLES,
+  ANALYTICS_ROLES,
+  AUDIT_ROLES,
+  REPORTS_ROLES,
+  SETTINGS_ROLES,
+  TRUST_ROLES,
+  USERS_VIEW_ROLES,
+  VERIFICATION_ROLES,
+  type AdminRole,
+} from "@/lib/roles";
+
 export const admin = {
   name: "MeetMyPets Admin",
   shortName: "MMP Admin",
@@ -11,25 +23,62 @@ export const admin = {
 } as const;
 
 /**
- * Sidebar navigation. Phase 1 ships only the Dashboard; the remaining
- * entries are rendered disabled (aria-disabled + tooltip) so the information
- * architecture is visible from day one and later phases only flip `enabled`.
+ * Sidebar navigation.
  *
  * `icon` values are lucide icon names resolved in app-sidebar.tsx — kept as
  * strings here so this file stays a pure data module.
+ *
+ * TWO INDEPENDENT GATES, and they mean different things:
+ *
+ * - `enabled: false` — "coming in a later phase". Rendered greyed out with a
+ *   tooltip, so the information architecture is visible from day one.
+ * - `roles` — who may open it. Entries outside the viewer's role are **hidden
+ *   entirely**, because "not yours" and "not yet" are different messages and
+ *   greying out the former just advertises a door that will never open.
+ *
+ * `roles` references the allowlists rather than literal role strings, so nav
+ * visibility and the route's own `requireRole(...)` are the same decision and
+ * cannot drift. Changing who may reach a feature is a one-line edit in
+ * roles.ts that moves both.
+ *
+ * ⚠️ Hiding is UX. `requireRole` in lib/dal.ts is the boundary — every route
+ * keeps its own check, and typing the URL still redirects.
  */
 export const adminNav = [
-  { label: "Dashboard", href: "/", icon: "layout-dashboard", enabled: true },
-  { label: "Users & Pets", href: "/users", icon: "users", enabled: true },
-  { label: "Verifications", href: "/verifications", icon: "badge-check", enabled: true },
-  { label: "Content Reports", href: "/reports", icon: "flag", enabled: true },
-  { label: "Trust Review", href: "/trust", icon: "shield-alert", enabled: true },
-  { label: "Business Directory", href: "/businesses", icon: "store", enabled: false },
-  { label: "Audit Logs", href: "/audit", icon: "scroll-text", enabled: true },
-  { label: "Settings", href: "/settings", icon: "settings", enabled: true },
+  { label: "Dashboard", href: "/", icon: "layout-dashboard", enabled: true, roles: ANALYTICS_ROLES },
+  { label: "Users & Pets", href: "/users", icon: "users", enabled: true, roles: USERS_VIEW_ROLES },
+  {
+    label: "Verifications",
+    href: "/verifications",
+    icon: "badge-check",
+    enabled: true,
+    roles: VERIFICATION_ROLES,
+  },
+  { label: "Content Reports", href: "/reports", icon: "flag", enabled: true, roles: REPORTS_ROLES },
+  { label: "Trust Review", href: "/trust", icon: "shield-alert", enabled: true, roles: TRUST_ROLES },
+  {
+    label: "Business Directory",
+    href: "/businesses",
+    icon: "store",
+    enabled: false,
+    // Placeholder: the feature has no route or allowlist yet, and the entry is
+    // inert. Give it a real allowlist when Phase 4 lands.
+    roles: ADMIN_ROLES,
+  },
+  { label: "Audit Logs", href: "/audit", icon: "scroll-text", enabled: true, roles: AUDIT_ROLES },
+  { label: "Settings", href: "/settings", icon: "settings", enabled: true, roles: SETTINGS_ROLES },
 ] as const;
 
 export type AdminNavItem = (typeof adminNav)[number];
+
+/**
+ * The nav a role may see. Filters a copy — `breadcrumbs.tsx` reads the full
+ * `adminNav` to resolve labels, and narrowing the shared array would blank the
+ * breadcrumb on pages the viewer legitimately has open.
+ */
+export function navForRole(role: AdminRole): readonly AdminNavItem[] {
+  return adminNav.filter((item) => (item.roles as readonly AdminRole[]).includes(role));
+}
 
 export const copy = {
   comingSoon: "Coming in a later phase",

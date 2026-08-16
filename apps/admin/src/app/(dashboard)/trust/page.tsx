@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { TrustTable } from "@/components/trust/trust-table";
 import { copy } from "@/config/admin";
 import { requireRole } from "@/lib/dal";
-import { ANALYTICS_ROLES } from "@/lib/roles";
+import { TRUST_ROLES } from "@/lib/roles";
 
 /**
  * Trust review queue — the human half of the app's automated moderation.
@@ -14,7 +14,7 @@ import { ANALYTICS_ROLES } from "@/lib/roles";
  * the client never decides its own permissions.
  */
 export default async function TrustPage() {
-  const session = await requireRole(...ANALYTICS_ROLES);
+  const session = await requireRole(...TRUST_ROLES);
   if (!session.ok) redirect("/");
 
   return (

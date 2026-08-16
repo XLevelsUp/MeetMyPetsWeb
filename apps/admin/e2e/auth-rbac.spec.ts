@@ -53,6 +53,27 @@ test.describe("support role", () => {
     expect(res.status()).toBe(403);
     expect((await res.json()).error).toBe("forbidden");
   });
+
+  /**
+   * The sidebar used to offer support six links that redirected straight back
+   * to /users. Nav visibility is derived from the same allowlists the routes
+   * enforce, so this asserts the two agree.
+   */
+  test("is not offered nav it cannot open", async ({ page }) => {
+    await page.goto("/users");
+    const sidebar = page.getByRole("navigation");
+
+    await expect(sidebar.getByRole("link", { name: "Users & Pets" })).toBeVisible();
+    for (const hidden of ["Settings", "Trust Review", "Audit Logs", "Content Reports", "Verifications"]) {
+      await expect(sidebar.getByRole("link", { name: hidden })).toHaveCount(0);
+    }
+  });
+
+  test("but the server still refuses a hidden route by URL", async ({ page }) => {
+    // Hiding is UX; requireRole is the boundary. Typing the URL must still bounce.
+    await page.goto("/settings");
+    await expect(page).not.toHaveURL(/\/settings$/);
+  });
 });
 
 test.describe("moderator role", () => {

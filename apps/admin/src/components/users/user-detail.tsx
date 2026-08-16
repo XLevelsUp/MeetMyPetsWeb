@@ -12,8 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { copy } from "@/config/admin";
 import { useAccountAction, useAccountDetail } from "@/hooks/use-users";
-import type { AdminRole } from "@/lib/roles";
-import { USER_ACTION_ROLES } from "@/lib/roles";
+import { canAct, type AdminRole, type UserAction } from "@/lib/roles";
 import type { AccountDetail } from "@/lib/users-contract";
 
 function formatDateTime(value: string | null): string {
@@ -40,9 +39,7 @@ function AccountActions({ account, role }: { account: AccountDetail; role: Admin
   const action = useAccountAction(account.id);
   const isRestricted = account.restriction !== null;
 
-  // Mirrors USER_ACTION_ROLES; the API enforces the same map independently, so
-  // hiding a button is a UX affordance, not the security boundary.
-  const can = (key: keyof typeof USER_ACTION_ROLES) => USER_ACTION_ROLES[key].includes(role);
+  const can = (key: UserAction) => canAct(role, key);
 
   async function run(
     kind: "suspend" | "ban" | "restore",
