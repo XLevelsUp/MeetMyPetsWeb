@@ -9,6 +9,7 @@ import {
   accountsResponseSchema,
   actionResponseSchema,
   petsResponseSchema,
+  queryToSearchParams,
   type AccountActionRequest,
   type AccountsQuery,
   type PetActionRequest,
@@ -47,14 +48,13 @@ async function postJson<S extends z.ZodType>(
   return schema.parse(await res.json());
 }
 
+/**
+ * Every field, including the defaults — the request URL is not user-facing, and
+ * being explicit means the query key and the request agree exactly. The address
+ * bar gets the trimmed version (`queryToSearchParams` with defaults).
+ */
 function toSearchParams(query: AccountsQuery | PetsQuery): string {
-  const params = new URLSearchParams({
-    page: String(query.page),
-    pageSize: String(query.pageSize),
-    status: query.status,
-  });
-  if (query.q) params.set("q", query.q);
-  return params.toString();
+  return queryToSearchParams(query).toString();
 }
 
 export function useAccounts(query: AccountsQuery) {

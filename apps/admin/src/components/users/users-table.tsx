@@ -18,7 +18,11 @@ import {
 } from "@/components/ui/table";
 import { copy } from "@/config/admin";
 import { useAccounts } from "@/hooks/use-users";
-import { ACCOUNT_STATUS_FILTERS, type AccountsQuery } from "@/lib/users-contract";
+import {
+  ACCOUNT_STATUS_FILTERS,
+  DEFAULT_ACCOUNTS_QUERY,
+  type AccountsQuery,
+} from "@/lib/users-contract";
 
 const PAGE_SIZE = 25;
 
@@ -33,10 +37,8 @@ function formatDate(value: string | null): string {
 
 export function UsersTable() {
   const [query, setQuery] = useState<AccountsQuery>({
-    page: 1,
+    ...DEFAULT_ACCOUNTS_QUERY,
     pageSize: PAGE_SIZE,
-    q: undefined,
-    status: "all",
   });
   const accounts = useAccounts(query);
 

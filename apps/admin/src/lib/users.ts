@@ -5,6 +5,7 @@ import { createReferenceClient, isSupabaseConfigured } from "@/lib/supabase/refe
 import { writeAuditLog, type AuditAction } from "@/lib/audit";
 import { liftRestrictions, insertRestriction as writeRestriction } from "@/lib/restrictions";
 import type { AdminRole } from "@/lib/roles";
+import { TRUST_REVIEW_SCORE_CEILING } from "@/lib/trust-constants";
 import type {
   AccountDetail,
   AccountSummary,
@@ -197,49 +198,129 @@ export async function listAccounts(query: AccountsQuery): Promise<UsersResult<Ac
   }
 
   try {
-    const { page, pageSize, q, status } = query;
+    const { page, pageSize, q, status, sort, dir, emailVerified, hasPhone, hasPets, joinedFrom, joinedTo } =
+      query;
     const offset = (page - 1) * pageSize;
+    const ascending = dir === "asc";
 
-    // Resolve the cross-schema filter first: our restrictions table can't be
-    // joined to theirs, and an empty result means we can skip the page query
-    // entirely. TODO(scale): fold into a SQL function once counts warrant it.
-    let restrictedIds: string[] | null = null;
+    /**
+     * Everything that cannot be expressed as a filter on identity.accounts is
+     * resolved to an id set FIRST, then intersected. Restrictions live in our
+     * own schema and pet ownership lives in theirs, and PostgREST cannot join
+     * across schemas — so the alternative would be filtering the fetched page,
+     * which silently lies the moment there is more than one page.
+     *
+     * TODO(scale): both scans are unbounded. Fine at 41 accounts / 55 pets;
+     * fold into a SQL function once counts warrant it. Same caveat as the
+     * species breakdown in analytics.ts.
+     */
+    let idFilter: string[] | null = null;
+    const intersect = (next: string[]) => {
+      idFilter = idFilter === null ? next : idFilter.filter((id) => next.includes(id));
+    };
+
     if (status === "suspended" || status === "banned") {
-      restrictedIds = await idsWithRestriction("account", status);
-      if (restrictedIds.length === 0) {
-        return { ok: true, data: { items: [], page, pageSize, total: 0 } };
-      }
+      intersect(await idsWithRestriction("account", status));
     }
 
-    let request = from(TABLES.accounts)
-      .select(
-        "id,auth_user_id,email,phone_country_code,phone_number,display_name,status,created_at,last_activity_at",
-        { count: "exact" },
+    if (hasPets !== "all") {
+      const owners = await petOwnerCounts();
+      // "No pets" is a negation and PostgREST has no NOT EXISTS, so the
+      // complement is resolved here rather than pretended to be a column.
+      intersect(
+        hasPets === "yes"
+          ? [...owners.keys()]
+          : (await allAccountIds()).filter((id) => !owners.has(id)),
       );
+    }
 
-    if (q) {
-      const term = sanitizeSearch(q);
-      if (term) {
-        request = UUID_RE.test(term)
-          ? request.or(`id.eq.${term},auth_user_id.eq.${term}`)
-          : request.or(
-              `email.ilike.*${term}*,display_name.ilike.*${term}*,phone_number.ilike.*${term}*`,
-            );
+    // An empty set after intersection means no row can match — skip the page
+    // query rather than sending `in.()` and letting PostgREST decide.
+    if (idFilter !== null && (idFilter as string[]).length === 0) {
+      return { ok: true, data: { items: [], page, pageSize, total: 0 } };
+    }
+
+    /**
+     * Every filter except ordering and paging, applied in one place so the
+     * normal path and the pet_count path can never disagree about what
+     * "matching" means.
+     */
+    type AccountQuery = ReturnType<ReturnType<typeof from>["select"]>;
+    const applyFilters = (input: AccountQuery): AccountQuery => {
+      let out = input;
+
+      if (q) {
+        const term = sanitizeSearch(q);
+        if (term) {
+          out = UUID_RE.test(term)
+            ? out.or(`id.eq.${term},auth_user_id.eq.${term}`)
+            : out.or(
+                `email.ilike.*${term}*,display_name.ilike.*${term}*,phone_number.ilike.*${term}*`,
+              );
+        }
+      }
+
+      if (status === "active" || status === "archived") out = out.eq("status", status);
+      if (idFilter !== null) out = out.in("id", idFilter);
+
+      if (emailVerified !== "all") out = out.is("email_verified", emailVerified === "yes");
+      if (hasPhone === "yes") out = out.not("phone_number", "is", null);
+      if (hasPhone === "no") out = out.is("phone_number", null);
+
+      // Inclusive on both ends, so `to` covers the whole of that day.
+      if (joinedFrom) out = out.gte("created_at", `${joinedFrom}T00:00:00.000Z`);
+      if (joinedTo) out = out.lte("created_at", `${joinedTo}T23:59:59.999Z`);
+
+      return out;
+    };
+
+    /**
+     * `pet_count` is not a column, so it gets its own path: resolve every
+     * matching id, order those by the computed count, and slice the page in
+     * memory. Ordering the fetched page instead would sort within the page and
+     * be wrong the moment there is a second one — the exact bug this avoids.
+     */
+    let orderedPageIds: string[] | null = null;
+    let computedTotal: number | null = null;
+
+    if (sort === "pet_count") {
+      const idRows = await applyFilters(from(TABLES.accounts).select("id"));
+      const { data: idData, error: idError } = await idRows;
+      if (idError) throw new Error(`identity.accounts: ${idError.message}`);
+
+      const candidates = ((idData ?? []) as { id: string }[]).map((r) => r.id);
+      const counts = await petCountsFor(candidates);
+      candidates.sort((a, b) => {
+        const delta = (counts.get(a) ?? 0) - (counts.get(b) ?? 0);
+        // Stable tie-break by id so paging never repeats or drops a row.
+        return (ascending ? delta : -delta) || a.localeCompare(b);
+      });
+
+      computedTotal = candidates.length;
+      orderedPageIds = candidates.slice(offset, offset + pageSize);
+      if (orderedPageIds.length === 0) {
+        return { ok: true, data: { items: [], page, pageSize, total: computedTotal } };
       }
     }
 
-    if (status === "active" || status === "archived") {
-      request = request.eq("status", status);
-    } else if (restrictedIds) {
-      request = request.in("id", restrictedIds);
+    const selectCols =
+      "id,auth_user_id,email,phone_country_code,phone_number,display_name,status,created_at,last_activity_at,last_login_at";
+
+    let request = orderedPageIds
+      ? from(TABLES.accounts).select(selectCols).in("id", orderedPageIds)
+      : applyFilters(from(TABLES.accounts).select(selectCols, { count: "exact" }));
+
+    if (!orderedPageIds) {
+      // nullsFirst:false keeps un-populated values (last_login_at, display_name)
+      // out of the front of an ascending list, where they read as "no data".
+      request = request.order(sort, { ascending, nullsFirst: false });
+      request = request.range(offset, offset + pageSize - 1);
     }
 
-    const { data, count, error } = await request
-      .order("created_at", { ascending: false })
-      .range(offset, offset + pageSize - 1);
+    const { data, count, error } = await request;
     if (error) throw new Error(`identity.accounts: ${error.message}`);
 
-    const rows = (data ?? []) as {
+    let rows = (data ?? []) as {
       id: string;
       email: string | null;
       phone_country_code: string | null;
@@ -248,7 +329,15 @@ export async function listAccounts(query: AccountsQuery): Promise<UsersResult<Ac
       status: string | null;
       created_at: string | null;
       last_activity_at: string | null;
+      last_login_at: string | null;
     }[];
+
+    // PostgREST returns `in()` rows in its own order, so restore the ranking.
+    if (orderedPageIds) {
+      const rank = new Map(orderedPageIds.map((id, i) => [id, i]));
+      rows = [...rows].sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
+    }
+
     const ids = rows.map((r) => r.id);
 
     const [restrictions, petCounts] = await Promise.all([
@@ -264,11 +353,17 @@ export async function listAccounts(query: AccountsQuery): Promise<UsersResult<Ac
       status: row.status,
       createdAt: row.created_at,
       lastActivityAt: row.last_activity_at,
+      lastLoginAt: row.last_login_at,
       petCount: petCounts.get(row.id) ?? 0,
       restriction: restrictions.get(row.id) ?? null,
     }));
 
-    return { ok: true, data: { items, page, pageSize, total: count ?? 0 } };
+    // The pet_count path paginates in memory, so its total comes from the
+    // candidate set rather than a PostgREST count header.
+    return {
+      ok: true,
+      data: { items, page, pageSize, total: computedTotal ?? count ?? 0 },
+    };
   } catch (error) {
     return {
       ok: false,
@@ -276,6 +371,36 @@ export async function listAccounts(query: AccountsQuery): Promise<UsersResult<Ac
       message: error instanceof Error ? error.message : "Unknown query failure.",
     };
   }
+}
+
+/**
+ * Owner id -> live pet count, across ALL accounts.
+ *
+ * Used by the "has pets" filter and the pet_count sort, both of which need the
+ * whole population rather than one page. TODO(scale): unbounded scan, fine at
+ * 55 pets; becomes a SQL aggregate when it isn't.
+ */
+async function petOwnerCounts(): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  const { data, error } = await from(TABLES.pets)
+    .select("owner_account_id")
+    .is("deleted_at", null)
+    .range(0, 49_999);
+  if (error) throw new Error(`pets.pets: ${error.message}`);
+
+  for (const row of (data ?? []) as { owner_account_id: string | null }[]) {
+    if (row.owner_account_id) {
+      counts.set(row.owner_account_id, (counts.get(row.owner_account_id) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+/** Every account id, so "has no pets" can be expressed as a complement. */
+async function allAccountIds(): Promise<string[]> {
+  const { data, error } = await from(TABLES.accounts).select("id").range(0, 49_999);
+  if (error) throw new Error(`identity.accounts: ${error.message}`);
+  return ((data ?? []) as { id: string }[]).map((r) => r.id);
 }
 
 async function petCountsFor(accountIds: string[]): Promise<Map<string, number>> {
@@ -319,7 +444,7 @@ export async function getAccountDetail(id: string): Promise<UsersResult<AccountD
         .eq("account_id", id)
         .maybeSingle(),
       from(TABLES.pets)
-        .select("id,name,species_id,breed_id,status,owner_account_id,created_at,profile_photo_url")
+        .select(PET_COLUMNS)
         .eq("owner_account_id", id)
         .order("created_at", { ascending: false }),
       from(TABLES.restrictions)
@@ -445,7 +570,17 @@ type PetRow = {
   owner_account_id: string | null;
   created_at: string | null;
   profile_photo_url: string | null;
+  trust_score: number | null;
+  temporary_ban_until: string | null;
 };
+
+/**
+ * Columns for a pet row. One unbroken literal — supabase-js infers the row type
+ * from this string, and concatenating it degrades the result to
+ * GenericStringError[] (the mistake that broke the matches metric).
+ */
+const PET_COLUMNS =
+  "id,name,species_id,breed_id,status,owner_account_id,created_at,profile_photo_url,trust_score,temporary_ban_until";
 
 /** Resolves species/breed ids to names via the anon reference client. */
 async function decoratePets(rows: PetRow[]): Promise<PetSummary[]> {
@@ -464,6 +599,8 @@ async function decoratePets(rows: PetRow[]): Promise<PetSummary[]> {
     createdAt: row.created_at,
     photoUrl: row.profile_photo_url,
     restriction: null,
+    trustScore: row.trust_score,
+    trustBannedUntil: row.temporary_ban_until,
   }));
 }
 
@@ -473,8 +610,9 @@ export async function listPets(query: PetsQuery): Promise<UsersResult<PetsRespon
   }
 
   try {
-    const { page, pageSize, q, status } = query;
+    const { page, pageSize, q, status, sort, dir, speciesId, trust } = query;
     const offset = (page - 1) * pageSize;
+    const ascending = dir === "asc";
 
     // Same cross-schema short-circuit as listAccounts.
     let flaggedIds: string[] | null = null;
@@ -485,10 +623,7 @@ export async function listPets(query: PetsQuery): Promise<UsersResult<PetsRespon
       }
     }
 
-    let request = from(TABLES.pets).select(
-      "id,name,species_id,breed_id,status,owner_account_id,created_at,profile_photo_url",
-      { count: "exact" },
-    );
+    let request = from(TABLES.pets).select(PET_COLUMNS, { count: "exact" });
 
     if (q) {
       const term = sanitizeSearch(q);
@@ -505,8 +640,18 @@ export async function listPets(query: PetsQuery): Promise<UsersResult<PetsRespon
       request = request.in("id", flaggedIds);
     }
 
+    if (speciesId !== "all" && UUID_RE.test(speciesId)) {
+      request = request.eq("species_id", speciesId);
+    }
+
+    // Trust bands come straight from the score, which IS a real column — no
+    // pre-resolution needed. The boundary mirrors TRUST_REVIEW_SCORE_CEILING;
+    // `trustStatusFor` remains the only place the full ladder lives.
+    if (trust === "at_risk") request = request.lte("trust_score", TRUST_REVIEW_SCORE_CEILING);
+    if (trust === "normal") request = request.gt("trust_score", TRUST_REVIEW_SCORE_CEILING);
+
     const { data, count, error } = await request
-      .order("created_at", { ascending: false })
+      .order(sort, { ascending, nullsFirst: false })
       .range(offset, offset + pageSize - 1);
     if (error) throw new Error(`pets.pets: ${error.message}`);
 

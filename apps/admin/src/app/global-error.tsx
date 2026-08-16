@@ -93,8 +93,11 @@ export default function GlobalError({
             </button>
             {/*
               A plain anchor, not next/link: the router is part of what may have
-              failed, and a full document load is the reliable escape.
+              failed, and a full document load is the reliable escape. The lint
+              rule assumes a working app shell, which is precisely what this
+              boundary exists to handle the absence of.
             */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a
               href="/"
               style={{

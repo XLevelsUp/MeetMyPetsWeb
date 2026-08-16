@@ -21,7 +21,12 @@ import {
 import { copy } from "@/config/admin";
 import { usePetAction, usePets } from "@/hooks/use-users";
 import { canAct, type AdminRole } from "@/lib/roles";
-import { PET_STATUS_FILTERS, type PetSummary, type PetsQuery } from "@/lib/users-contract";
+import {
+  DEFAULT_PETS_QUERY,
+  PET_STATUS_FILTERS,
+  type PetSummary,
+  type PetsQuery,
+} from "@/lib/users-contract";
 
 const PAGE_SIZE = 25;
 
@@ -48,10 +53,8 @@ function PetActions({ pet, role }: { pet: PetSummary; role: AdminRole }) {
 
 export function PetsTable({ role }: { role: AdminRole }) {
   const [query, setQuery] = useState<PetsQuery>({
-    page: 1,
+    ...DEFAULT_PETS_QUERY,
     pageSize: PAGE_SIZE,
-    q: undefined,
-    status: "all",
   });
   const pets = usePets(query);
   // Flag and unflag share an allowlist; a row shows whichever applies, so the

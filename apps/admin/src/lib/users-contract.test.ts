@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import { listQuerySchema, reasonSchema } from "@/lib/contract-shared";
 import { USER_ACTION_ROLES } from "@/lib/roles";
-import { accountActionSchema, accountsQuerySchema, petActionSchema } from "@/lib/users-contract";
+import {
+  accountActionSchema,
+  accountsQuerySchema,
+  petActionSchema,
+  petsQuerySchema,
+  queryToSearchParams,
+  searchParamsToQuery,
+  DEFAULT_ACCOUNTS_QUERY,
+} from "@/lib/users-contract";
 
 describe("reasonSchema", () => {
   it("rejects a reason that is too short to be an audit trail", () => {
@@ -69,6 +77,56 @@ describe("list query coercion", () => {
 
   it("falls back to the 'all' status filter on an unknown value", () => {
     expect(accountsQuerySchema.parse({ status: "nonsense" }).status).toBe("all");
+  });
+});
+
+describe("query URL round-trip", () => {
+  it("restores an accounts query exactly", () => {
+    const query = accountsQuerySchema.parse({
+      page: 3,
+      status: "banned",
+      sort: "pet_count",
+      dir: "asc",
+      q: "ada",
+      emailVerified: "no",
+      hasPhone: "yes",
+      hasPets: "yes",
+      joinedFrom: "2026-01-01",
+      joinedTo: "2026-02-01",
+    });
+    expect(searchParamsToQuery(accountsQuerySchema, queryToSearchParams(query))).toEqual(query);
+  });
+
+  it("restores a pets query exactly", () => {
+    const query = petsQuerySchema.parse({
+      page: 2,
+      status: "flagged",
+      sort: "trust_score",
+      dir: "asc",
+      speciesId: "s1",
+      trust: "at_risk",
+    });
+    expect(searchParamsToQuery(petsQuerySchema, queryToSearchParams(query))).toEqual(query);
+  });
+
+  it("leaves default values out of the address bar but still restores them", () => {
+    const params = queryToSearchParams(
+      { ...DEFAULT_ACCOUNTS_QUERY, status: "banned" },
+      DEFAULT_ACCOUNTS_QUERY,
+    );
+    expect([...params.keys()]).toEqual(["status"]);
+    expect(searchParamsToQuery(accountsQuerySchema, params)).toEqual({
+      ...DEFAULT_ACCOUNTS_QUERY,
+      status: "banned",
+    });
+  });
+
+  it("ignores params the schema does not declare", () => {
+    const params = new URLSearchParams({ status: "banned", tab: "pets", drop: "table" });
+    expect(searchParamsToQuery(accountsQuerySchema, params)).toEqual({
+      ...DEFAULT_ACCOUNTS_QUERY,
+      status: "banned",
+    });
   });
 });
 

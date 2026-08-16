@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+﻿import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { makeSupabaseMock, type SupabaseMock, type TableResult } from "@/test/supabase-mock";
 
@@ -14,6 +14,24 @@ vi.mock("@/lib/supabase/reference", () => ({
 }));
 
 import { flagPet, listAccounts, listPets, restoreAccount, suspendAccount } from "@/lib/users";
+import {
+  accountsQuerySchema,
+  petsQuerySchema,
+  DEFAULT_ACCOUNTS_QUERY,
+  DEFAULT_PETS_QUERY,
+  type AccountsQuery,
+  type PetsQuery,
+} from "@/lib/users-contract";
+
+/** Unfiltered query plus whatever the case under test cares about. */
+const accountsQuery = (overrides: Partial<AccountsQuery> = {}): AccountsQuery => ({
+  ...DEFAULT_ACCOUNTS_QUERY,
+  ...overrides,
+});
+const petsQuery = (overrides: Partial<PetsQuery> = {}): PetsQuery => ({
+  ...DEFAULT_PETS_QUERY,
+  ...overrides,
+});
 
 const ACCOUNT_ID = "11111111-1111-1111-1111-111111111111";
 const AUTH_USER_ID = "22222222-2222-2222-2222-222222222222";
@@ -78,7 +96,7 @@ describe("listAccounts", () => {
       },
     });
 
-    const result = await listAccounts({ page: 1, pageSize: 25, q: undefined, status: "all" });
+    const result = await listAccounts(accountsQuery());
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -104,7 +122,7 @@ describe("listAccounts", () => {
       },
     });
 
-    const result = await listAccounts({ page: 1, pageSize: 25, q: undefined, status: "all" });
+    const result = await listAccounts(accountsQuery());
     expect(result.ok && result.data.items[0].restriction?.kind).toBe("banned");
   });
 
@@ -129,7 +147,7 @@ describe("listAccounts", () => {
       },
     });
 
-    const result = await listAccounts({ page: 1, pageSize: 25, q: undefined, status: "all" });
+    const result = await listAccounts(accountsQuery());
     expect(result.ok && result.data.items[0].restriction).toBeNull();
   });
 
@@ -140,7 +158,7 @@ describe("listAccounts", () => {
       "public.admin_restrictions": { rows: [] },
     });
 
-    const result = await listAccounts({ page: 1, pageSize: 25, q: undefined, status: "banned" });
+    const result = await listAccounts(accountsQuery({ status: "banned" }));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.data).toEqual({ items: [], page: 1, pageSize: 25, total: 0 });
@@ -150,11 +168,145 @@ describe("listAccounts", () => {
 
   it("surfaces a query failure instead of throwing", async () => {
     setup({ "identity.accounts": { error: { message: "boom" } } });
-    const result = await listAccounts({ page: 1, pageSize: 25, q: undefined, status: "all" });
+    const result = await listAccounts(accountsQuery());
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason).toBe("query_failed");
     expect(result.message).toContain("boom");
+  });
+});
+
+/**
+ * Sorting and filtering assert on the RECORDED FILTER CALLS, never on the rows
+ * that come back. The mock returns its fixture regardless of what was applied,
+ * so a row-based assertion here would pass just as happily against an adapter
+ * that dropped the filter entirely.
+ */
+describe("listAccounts sorting", () => {
+  function listable() {
+    return setup({
+      "identity.accounts": { count: 1, rows: [{ id: ACCOUNT_ID }] },
+      "pets.pets": { rows: [] },
+      "public.admin_restrictions": { rows: [] },
+    });
+  }
+
+  it.each([
+    ["created_at", "desc", false],
+    ["display_name", "asc", true],
+    ["email", "asc", true],
+    ["last_login_at", "desc", false],
+  ] as const)("orders by %s %s", async (sort, dir, ascending) => {
+    const mock = listable();
+    await listAccounts(accountsQuery({ sort, dir }));
+
+    const page = mock.calls.find((c) => c.key === "identity.accounts");
+    expect(page?.filters).toContainEqual({
+      method: "order",
+      // nullsFirst keeps empty display names and never-logged-in accounts off
+      // the top of an ascending page, where they read as "no data".
+      args: [sort, { ascending, nullsFirst: false }],
+    });
+  });
+
+  it("resolves pet_count before the page query instead of reordering the page", async () => {
+    const mock = setup({
+      "identity.accounts": { count: 3, rows: [{ id: ACCOUNT_ID }] },
+      "pets.pets": { rows: [{ id: PET_ID, owner_account_id: ACCOUNT_ID }] },
+      "public.admin_restrictions": { rows: [] },
+    });
+
+    await listAccounts(accountsQuery({ sort: "pet_count", dir: "desc" }));
+
+    // ids -> counts -> page, in that order. The page query filters by the
+    // resolved ids and carries no `order`, because the ranking is ours.
+    const sequence = mock.calls.filter((c) => c.op === "select").map((c) => c.key);
+    expect(sequence.slice(0, 3)).toEqual(["identity.accounts", "pets.pets", "identity.accounts"]);
+
+    const page = mock.calls.filter((c) => c.key === "identity.accounts")[1];
+    expect(page.filters?.some((f) => f.method === "order")).toBe(false);
+    expect(page.filters).toContainEqual({ method: "in", args: ["id", [ACCOUNT_ID]] });
+  });
+});
+
+describe("listAccounts filters", () => {
+  function listable(overrides: Record<string, TableResult> = {}) {
+    return setup({
+      "identity.accounts": { count: 1, rows: [{ id: ACCOUNT_ID }] },
+      "pets.pets": { rows: [] },
+      "public.admin_restrictions": { rows: [] },
+      ...overrides,
+    });
+  }
+
+  it("applies an inclusive joined-date range to created_at", async () => {
+    const mock = listable();
+    await listAccounts(accountsQuery({ joinedFrom: "2026-01-01", joinedTo: "2026-01-31" }));
+
+    const page = mock.calls.find((c) => c.key === "identity.accounts");
+    expect(page?.filters).toContainEqual({
+      method: "gte",
+      args: ["created_at", "2026-01-01T00:00:00.000Z"],
+    });
+    // End of day, not midnight — otherwise `to` silently excludes its own day.
+    expect(page?.filters).toContainEqual({
+      method: "lte",
+      args: ["created_at", "2026-01-31T23:59:59.999Z"],
+    });
+  });
+
+  it.each([
+    ["yes", true],
+    ["no", false],
+  ] as const)("filters email_verified=%s", async (value, expected) => {
+    const mock = listable();
+    await listAccounts(accountsQuery({ emailVerified: value }));
+    const page = mock.calls.find((c) => c.key === "identity.accounts");
+    expect(page?.filters).toContainEqual({ method: "is", args: ["email_verified", expected] });
+  });
+
+  it("expresses 'has a phone number' as not-null rather than a truthiness test", async () => {
+    const mock = listable();
+    await listAccounts(accountsQuery({ hasPhone: "yes" }));
+    const page = mock.calls.find((c) => c.key === "identity.accounts");
+    expect(page?.filters).toContainEqual({ method: "not", args: ["phone_number", "is", null] });
+  });
+
+  it("resolves 'has pets' to an id list before the page query", async () => {
+    const mock = listable({
+      "pets.pets": { rows: [{ owner_account_id: ACCOUNT_ID }] },
+    });
+    await listAccounts(accountsQuery({ hasPets: "yes" }));
+
+    const page = mock.calls.filter((c) => c.key === "identity.accounts").at(-1);
+    expect(page?.filters).toContainEqual({ method: "in", args: ["id", [ACCOUNT_ID]] });
+  });
+
+  it("short-circuits when 'has pets' matches nobody", async () => {
+    const mock = listable({ "pets.pets": { rows: [] } });
+    const result = await listAccounts(accountsQuery({ hasPets: "yes" }));
+
+    expect(result.ok && result.data.total).toBe(0);
+    expect(mock.calls.some((c) => c.key === "identity.accounts")).toBe(false);
+  });
+
+  it("intersects a restriction filter with 'has pets' rather than letting one win", async () => {
+    const other = "44444444-4444-4444-4444-444444444444";
+    const mock = listable({
+      // Banned: our account plus one that owns nothing.
+      "public.admin_restrictions": {
+        rows: [
+          { target_id: ACCOUNT_ID, kind: "banned", reason: "r", created_at: "x", expires_at: null, lifted_at: null },
+          { target_id: other, kind: "banned", reason: "r", created_at: "x", expires_at: null, lifted_at: null },
+        ],
+      },
+      "pets.pets": { rows: [{ owner_account_id: ACCOUNT_ID }] },
+    });
+
+    await listAccounts(accountsQuery({ status: "banned", hasPets: "yes" }));
+
+    const page = mock.calls.filter((c) => c.key === "identity.accounts").at(-1);
+    expect(page?.filters).toContainEqual({ method: "in", args: ["id", [ACCOUNT_ID]] });
   });
 });
 
@@ -179,10 +331,140 @@ describe("listPets", () => {
       "public.admin_restrictions": { rows: [] },
     });
 
-    const result = await listPets({ page: 1, pageSize: 25, q: undefined, status: "all" });
+    const result = await listPets(petsQuery());
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.data.items[0]).toMatchObject({ name: "Rex", species: "Dog", breed: "Beagle" });
+  });
+
+  it("carries the trust score and ban window through to the summary", async () => {
+    setup({
+      "pets.pets": {
+        count: 1,
+        rows: [
+          {
+            id: PET_ID,
+            name: "Rex",
+            species_id: "s1",
+            breed_id: "b1",
+            status: "active",
+            owner_account_id: ACCOUNT_ID,
+            created_at: null,
+            profile_photo_url: null,
+            trust_score: 80,
+            temporary_ban_until: "2026-08-23T00:00:00Z",
+          },
+        ],
+      },
+      "public.admin_restrictions": { rows: [] },
+    });
+
+    const result = await listPets(petsQuery());
+    expect(result.ok && result.data.items[0]).toMatchObject({
+      trustScore: 80,
+      trustBannedUntil: "2026-08-23T00:00:00Z",
+    });
+  });
+
+  it("passes a missing trust score through as null rather than inventing a band", async () => {
+    setup({
+      "pets.pets": {
+        count: 1,
+        rows: [
+          {
+            id: PET_ID,
+            name: "Rex",
+            species_id: null,
+            breed_id: null,
+            status: "active",
+            owner_account_id: null,
+            created_at: null,
+            profile_photo_url: null,
+            trust_score: null,
+            temporary_ban_until: null,
+          },
+        ],
+      },
+      "public.admin_restrictions": { rows: [] },
+    });
+
+    const result = await listPets(petsQuery());
+    // `trustStatusFor(null)` is null, not "normal" — an unknown score must not
+    // read as a clean one.
+    expect(result.ok && result.data.items[0].trustScore).toBeNull();
+  });
+});
+
+describe("listPets sorting and filters", () => {
+  function listable() {
+    return setup({
+      "pets.pets": { count: 1, rows: [] },
+      "public.admin_restrictions": { rows: [] },
+    });
+  }
+
+  it.each([
+    ["created_at", "desc", false],
+    ["name", "asc", true],
+    ["trust_score", "asc", true],
+  ] as const)("orders by %s %s", async (sort, dir, ascending) => {
+    const mock = listable();
+    await listPets(petsQuery({ sort, dir }));
+    const page = mock.calls.find((c) => c.key === "pets.pets");
+    expect(page?.filters).toContainEqual({
+      method: "order",
+      args: [sort, { ascending, nullsFirst: false }],
+    });
+  });
+
+  it("filters by species id", async () => {
+    const mock = listable();
+    const speciesId = "55555555-5555-5555-5555-555555555555";
+    await listPets(petsQuery({ speciesId }));
+    const page = mock.calls.find((c) => c.key === "pets.pets");
+    expect(page?.filters).toContainEqual({ method: "eq", args: ["species_id", speciesId] });
+  });
+
+  it("ignores a species id that is not a uuid instead of sending it", async () => {
+    const mock = listable();
+    await listPets(petsQuery({ speciesId: "dog" }));
+    const page = mock.calls.find((c) => c.key === "pets.pets");
+    expect(page?.filters?.some((f) => f.method === "eq" && f.args[0] === "species_id")).toBe(false);
+  });
+
+  it.each([
+    ["at_risk", "lte"],
+    ["normal", "gt"],
+  ] as const)("filters the %s trust band with %s", async (trust, method) => {
+    const mock = listable();
+    await listPets(petsQuery({ trust }));
+    const page = mock.calls.find((c) => c.key === "pets.pets");
+    // 250 is TRUST_REVIEW_SCORE_CEILING — the boundary lives in one file.
+    expect(page?.filters).toContainEqual({ method, args: ["trust_score", 250] });
+  });
+});
+
+describe("list query contracts", () => {
+  it("degrades a hand-edited query string instead of rejecting it", () => {
+    const parsed = accountsQuerySchema.parse({
+      page: "nope",
+      sort: "; drop table",
+      dir: "sideways",
+      emailVerified: "maybe",
+      joinedFrom: "last tuesday",
+    });
+    expect(parsed).toMatchObject({
+      page: 1,
+      sort: "created_at",
+      dir: "desc",
+      emailVerified: "all",
+      joinedFrom: undefined,
+    });
+
+    expect(petsQuerySchema.parse({ sort: "trust", trust: "bad" })).toMatchObject({
+      sort: "created_at",
+      trust: "all",
+    });
   });
 });
 
@@ -303,3 +585,4 @@ describe("flagPet", () => {
     expect(result.reason).toBe("not_found");
   });
 });
+

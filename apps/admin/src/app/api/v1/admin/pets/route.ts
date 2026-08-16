@@ -4,7 +4,7 @@ import type { ApiError } from "@/lib/api-contract";
 import { requireRole } from "@/lib/dal";
 import { USERS_VIEW_ROLES } from "@/lib/roles";
 import { listPets } from "@/lib/users";
-import { petsQuerySchema } from "@/lib/users-contract";
+import { petsQuerySchema, searchParamsToQuery } from "@/lib/users-contract";
 
 export const dynamic = "force-dynamic";
 
@@ -18,14 +18,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const params = request.nextUrl.searchParams;
-  const query = petsQuerySchema.parse({
-    page: params.get("page") ?? undefined,
-    pageSize: params.get("pageSize") ?? undefined,
-    q: params.get("q") ?? undefined,
-    status: params.get("status") ?? undefined,
-  });
-
+  const query = searchParamsToQuery(petsQuerySchema, request.nextUrl.searchParams);
   const result = await listPets(query);
   if (!result.ok) {
     return NextResponse.json<ApiError>(
