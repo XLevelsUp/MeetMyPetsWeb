@@ -288,8 +288,11 @@ Verified end-to-end: anonymous → redirect/401, `support` → 403,
   the page-boundary behaviour of the computed `pet_count` sort, and the URL
   round-trip are covered by unit tests, live PostgREST probes and an e2e spec,
   but no one has clicked through them as super_admin.
-- Hosting: repoint the marketing deploy's root directory to `apps/marketing`;
-  create the `apps/admin` project on `admin.meetmypets.app`.
+- Hosting: the marketing deploy's Root Directory must be repointed to
+  `apps/marketing` (it still says the repo root, so production has been failing
+  since the monorepo conversion), and the `apps/admin` project on
+  `admin.meetmypets.app` does not exist yet. Settings and env vars for both are
+  in [`docs/deployment.md`](../deployment.md).
 
 Resolved: ~~`pet_likes` grant~~ (`20260806000001`), ~~audit-log table~~
 (`20260806000003`), ~~reports table~~ (adopted `matching.pet_reports`,
