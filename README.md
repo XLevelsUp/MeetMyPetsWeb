@@ -1,26 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+MeetMyPets web — an npm-workspaces monorepo:
+
+- `apps/marketing` — the public marketing/waitlist site (`meetmypets.app`), fully static export.
+- `apps/admin` — the moderator/founder admin panel (`admin.meetmypets.app`), server-rendered.
 
 ## Getting Started
 
-First, run the development server:
+From the repo root:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+
+npm run dev:marketing   # marketing site on http://localhost:3000
+npm run dev:admin       # admin panel on http://localhost:3001
+
+npm run build:marketing # static export to apps/marketing/out
+npm run build:admin
+
+npm run typecheck       # both workspaces
+npm run lint            # both workspaces
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The marketing site's home page lives at `apps/marketing/src/app/page.tsx`; it auto-updates as you edit.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Admin panel setup
+
+`apps/admin` talks to Supabase and needs credentials before sign-in works:
+
+```bash
+cp apps/admin/.env.example apps/admin/.env.local
+# then fill in the publishable + secret keys from the Supabase dashboard
+```
+
+Admin roles (`super_admin` / `moderator` / `support`) are read from Supabase
+`app_metadata` — see `docs/admin/schema-notes.md` for the assumption register
+that still needs verifying against the live database, and
+`supabase/migrations/` for the not-yet-applied analytics function.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Android App Links — `public/.well-known/assetlinks.json`
+## Android App Links — `apps/marketing/public/.well-known/assetlinks.json`
 
 That file is a Digital Asset Links statement. It is what lets
 `https://meetmypets.app/pet/<uuid>` and `/post/<uuid>` open the MeetMyPets Android app
@@ -61,8 +79,11 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+See [`docs/deployment.md`](docs/deployment.md) for the Vercel project settings,
+required environment variables, and the post-deploy checks.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+One thing worth knowing before you touch `apps/`: the deploy's **Root Directory
+is a dashboard setting, not a file in this repo**, so moving or renaming a
+workspace breaks production while CI stays green.

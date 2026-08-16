@@ -1,0 +1,234 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback } from "react";
+import { toast } from "sonner";
+
+import { Pagination } from "@/components/shared/pagination";
+import { QueryErrorCard } from "@/components/shared/query-error-card";
+import { SortableHead } from "@/components/shared/sortable-head";
+import { TrustCell } from "@/components/trust/trust-cell";
+import { ActionDialog } from "@/components/users/action-dialog";
+import { EmptyState } from "@/components/users/list-empty-state";
+import { ListToolbar } from "@/components/users/list-toolbar";
+import { PetFilters } from "@/components/users/pet-filters";
+import { RestrictionBadge } from "@/components/users/restriction-badge";
+import { formatDate } from "@/components/users/users-format";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { copy } from "@/config/admin";
+import { useUrlSyncedQuery } from "@/hooks/use-url-query";
+import { usePetAction, usePets } from "@/hooks/use-users";
+import { canAct, type AdminRole } from "@/lib/roles";
+import {
+  DEFAULT_PETS_QUERY,
+  PET_STATUS_FILTERS,
+  type PetSummary,
+  type PetsQuery,
+} from "@/lib/users-contract";
+
+function PetActions({ pet, role }: { pet: PetSummary; role: AdminRole }) {
+  const action = usePetAction(pet.id);
+  const isFlagged = pet.restriction?.kind === "flagged";
+
+  // `canAct` reads USER_ACTION_ROLES, which the route enforces independently.
+  // This previously compared role strings inline and so ignored the allowlist
+  // it was meant to mirror — see roles.test.ts and role-literals.test.ts.
+  if (!canAct(role, isFlagged ? "unflag" : "flag")) return null;
+
+  return (
+    <ActionDialog
+      action={isFlagged ? "unflag" : "flag"}
+      isPending={action.isPending}
+      onConfirm={async ({ reason }) => {
+        await action.mutateAsync({ action: isFlagged ? "unflag" : "flag", reason });
+        toast.success(isFlagged ? copy.users.toast.unflag : copy.users.toast.flag);
+      }}
+    />
+  );
+}
+
+export function PetsTable({
+  role,
+  initialQuery,
+  active,
+}: {
+  role: AdminRole;
+  initialQuery: PetsQuery;
+  /** Only the visible tab writes to the URL. */
+  active: boolean;
+}) {
+  const [query, setQuery] = useUrlSyncedQuery(initialQuery, DEFAULT_PETS_QUERY, {
+    active,
+    // Keeps `?tab=pets` on the URL while this tab owns the query string.
+    extraParams: { tab: "pets" },
+  });
+  const pets = usePets(query);
+  // Flag and unflag share an allowlist; a row shows whichever applies, so the
+  // column is worth rendering if either is permitted.
+  const showActions = canAct(role, "flag") || canAct(role, "unflag");
+  /**
+   * Pet, Species, Owner, Trust, Status, Added — and Actions only for roles that
+   * have one.
+   */
+  const columnCount = showActions ? 7 : 6;
+
+  // Re-sorting and re-filtering return to page 1, as on the users tab.
+  const sortBy = (sort: PetsQuery["sort"], dir: PetsQuery["dir"]) =>
+    setQuery((prev) => ({ ...prev, sort, dir, page: 1 }));
+
+  const applyFilters = useCallback(
+    (next: Partial<PetsQuery>) => setQuery((prev) => ({ ...prev, ...next, page: 1 })),
+    [setQuery],
+  );
+
+  const hasFilters =
+    query.status !== DEFAULT_PETS_QUERY.status ||
+    query.speciesId !== DEFAULT_PETS_QUERY.speciesId ||
+    query.trust !== DEFAULT_PETS_QUERY.trust ||
+    Boolean(query.q);
+
+  const clearFilters = () =>
+    setQuery((prev) => ({
+      ...DEFAULT_PETS_QUERY,
+      pageSize: prev.pageSize,
+      sort: prev.sort,
+      dir: prev.dir,
+    }));
+
+  return (
+    <div className="flex flex-col gap-4">
+      <ListToolbar
+        initialSearch={query.q ?? ""}
+        onSearchChange={(q) => setQuery((prev) => ({ ...prev, q: q || undefined, page: 1 }))}
+        status={query.status}
+        onStatusChange={(status) => applyFilters({ status: status as PetsQuery["status"] })}
+        statusOptions={PET_STATUS_FILTERS}
+        hasFilters={hasFilters}
+        onClear={clearFilters}
+      >
+        <PetFilters query={query} onChange={applyFilters} />
+      </ListToolbar>
+
+      {pets.isError ? (
+        <QueryErrorCard message={pets.error.message} onRetry={() => pets.refetch()} />
+      ) : (
+        <>
+          <div className="overflow-x-auto rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <SortableHead
+                    column="name"
+                    label={copy.users.columns.pet}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    onSort={sortBy}
+                  />
+                  <TableHead>{copy.users.columns.species}</TableHead>
+                  <TableHead>{copy.users.columns.owner}</TableHead>
+                  <SortableHead
+                    column="trust_score"
+                    label={copy.users.columns.trust}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    // Lowest first: the pets in trouble are the ones worth seeing.
+                    defaultDirection="asc"
+                    onSort={sortBy}
+                  />
+                  <TableHead>{copy.users.columns.status}</TableHead>
+                  <SortableHead
+                    column="created_at"
+                    label={copy.users.columns.added}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    defaultDirection="desc"
+                    onSort={sortBy}
+                  />
+                  {showActions ? (
+                    <TableHead className="text-right">{copy.users.columns.actions}</TableHead>
+                  ) : null}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pets.isPending ? (
+                  Array.from({ length: 8 }).map((_, index) => (
+                    <TableRow key={index}>
+                      {Array.from({ length: columnCount }).map((__, cell) => (
+                        <TableCell key={cell}>
+                          <Skeleton className="h-5 w-full" />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : pets.data.items.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={columnCount} className="py-10 text-center">
+                      <EmptyState hasFilters={hasFilters} onClear={clearFilters} />
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  pets.data.items.map((pet) => (
+                    <TableRow key={pet.id}>
+                      <TableCell className="font-medium">
+                        {pet.name || copy.dashboard.noData}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {pet.species || copy.dashboard.noData}
+                        {pet.breed ? (
+                          <span className="block text-xs">{pet.breed}</span>
+                        ) : null}
+                      </TableCell>
+                      <TableCell>
+                        {pet.ownerAccountId ? (
+                          <Link
+                            href={`/users/${pet.ownerAccountId}`}
+                            className="text-sm underline-offset-4 hover:underline"
+                          >
+                            {copy.users.detail.profile}
+                          </Link>
+                        ) : (
+                          copy.dashboard.noData
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <TrustCell pet={pet} />
+                      </TableCell>
+                      <TableCell>
+                        <RestrictionBadge restriction={pet.restriction} status={pet.status} />
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDate(pet.createdAt)}
+                      </TableCell>
+                      {showActions ? (
+                        <TableCell className="text-right">
+                          <PetActions pet={pet} role={role} />
+                        </TableCell>
+                      ) : null}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {pets.data ? (
+            <Pagination
+              page={pets.data.page}
+              pageSize={pets.data.pageSize}
+              total={pets.data.total}
+              onPageChange={(page) => setQuery((prev) => ({ ...prev, page }))}
+            />
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}

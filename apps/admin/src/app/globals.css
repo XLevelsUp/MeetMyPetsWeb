@@ -1,0 +1,243 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------------
+   MeetMyPets design tokens — admin panel copy.
+
+   DELIBERATE DUPLICATION: the token layer below (@theme inline, :root, .dark)
+   is copied from apps/marketing/src/app/globals.css. The marketing site is a
+   static export whose build must stay untouched, and there is no shared
+   package infrastructure yet, so token edits must be mirrored in BOTH files
+   by hand. Marketing-only layers (marquee, .prose-legal, .legal-todo,
+   .mask-edges, typography plugin) are dropped here; admin-only tokens
+   (--chart-*, --sidebar-*) exist only in this file.
+
+   Contrast ratios below are computed against --background (#FAF9F6), not
+   estimated. The one that constrains implementation:
+
+     #C2531F on #FAF9F6 = 4.38:1  x fails WCAG AA for body text
+     #FFFFFF on #C2531F = 4.61:1  ok — terracotta is a FILL colour
+     #9C3F14 on #FAF9F6 = 6.36:1  ok — use for terracotta TEXT
+     #1F1A17 on #FAF9F6 = 16.4:1  ok — body ink
+     #2563EB on #FAF9F6 = 4.91:1  ok — trust blue reads either direction
+     #FFFFFF on #2563EB = 5.17:1  ok
+
+   Hence the brand/brand-ink split. Never colour text with --color-brand.
+--------------------------------------------------------------------------- */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-display);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Brand scale */
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-trust: var(--trust);
+  --color-trust-soft: var(--trust-soft);
+  --color-ink: var(--foreground);
+  --color-ink-soft: var(--muted-foreground);
+  --color-verified: var(--verified);
+
+  /* shadcn semantic surface */
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* Charts (shadcn ChartContainer reads --color-chart-*) */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Sidebar (shadcn sidebar primitive) */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.5);
+  --radius-2xl: calc(var(--radius) * 2);
+  --radius-3xl: calc(var(--radius) * 2.75);
+
+  --shadow-soft: 0 1px 2px rgb(31 26 23 / 0.04), 0 8px 24px -12px rgb(31 26 23 / 0.12);
+  --shadow-lift: 0 2px 4px rgb(31 26 23 / 0.05), 0 18px 44px -20px rgb(31 26 23 / 0.22);
+  --shadow-float: 0 24px 64px -28px rgb(31 26 23 / 0.35);
+}
+
+:root {
+  --radius: 0.875rem;
+
+  --background: #faf9f6;
+  --foreground: #1f1a17;
+
+  --card: #ffffff;
+  --card-foreground: #1f1a17;
+  --popover: #ffffff;
+  --popover-foreground: #1f1a17;
+
+  /* Terracotta — fills only. See contrast note above. */
+  --brand: #c2531f;
+  --brand-ink: #9c3f14;
+  --brand-soft: #f6e7de;
+
+  /* Trust blue — reserved for verification + primary CTA affordances. */
+  --trust: #2563eb;
+  --trust-soft: #e5edfd;
+
+  --verified: #15803d;
+
+  --primary: #c2531f;
+  --primary-foreground: #ffffff;
+  --secondary: #efeae3;
+  --secondary-foreground: #1f1a17;
+  --muted: #efeae3;
+  --muted-foreground: #5c5149;
+  --accent: #f2ede6;
+  --accent-foreground: #1f1a17;
+  --destructive: #b42318;
+
+  --border: #e3dad0;
+  --input: #ded4c8;
+  --ring: #c2531f;
+
+  /* Charts — brand-anchored categorical scale. Order matters: series 1 and 2
+     (terracotta, trust blue) are the two headline series on the dashboard. */
+  --chart-1: #c2531f;
+  --chart-2: #2563eb;
+  --chart-3: #15803d;
+  --chart-4: #b45309;
+  --chart-5: #5c5149;
+
+  /* Sidebar — one step warmer than the page so the shell reads as chrome. */
+  --sidebar: #f4f1ec;
+  --sidebar-foreground: #1f1a17;
+  --sidebar-primary: #c2531f;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e9e2d8;
+  --sidebar-accent-foreground: #1f1a17;
+  --sidebar-border: #e3dad0;
+  --sidebar-ring: #c2531f;
+}
+
+/* Unlike the marketing site, the admin panel ships a real dark mode toggle
+   (next-themes, attribute="class"). */
+.dark {
+  --background: #16120f;
+  --foreground: #f4efe9;
+  --card: #201a16;
+  --card-foreground: #f4efe9;
+  --popover: #201a16;
+  --popover-foreground: #f4efe9;
+  --brand: #e2743d;
+  --brand-ink: #f0a077;
+  --brand-soft: #33211a;
+  --trust: #7aa2f7;
+  --trust-soft: #1b2436;
+  --verified: #4ade80;
+  --primary: #e2743d;
+  --primary-foreground: #16120f;
+  --secondary: #2a221d;
+  --secondary-foreground: #f4efe9;
+  --muted: #2a221d;
+  --muted-foreground: #b6a89c;
+  --accent: #2a221d;
+  --accent-foreground: #f4efe9;
+  --destructive: #f97066;
+  --border: #33291f;
+  --input: #3a2f26;
+  --ring: #e2743d;
+
+  --chart-1: #e2743d;
+  --chart-2: #7aa2f7;
+  --chart-3: #4ade80;
+  --chart-4: #fbbf24;
+  --chart-5: #b6a89c;
+
+  --sidebar: #1b1613;
+  --sidebar-foreground: #f4efe9;
+  --sidebar-primary: #e2743d;
+  --sidebar-primary-foreground: #16120f;
+  --sidebar-accent: #2a221d;
+  --sidebar-accent-foreground: #f4efe9;
+  --sidebar-border: #33291f;
+  --sidebar-ring: #e2743d;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading tracking-tight;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Visible, on-brand focus ring. Never remove — WCAG 2.4.7. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand;
+  }
+
+  ::selection {
+    background: var(--brand-soft);
+    color: var(--brand-ink);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

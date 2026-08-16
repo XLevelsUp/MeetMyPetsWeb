@@ -1,0 +1,328 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* Long-form typography for /privacy and /terms. Tailwind v4 loads plugins from
+   CSS — there is no tailwind.config.js in v4 to register this in. */
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------------
+   MeetMyPets design tokens
+
+   DELIBERATE DUPLICATION: the token layer (@theme inline, :root, .dark) is
+   mirrored in apps/admin/src/app/globals.css — there is no shared CSS package
+   yet, so token edits must be applied to BOTH files by hand.
+
+   Contrast ratios below are computed against --background (#FAF9F6), not
+   estimated. The one that constrains implementation:
+
+     #C2531F on #FAF9F6 = 4.38:1  x fails WCAG AA for body text
+     #FFFFFF on #C2531F = 4.61:1  ok — terracotta is a FILL colour
+     #9C3F14 on #FAF9F6 = 6.36:1  ok — use for terracotta TEXT
+     #1F1A17 on #FAF9F6 = 16.4:1  ok — body ink
+     #2563EB on #FAF9F6 = 4.91:1  ok — trust blue reads either direction
+     #FFFFFF on #2563EB = 5.17:1  ok
+
+   Hence the brand/brand-ink split. Never colour text with --color-brand.
+--------------------------------------------------------------------------- */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-display);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Brand scale */
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-trust: var(--trust);
+  --color-trust-soft: var(--trust-soft);
+  --color-ink: var(--foreground);
+  --color-ink-soft: var(--muted-foreground);
+  --color-verified: var(--verified);
+
+  /* shadcn semantic surface */
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.5);
+  --radius-2xl: calc(var(--radius) * 2);
+  --radius-3xl: calc(var(--radius) * 2.75);
+
+  --shadow-soft: 0 1px 2px rgb(31 26 23 / 0.04), 0 8px 24px -12px rgb(31 26 23 / 0.12);
+  --shadow-lift: 0 2px 4px rgb(31 26 23 / 0.05), 0 18px 44px -20px rgb(31 26 23 / 0.22);
+  --shadow-float: 0 24px 64px -28px rgb(31 26 23 / 0.35);
+
+  --animate-marquee: marquee 46s linear infinite;
+  --animate-float: float 7s ease-in-out infinite;
+
+  /* ---------------------------------------------------------------------
+     Fluid display type.
+
+     NOT mirrored in apps/admin — unlike the colour tokens above, these are
+     marketing-specific. The admin panel is a dense data UI and wants a fixed
+     scale, not marketing display sizes.
+
+     Why clamp instead of breakpoint steps: the site previously went
+     `text-[2.6rem] sm:text-6xl lg:text-[4.2rem]`, which meant every width
+     from 640px to 1023px rendered at the same 60px — a size chosen for a
+     640px phone, sitting in a 1000px column. Interpolating removes the dead
+     zone entirely rather than papering over it with one more breakpoint.
+
+     Both are anchored 375px -> 1280px and clamp at each end, so they never
+     overflow a small screen nor run away on a wide one.
+  --------------------------------------------------------------------- */
+
+  /* 41.6px @375  ->  52.8px @768  ->  67.2px @1280+ */
+  --text-hero: clamp(2.6rem, 1.94rem + 2.83vw, 4.2rem);
+  --text-hero--line-height: 1.04;
+
+  /* 30px @375  ->  34.3px @768  ->  40px @1280+ */
+  --text-section: clamp(1.875rem, 1.616rem + 1.1vw, 2.5rem);
+  --text-section--line-height: 1.15;
+}
+
+:root {
+  --radius: 0.875rem;
+
+  --background: #faf9f6;
+  --foreground: #1f1a17;
+
+  --card: #ffffff;
+  --card-foreground: #1f1a17;
+  --popover: #ffffff;
+  --popover-foreground: #1f1a17;
+
+  /* Terracotta — fills only. See contrast note above. */
+  --brand: #c2531f;
+  --brand-ink: #9c3f14;
+  --brand-soft: #f6e7de;
+
+  /* Trust blue — reserved for verification + primary CTA affordances. */
+  --trust: #2563eb;
+  --trust-soft: #e5edfd;
+
+  --verified: #15803d;
+
+  --primary: #c2531f;
+  --primary-foreground: #ffffff;
+  --secondary: #efeae3;
+  --secondary-foreground: #1f1a17;
+  --muted: #efeae3;
+  --muted-foreground: #5c5149;
+  --accent: #f2ede6;
+  --accent-foreground: #1f1a17;
+  --destructive: #b42318;
+
+  --border: #e3dad0;
+  --input: #ded4c8;
+  --ring: #c2531f;
+}
+
+/* The site ships light-only (no toggle). This block exists so shadcn
+   primitives stay coherent if `.dark` is ever applied downstream. */
+.dark {
+  --background: #16120f;
+  --foreground: #f4efe9;
+  --card: #201a16;
+  --card-foreground: #f4efe9;
+  --popover: #201a16;
+  --popover-foreground: #f4efe9;
+  --brand: #e2743d;
+  --brand-ink: #f0a077;
+  --brand-soft: #33211a;
+  --trust: #7aa2f7;
+  --trust-soft: #1b2436;
+  --verified: #4ade80;
+  --primary: #e2743d;
+  --primary-foreground: #16120f;
+  --secondary: #2a221d;
+  --secondary-foreground: #f4efe9;
+  --muted: #2a221d;
+  --muted-foreground: #b6a89c;
+  --accent: #2a221d;
+  --accent-foreground: #f4efe9;
+  --destructive: #f97066;
+  --border: #33291f;
+  --input: #3a2f26;
+  --ring: #e2743d;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  :root {
+    /* Lets height/block-size animate to and from `auto`. */
+    interpolate-size: allow-keywords;
+  }
+
+  html {
+    @apply font-sans;
+    scroll-behavior: smooth;
+    /* Sticky header clearance for in-page anchor jumps. */
+    scroll-padding-top: 5.5rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading tracking-tight;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Visible, on-brand focus ring. Never remove — WCAG 2.4.7. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand;
+  }
+
+  ::selection {
+    background: var(--brand-soft);
+    color: var(--brand-ink);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Legal document body. Maps `prose` onto the brand palette so long-form text
+     reads as part of the site rather than as Tailwind defaults. */
+  .prose-legal {
+    --tw-prose-body: var(--muted-foreground);
+    --tw-prose-headings: var(--foreground);
+    --tw-prose-lead: var(--muted-foreground);
+    --tw-prose-links: var(--brand-ink);
+    --tw-prose-bold: var(--foreground);
+    --tw-prose-counters: var(--muted-foreground);
+    --tw-prose-bullets: var(--border);
+    --tw-prose-hr: var(--border);
+    --tw-prose-quotes: var(--foreground);
+    --tw-prose-quote-borders: var(--brand);
+    --tw-prose-captions: var(--muted-foreground);
+    --tw-prose-code: var(--foreground);
+    --tw-prose-th-borders: var(--border);
+    --tw-prose-td-borders: var(--border);
+  }
+
+  /* Unresolved facts in the legal copy. Deliberately loud: these must not
+     reach production unnoticed. See src/config/legal.ts. */
+  .legal-todo {
+    background: #fef3c7;
+    color: #78350f;
+    border: 1px dashed #b45309;
+    border-radius: 4px;
+    padding: 0 0.35em;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  /* Glassmorphism — reserved for verification badges and the hero pill only. */
+  .glass {
+    background: color-mix(in oklab, var(--card) 62%, transparent);
+    backdrop-filter: blur(12px) saturate(1.4);
+    -webkit-backdrop-filter: blur(12px) saturate(1.4);
+    border: 1px solid color-mix(in oklab, var(--card) 70%, var(--border));
+  }
+
+  /* Page gutter. The md step matters more than it looks: between 640px and
+     1024px the container is wide but every section was single-column, so
+     content ran nearly edge to edge with only 32px of breathing room. */
+  .section-shell {
+    @apply mx-auto w-full max-w-6xl px-5 sm:px-8 md:px-10;
+  }
+
+  /* Native <details> height animation. `interpolate-size` is what makes
+     height:auto animatable; browsers without it just snap open, which is a
+     perfectly good fallback. */
+  details::details-content {
+    block-size: 0;
+    overflow: hidden;
+    transition:
+      block-size 320ms cubic-bezier(0.22, 1, 0.36, 1),
+      content-visibility 320ms allow-discrete;
+    content-visibility: hidden;
+  }
+
+  details[open]::details-content {
+    block-size: auto;
+    content-visibility: visible;
+  }
+
+  /* Edge fade for horizontal marquees. */
+  .mask-edges {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 8%,
+      black 92%,
+      transparent
+    );
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
