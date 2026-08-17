@@ -414,6 +414,32 @@ matching label in `copy.audit.actionLabels`.
 - `20260806000003_admin_moderation_tables` (Step 1) — `admin_audit_logs` +
   `admin_restrictions` with the revokes and constraints described above.
 
+## Applied 2026-08-17 — ranged analytics
+
+- `20260817000000_admin_analytics_timeseries_ranged` — adds the
+  `(p_from date, p_to date, p_bucket text)` overload with day/week/month
+  bucketing and the like/pass split, for the dashboard period selector.
+  The 1-arg `(int)` version is kept, so both signatures now exist.
+
+Verified after applying, against values computed independently from the raw
+rows rather than from the function's own output:
+
+| Check | Result |
+|---|---|
+| Month buckets | Jul `177 like / 168 pass`, Aug `193 / 913` — exact match |
+| Whole history | `370 / 1081 = 1451`, rate 25.5% — exact match |
+| **Split sums to the unsplit total** | 30-day window: `305 + 1041 = 1346`, and the old 1-arg function reports `swipeVolume = 1346` for the same window. This is the check that proves the `FILTER` clauses are right |
+| `dataStartsAt` | `2026-06-29` |
+| Zero-fill | June bucket present at 0 — `generate_series` pre-seeding works |
+| Security | `prosecdef = false`, `search_path=""`, EXECUTE granted to `postgres, service_role` **only** — `anon` and `authenticated` absent from both overloads |
+| Guards | bad bucket and inverted range both raise `22023`, surfacing as HTTP 400 through PostgREST with the parameter named |
+
+⚠️ One methodology note worth keeping: a first attempt to test the guards with
+`select 'x' from (select fn(...)) ` reported the bad bucket as **accepted**.
+That was a planner artifact — the function was never evaluated because its
+result was not selected. Force evaluation (select the returned value itself)
+when testing that something *raises*.
+
 ### The report queue (Step 3)
 
 `/reports` reads `matching.pet_reports` through `listReports` in
