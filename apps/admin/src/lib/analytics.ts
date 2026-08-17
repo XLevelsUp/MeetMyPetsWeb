@@ -9,6 +9,12 @@ import {
   type MetricKey,
   type MetricValue,
 } from "@/lib/api-contract";
+import {
+  bucketFor,
+  previousWindow,
+  rangeBounds,
+  type ResolvedRange,
+} from "@/lib/analytics-constants";
 
 /**
  * Analytics query adapter — the ONE file that knows the database schema.
@@ -63,19 +69,25 @@ function createdColumn(ref: TableRef): string {
   return ref.createdColumn ?? "created_at";
 }
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
-export async function fetchAnalyticsSummary(): Promise<
-  AnalyticsResult<AnalyticsSummaryResponse>
-> {
+/**
+ * Summary for a selected window.
+ *
+ * The window scopes the COMPARISON, not the headline number: "Total Users"
+ * keeps meaning total users ever, while its delta measures the selected range
+ * against the equally-long window before it. Previously `current` was all-time
+ * and `previous` was one hardcoded week, so the two fields never described the
+ * same thing.
+ */
+export async function fetchAnalyticsSummary(
+  range: ResolvedRange,
+): Promise<AnalyticsResult<AnalyticsSummaryResponse>> {
   if (!isSupabaseConfigured()) {
     return { ok: false, reason: "unconfigured", message: "Supabase env vars are not set." };
   }
 
   const supabase = createAdminClient();
-  const now = Date.now();
-  const weekAgo = new Date(now - WEEK_MS).toISOString();
-  const twoWeeksAgo = new Date(now - 2 * WEEK_MS).toISOString();
+  const current = rangeBounds(range);
+  const prior = rangeBounds(previousWindow(range));
 
   const fromRef = (ref: TableRef) => supabase.schema(ref.schema).from(ref.table);
 
@@ -93,51 +105,61 @@ export async function fetchAnalyticsSummary(): Promise<
   };
 
   /**
+   * Counts rows whose `col` falls inside a window. One helper, so the current
+   * and prior windows are always measured the same way.
+   */
+  const inWindow = (col: string, w: { start: string; endExclusive: string }) => (q: CountQuery) =>
+    q.gte(col, w.start).lt(col, w.endExclusive);
+
+  /**
    * Stock metrics report the all-time total as `current` (optionally
-   * narrowed by `currentFilter`); the trend compares rows created this week
-   * vs the prior week (an all-time total's own WoW delta is meaningless).
+   * narrowed by `currentFilter`); the trend compares rows created in the
+   * selected window vs the window before it (an all-time total's own delta is
+   * meaningless).
    */
   const stockMetric = async (
     ref: TableRef,
     currentFilter?: (q: CountQuery) => CountQuery,
   ): Promise<MetricValue> => {
     const col = createdColumn(ref);
-    const [total, thisWeek, priorWeek] = await Promise.all([
+    const [total, inRange, inPrior] = await Promise.all([
       countRows(ref, currentFilter),
-      countRows(ref, (q) => q.gte(col, weekAgo)),
-      countRows(ref, (q) => q.gte(col, twoWeeksAgo).lt(col, weekAgo)),
+      countRows(ref, inWindow(col, current)),
+      countRows(ref, inWindow(col, prior)),
     ]);
-    return { current: total, previous: priorWeek, changePct: changePct(thisWeek, priorWeek) };
+    return { current: total, previous: inPrior, changePct: changePct(inRange, inPrior) };
   };
 
   /**
    * Queue metrics report the live queue size as `current`; the trend tracks
-   * incoming volume (items created this week vs prior week) — operationally
-   * more useful than the queue's own size delta, which resolution work
-   * constantly moves.
+   * incoming volume (items created in the window vs the one before) —
+   * operationally more useful than the queue's own size delta, which
+   * resolution work constantly moves.
    */
   const queueMetric = async (ref: TableRef, statusValue: string): Promise<MetricValue> => {
     // Reads the same per-table column as stockMetric. Both queue tables use
     // `created_at` today, but hardcoding it here is exactly what broke the
     // matches metric, so the lookup is shared rather than repeated.
     const col = createdColumn(ref);
-    const [open, thisWeek, priorWeek] = await Promise.all([
+    const [open, inRange, inPrior] = await Promise.all([
       countRows(ref, (q) => q.eq("status", statusValue)),
-      countRows(ref, (q) => q.gte(col, weekAgo)),
-      countRows(ref, (q) => q.gte(col, twoWeeksAgo).lt(col, weekAgo)),
+      countRows(ref, inWindow(col, current)),
+      countRows(ref, inWindow(col, prior)),
     ]);
-    return { current: open, previous: priorWeek, changePct: changePct(thisWeek, priorWeek) };
+    return { current: open, previous: inPrior, changePct: changePct(inRange, inPrior) };
   };
 
-  /** "Active" chats = a message in the last 7 days (`last_message_at`, verified). */
+  /**
+   * "Active" chats = a conversation with a message inside the window
+   * (`last_message_at`, verified). Unlike the others this metric's `current`
+   * IS window-scoped, because "active" has no all-time meaning.
+   */
   const activeChatsMetric = async (): Promise<MetricValue> => {
-    const [thisWeek, priorWeek] = await Promise.all([
-      countRows(TABLES.chats, (q) => q.gte("last_message_at", weekAgo)),
-      countRows(TABLES.chats, (q) =>
-        q.gte("last_message_at", twoWeeksAgo).lt("last_message_at", weekAgo),
-      ),
+    const [inRange, inPrior] = await Promise.all([
+      countRows(TABLES.chats, inWindow("last_message_at", current)),
+      countRows(TABLES.chats, inWindow("last_message_at", prior)),
     ]);
-    return { current: thisWeek, previous: priorWeek, changePct: changePct(thisWeek, priorWeek) };
+    return { current: inRange, previous: inPrior, changePct: changePct(inRange, inPrior) };
   };
 
   /**
@@ -207,7 +229,13 @@ export async function fetchAnalyticsSummary(): Promise<
 
     return {
       ok: true,
-      data: { generatedAt: new Date().toISOString(), metrics, activePetsBySpecies: bySpecies },
+      data: {
+        generatedAt: new Date().toISOString(),
+        metrics,
+        activePetsBySpecies: bySpecies,
+        from: range.from,
+        to: range.to,
+      },
     };
   } catch (error) {
     return {
@@ -219,7 +247,7 @@ export async function fetchAnalyticsSummary(): Promise<
 }
 
 export async function fetchAnalyticsTimeseries(
-  days: number,
+  range: ResolvedRange,
 ): Promise<AnalyticsResult<AnalyticsTimeseriesResponse>> {
   if (!isSupabaseConfigured()) {
     return { ok: false, reason: "unconfigured", message: "Supabase env vars are not set." };
@@ -228,22 +256,53 @@ export async function fetchAnalyticsTimeseries(
   const supabase = createAdminClient();
 
   /**
-   * Day bucketing runs in Postgres via public.admin_analytics_timeseries
+   * Bucketing runs in Postgres via public.admin_analytics_timeseries
    * (SECURITY INVOKER, service_role-only EXECUTE — see
-   * supabase/migrations/20260805000000_admin_analytics_timeseries.sql). It
-   * generate_series-pre-seeds every day to zero and reads identity.accounts +
-   * matching.pet_likes, so there is no per-row transfer or .range() cap. The
-   * returned jsonb is validated against the shared contract before it leaves
-   * this adapter.
+   * supabase/migrations/20260817000000_admin_analytics_timeseries_ranged.sql).
+   * It generate_series-pre-seeds every bucket to zero and reads
+   * identity.accounts + matching.pet_likes, so there is no per-row transfer or
+   * .range() cap. The returned jsonb is validated against the shared contract
+   * before it leaves this adapter.
    */
   try {
-    const { data, error } = await supabase.rpc("admin_analytics_timeseries", { days });
-    if (error) throw new Error(error.message);
+    const bucket = bucketFor(range.from, range.to);
+    const { data, error } = await supabase.rpc("admin_analytics_timeseries", {
+      p_from: range.from,
+      p_to: range.to,
+      p_bucket: bucket,
+    });
+    if (error) throw new Error(describeRpcError(error));
 
     const parsed = analyticsTimeseriesSchema.safeParse(data);
     if (!parsed.success) {
       throw new Error(`unexpected timeseries shape: ${parsed.error.message}`);
     }
+
+    /**
+     * Clamp a range that reaches back further than the product has existed.
+     *
+     * Asking for 12 months against seven weeks of data would otherwise draw
+     * nine empty buckets — which reads as an outage rather than as a launch.
+     * The re-query is skipped entirely in the common case where the requested
+     * start is already inside the data.
+     */
+    const startsAt = parsed.data.dataStartsAt;
+    if (startsAt && startsAt > range.from) {
+      const clamped = { from: startsAt, to: range.to };
+      const { data: reData, error: reError } = await supabase.rpc("admin_analytics_timeseries", {
+        p_from: clamped.from,
+        p_to: clamped.to,
+        p_bucket: bucketFor(clamped.from, clamped.to),
+      });
+      if (reError) throw new Error(describeRpcError(reError));
+
+      const reParsed = analyticsTimeseriesSchema.safeParse(reData);
+      if (!reParsed.success) {
+        throw new Error(`unexpected timeseries shape: ${reParsed.error.message}`);
+      }
+      return { ok: true, data: reParsed.data };
+    }
+
     return { ok: true, data: parsed.data };
   } catch (error) {
     return {
@@ -254,7 +313,31 @@ export async function fetchAnalyticsTimeseries(
   }
 }
 
-/** Week-over-week percentage, one decimal; null when the base is zero. */
+/**
+ * Turns PostgREST's function-not-found into an instruction.
+ *
+ * `PGRST202` here means one specific thing: the ranged overload has not been
+ * applied to this database yet. The raw message is a paragraph about schema
+ * cache lookups that tells a moderator nothing and sends them to us; the
+ * migration filename tells whoever can actually fix it exactly what to run.
+ *
+ * Deliberately NOT a silent fallback to the old day-only function: that would
+ * mean maintaining a second bucketing implementation whose only job is to be
+ * temporary, and temporary implementations are how a codebase ends up with two
+ * answers to the same question.
+ */
+function describeRpcError(error: { code?: string; message: string }): string {
+  if (error.code === "PGRST202") {
+    return (
+      "The analytics range function is missing from the database. Apply " +
+      "supabase/migrations/20260817000000_admin_analytics_timeseries_ranged.sql, " +
+      "then reload."
+    );
+  }
+  return error.message;
+}
+
+/** Period-over-period percentage, one decimal; null when the base is zero. */
 function changePct(current: number, previous: number): number | null {
   if (previous === 0) return null;
   return Math.round(((current - previous) / previous) * 1000) / 10;

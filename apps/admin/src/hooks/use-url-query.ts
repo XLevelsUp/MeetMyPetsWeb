@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { queryToSearchParams } from "@/lib/users-contract";
+import { queryToSearchParams } from "@/lib/contract-shared";
 
 /**
  * List state that lives in the address bar.

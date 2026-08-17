@@ -134,8 +134,14 @@ export function makeSupabaseMock(
     calls,
     schema: (s: string) => ({ from: (t: string) => builderFor(`${s}.${t}`) }),
     from: (t: string) => builderFor(`public.${t}`),
-    rpc: async (name: string) => {
-      calls.push({ op: "rpc", key: name });
+    /**
+     * `values` carries the argument object. Without it a test can only assert
+     * that *an* RPC happened, not that it was asked for the right range or
+     * bucket — and the fixture comes back regardless, so such a test would pass
+     * against an adapter that ignored its own parameters.
+     */
+    rpc: async (name: string, args?: unknown) => {
+      calls.push({ op: "rpc", key: name, values: args });
       return name in rpcs
         ? { data: rpcs[name], error: null }
         : { data: null, error: { message: `rpc ${name} not configured` } };
