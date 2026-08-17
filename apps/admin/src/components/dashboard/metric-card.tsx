@@ -6,17 +6,25 @@ import { cn } from "@/lib/utils";
 import type { MetricValue } from "@/lib/api-contract";
 
 /**
- * One headline number + week-over-week delta. `changePct: null` renders an
- * em dash (pre-launch database, empty prior week).
+ * One headline number + a period-over-period delta.
+ *
+ * The VALUE is all-time (total users ever); the DELTA measures the selected
+ * range against the equally-long window before it, which is why the comparison
+ * label is passed in rather than hardcoded — it used to read "vs last week"
+ * regardless of what the reader had selected.
+ *
+ * `changePct: null` renders an em dash (pre-launch database, empty prior window).
  */
 export function MetricCard({
   label,
   metric,
   icon: Icon,
+  comparison,
 }: {
   label: string;
   metric: MetricValue;
   icon: LucideIcon;
+  comparison: string;
 }) {
   const { current, changePct } = metric;
   const direction = changePct === null ? "flat" : changePct > 0 ? "up" : changePct < 0 ? "down" : "flat";
@@ -42,7 +50,7 @@ export function MetricCard({
         >
           <DeltaIcon aria-hidden className="size-3.5" />
           {changePct === null ? copy.dashboard.noData : `${changePct > 0 ? "+" : ""}${changePct}%`}
-          <span className="text-muted-foreground">{copy.dashboard.deltaVsLastWeek}</span>
+          <span className="truncate text-muted-foreground">{comparison}</span>
         </span>
       </CardContent>
     </Card>

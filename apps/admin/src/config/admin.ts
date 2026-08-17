@@ -115,12 +115,37 @@ export const copy = {
     },
     charts: {
       acquisitionTitle: "User acquisition",
-      acquisitionDescription: "New sign-ups per day, last 30 days",
+      acquisitionDescription: "New sign-ups",
       swipeTitle: "Swipe volume",
-      swipeDescription: "Daily swipes, last 30 days",
+      swipeDescription: "Swipes",
       speciesTitle: "Active pets by species",
+      /** Appended to a description, e.g. "New sign-ups · per week". */
+      perBucket: { day: "per day", week: "per week", month: "per month" },
+      showData: "Show data",
+      hideData: "Hide data",
+      tableDate: "Period",
+      tableValue: "Value",
     },
-    deltaVsLastWeek: "vs last week",
+    /**
+     * The one time control. `month`/`year` are TRAILING windows, not
+     * calendar-to-date — "the last 12 months" stays useful on January 2nd,
+     * where "this year so far" is one day of data.
+     */
+    range: {
+      label: "Period",
+      from: "From",
+      to: "To",
+      presets: {
+        "7d": "Last 7 days",
+        "30d": "Last 30 days",
+        "90d": "Last 90 days",
+        month: "Last month",
+        year: "Last year",
+        custom: "Custom range…",
+      },
+      /** `{date}` is replaced with the first date that has data. */
+      clamped: "Data begins {date}.",
+    },
     noData: "—",
   },
   users: {
