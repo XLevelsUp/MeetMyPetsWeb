@@ -21,6 +21,8 @@ export const METRIC_KEYS = [
   "activeChats",
   "pendingVerifications",
   "openReports",
+  /** A PERCENTAGE, not a count — `likes / (likes + passes)`. Cards format it. */
+  "likeRate",
 ] as const;
 
 export type MetricKey = (typeof METRIC_KEYS)[number];
@@ -74,7 +76,13 @@ export const analyticsTimeseriesSchema = z.object({
    */
   dataStartsAt: z.string().nullable(),
   userAcquisition: z.array(timeseriesPointSchema),
-  swipeVolume: z.array(timeseriesPointSchema),
+  /**
+   * Swipes split by direction. The TOTAL is deliberately absent — it is
+   * `likes + passes`, and a derivable third series is a third thing that can
+   * drift out of agreement with the other two. The stacked chart shows it.
+   */
+  swipeLikes: z.array(timeseriesPointSchema),
+  swipePasses: z.array(timeseriesPointSchema),
 });
 export type AnalyticsTimeseriesResponse = z.infer<typeof analyticsTimeseriesSchema>;
 

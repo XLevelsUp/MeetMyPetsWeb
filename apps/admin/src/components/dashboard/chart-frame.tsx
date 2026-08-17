@@ -27,23 +27,39 @@ import type { TimeseriesPoint } from "@/lib/api-contract";
  *    render at reduced opacity instead of collapsing the card to a skeleton and
  *    bouncing the page height. The skeleton is for the first load only.
  */
+export type ChartSeries = { key: string; label: string; data: TimeseriesPoint[] };
+
 export function ChartFrame({
   title,
   description,
   bucket,
-  data,
+  series,
   isFetching,
   children,
 }: {
   title: string;
   description: string;
   bucket: Bucket;
-  data: TimeseriesPoint[];
+  /** One entry per plotted series — the table gets a column for each. */
+  series: ChartSeries[];
   isFetching: boolean;
   children: React.ReactNode;
 }) {
   const [showTable, setShowTable] = useState(false);
   const tableId = useId();
+
+  // Merged on date rather than zipped by index: the series come from separate
+  // jsonb aggregates, and lining them up by position would silently mis-pair
+  // them if one ever came back short.
+  const byDate = new Map<string, Record<string, number>>();
+  for (const s of series) {
+    for (const point of s.data) {
+      const row = byDate.get(point.date) ?? {};
+      row[s.key] = point.value;
+      byDate.set(point.date, row);
+    }
+  }
+  const rows = [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b));
 
   return (
     <Card>
@@ -79,19 +95,23 @@ export function ChartFrame({
                 <TableHeader>
                   <TableRow>
                     <TableHead>{copy.dashboard.charts.tableDate}</TableHead>
-                    <TableHead className="text-right">
-                      {copy.dashboard.charts.tableValue}
-                    </TableHead>
+                    {series.map((s) => (
+                      <TableHead key={s.key} className="text-right">
+                        {s.label}
+                      </TableHead>
+                    ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.map((point) => (
-                    <TableRow key={point.date}>
-                      <TableCell>{point.date}</TableCell>
-                      {/* tabular-nums HERE is right: these align vertically. */}
-                      <TableCell className="text-right tabular-nums">
-                        {point.value.toLocaleString("en-IN")}
-                      </TableCell>
+                  {rows.map(([date, values]) => (
+                    <TableRow key={date}>
+                      <TableCell>{date}</TableCell>
+                      {series.map((s) => (
+                        // tabular-nums HERE is right: these align vertically.
+                        <TableCell key={s.key} className="text-right tabular-nums">
+                          {(values[s.key] ?? 0).toLocaleString("en-IN")}
+                        </TableCell>
+                      ))}
                     </TableRow>
                   ))}
                 </TableBody>

@@ -55,6 +55,21 @@ FastAPI-side role system — see decision notes). `pets.pets` has `species_id`
 `matching.pet_likes` is the swipes table (`interaction_type`, `status`,
 `created_at`).
 
+**Swipe composition, verified 2026-08-17.** `interaction_type` is
+`like` (**370**) or `pass` (**1081**) of 1451 total — a 25.5% like rate — and
+both values are present from the first row (2026-07-09), so the split covers
+the whole history. `status` belongs to likes only: `pending` (255) /
+`accepted` (67) / `rejected` (48) = 370, while all 1081 passes carry
+`status = null`. The dashboard stacks the two directions and shows the rate;
+the like *outcome* is not surfaced yet because 69% are still pending.
+
+⚠️ **`identity.account_devices` and `identity.account_sessions` are both
+EMPTY (0 rows, verified 2026-08-17)**, despite having exactly the columns a
+device-mix chart needs (`platform`, `app_version`, `last_active_at`;
+`user_agent`, `ip_address`). The schema is ready and the service key can
+already read them — nothing writes them. A requested device chart was
+therefore **not built**; see handoff §3.6b.
+
 ⚠️ **`identity.accounts.status` and `pets.pets.status` have NO check
 constraint** — the `active`/`archived` vocabulary is convention, not enforced.
 Live values today are `active` (37) / `archived` (3) for accounts and

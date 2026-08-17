@@ -14,6 +14,7 @@ import {
   previousWindow,
   rangeBounds,
   type ResolvedRange,
+  type SwipeType,
 } from "@/lib/analytics-constants";
 
 /**
@@ -163,6 +164,42 @@ export async function fetchAnalyticsSummary(
   };
 
   /**
+   * Share of swipes that were a like, as a PERCENTAGE — the only metric here
+   * whose `current` is not a count. Both windows are measured the same way, so
+   * the delta is percentage points of selectivity, not volume.
+   *
+   * `rate()` guards 0/0 separately from `changePct`: the latter only protects
+   * against a zero *previous* value, and a window with no swipes at all would
+   * otherwise divide by zero and render NaN% on a quiet day.
+   */
+  const likeRateMetric = async (): Promise<MetricValue> => {
+    const col = createdColumn(TABLES.swipes);
+    const byType = (type: SwipeType, w: { start: string; endExclusive: string }) =>
+      countRows(TABLES.swipes, (q) => inWindow(col, w)(q).eq("interaction_type", type));
+
+    const [likesNow, passesNow, likesPrior, passesPrior] = await Promise.all([
+      byType("like", current),
+      byType("pass", current),
+      byType("like", prior),
+      byType("pass", prior),
+    ]);
+
+    const rate = (likes: number, passes: number): number => {
+      const total = likes + passes;
+      return total === 0 ? 0 : Math.round((likes / total) * 1000) / 10;
+    };
+
+    const now = rate(likesNow, passesNow);
+    const before = rate(likesPrior, passesPrior);
+    return {
+      current: now,
+      previous: before,
+      // A rate with no swipes behind it is not "0% and falling" — it is unknown.
+      changePct: likesNow + passesNow === 0 ? null : changePct(now, before),
+    };
+  };
+
+  /**
    * `pets.pets` stores `species_id`, not a name; names come from the
    * anon-readable `pets.species` reference table (service_role has no
    * SELECT on it — see createReferenceClient).
@@ -203,6 +240,7 @@ export async function fetchAnalyticsSummary(
       activeChats,
       pendingVerifications,
       openReports,
+      likeRate,
       bySpecies,
     ] = await Promise.all([
       stockMetric(TABLES.users),
@@ -215,6 +253,7 @@ export async function fetchAnalyticsSummary(
       // The backend's own table (adopted 2026-08-15 — we no longer plan our
       // own). "pending" here is CHECK-constrained, not assumed.
       queueMetric(TABLES.reports, "pending"),
+      likeRateMetric(),
       speciesBreakdown(),
     ]);
 
@@ -225,6 +264,7 @@ export async function fetchAnalyticsSummary(
       activeChats,
       pendingVerifications,
       openReports,
+      likeRate,
     };
 
     return {

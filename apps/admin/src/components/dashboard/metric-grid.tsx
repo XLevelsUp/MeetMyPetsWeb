@@ -6,6 +6,7 @@ import {
   Heart,
   MessagesSquare,
   PawPrint,
+  ThumbsUp,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -34,7 +35,11 @@ const metricIcons: Record<MetricKey, LucideIcon> = {
   activeChats: MessagesSquare,
   pendingVerifications: BadgeCheck,
   openReports: Flag,
+  likeRate: ThumbsUp,
 };
+
+/** The one metric that is a rate, not a count. */
+const PERCENT_METRICS = new Set<MetricKey>(["likeRate"]);
 
 export function MetricGrid({ initialRange }: { initialRange: AnalyticsRangeQuery }) {
   // Shared with /users — the range is part of the URL, so a view can be linked
@@ -81,6 +86,7 @@ export function MetricGrid({ initialRange }: { initialRange: AnalyticsRangeQuery
                   metric={summary.data.metrics[key]}
                   icon={metricIcons[key]}
                   comparison={comparison}
+                  format={PERCENT_METRICS.has(key) ? "percent" : "number"}
                 />
               ))}
             </div>
@@ -105,7 +111,8 @@ export function MetricGrid({ initialRange }: { initialRange: AnalyticsRangeQuery
               isFetching={timeseries.isFetching}
             />
             <SwipeVolumeChart
-              data={timeseries.data.swipeVolume}
+              likes={timeseries.data.swipeLikes}
+              passes={timeseries.data.swipePasses}
               bucket={bucket}
               isFetching={timeseries.isFetching}
             />

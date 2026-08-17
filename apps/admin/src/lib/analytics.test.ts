@@ -197,7 +197,8 @@ function timeseriesPayload(over: Partial<Record<string, unknown>> = {}) {
     bucket: "day",
     dataStartsAt: "2026-06-29",
     userAcquisition: [{ date: "2026-08-06", value: 3 }],
-    swipeVolume: [{ date: "2026-08-06", value: 272 }],
+    swipeLikes: [{ date: "2026-08-06", value: 70 }],
+    swipePasses: [{ date: "2026-08-06", value: 202 }],
     ...over,
   };
 }
@@ -297,6 +298,60 @@ describe("fetchAnalyticsTimeseries", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.message).toContain("20260817000000_admin_analytics_timeseries_ranged.sql");
+  });
+});
+
+describe("likeRate", () => {
+  /**
+   * The mock returns one count for every query against a table, so a fixture
+   * cannot express "370 likes and 1081 passes". These assert the SHAPE of the
+   * maths instead: that the metric is a percentage, that it is filtered by
+   * interaction_type at all, and that an empty window does not divide by zero.
+   */
+  function setup(swipeCount: number) {
+    configureEnv();
+    holder.admin = makeSupabaseMock({
+      "identity.accounts": { count: 1 },
+      "pets.pets": { count: 1, rows: [] },
+      "matching.matches": { count: 1 },
+      "chat.conversations": { count: 1 },
+      "identity.account_verifications": { count: 0 },
+      "matching.pet_reports": { count: 0 },
+      "matching.pet_likes": { count: swipeCount },
+    });
+    holder.reference = makeSupabaseMock({ "pets.species": { rows: [] } });
+    return holder.admin;
+  }
+
+  it("filters pet_likes by interaction_type rather than counting every swipe", async () => {
+    const mock = setup(100);
+    await fetchAnalyticsSummary(RANGE);
+
+    const types = mock.calls
+      .filter((c) => c.key === "matching.pet_likes")
+      .flatMap((c) => c.filters ?? [])
+      .filter((f) => f.method === "eq" && f.args[0] === "interaction_type")
+      .map((f) => f.args[1]);
+
+    // Both directions, in both the current and the prior window.
+    expect(types).toEqual(["like", "pass", "like", "pass"]);
+  });
+
+  it("expresses the rate as a percentage", async () => {
+    setup(100); // every count returns 100 → 100/(100+100) = 50%
+    const result = await fetchAnalyticsSummary(RANGE);
+    expect(result.ok && result.data.metrics.likeRate.current).toBe(50);
+  });
+
+  it("reports an unknown rate rather than NaN when nothing was swiped", async () => {
+    setup(0);
+    const result = await fetchAnalyticsSummary(RANGE);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // 0/0 is not "0% and falling" — changePct guards the numerator too, which
+    // the shared `changePct` helper alone does not do.
+    expect(result.data.metrics.likeRate.current).toBe(0);
+    expect(result.data.metrics.likeRate.changePct).toBeNull();
   });
 });
 

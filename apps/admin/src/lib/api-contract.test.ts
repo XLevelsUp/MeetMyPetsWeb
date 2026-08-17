@@ -33,6 +33,9 @@ describe("analyticsSummarySchema", () => {
         activeChats: { current: 12, previous: 10, changePct: 20 },
         pendingVerifications: { current: 0, previous: 0, changePct: null },
         openReports: { current: 0, previous: 0, changePct: null },
+        // A percentage, not a count — the card formats it, the schema does not
+        // distinguish it.
+        likeRate: { current: 25.5, previous: 23.4, changePct: 9 },
       },
       activePetsBySpecies: [{ species: "Dog", count: 30 }],
       // The window the deltas were measured over — the cards label themselves
@@ -58,9 +61,28 @@ describe("analyticsTimeseriesSchema", () => {
       bucket: "day",
       dataStartsAt: "2026-06-29",
       userAcquisition: [{ date: "2026-08-06", value: 3 }],
-      swipeVolume: [{ date: "2026-08-06", value: 272 }],
+      swipeLikes: [{ date: "2026-08-06", value: 70 }],
+      swipePasses: [{ date: "2026-08-06", value: 202 }],
     };
     expect(analyticsTimeseriesSchema.parse(payload)).toEqual(payload);
+  });
+
+  /**
+   * Guards the migration/app handshake. If the ranged function is ever applied
+   * from an older copy that still returns a single `swipeVolume`, this fails
+   * loudly here rather than rendering an empty chart.
+   */
+  it("rejects the pre-split payload that returns one swipeVolume series", () => {
+    expect(() =>
+      analyticsTimeseriesSchema.parse({
+        from: "2026-08-01",
+        to: "2026-08-06",
+        bucket: "day",
+        dataStartsAt: null,
+        userAcquisition: [],
+        swipeVolume: [{ date: "2026-08-06", value: 272 }],
+      }),
+    ).toThrow();
   });
 
   it("accepts a null dataStartsAt — an empty database is not an error", () => {
@@ -70,7 +92,8 @@ describe("analyticsTimeseriesSchema", () => {
       bucket: "week",
       dataStartsAt: null,
       userAcquisition: [],
-      swipeVolume: [],
+      swipeLikes: [],
+      swipePasses: [],
     };
     expect(analyticsTimeseriesSchema.parse(payload).dataStartsAt).toBeNull();
   });
@@ -83,7 +106,8 @@ describe("analyticsTimeseriesSchema", () => {
         bucket: "fortnight",
         dataStartsAt: null,
         userAcquisition: [],
-        swipeVolume: [],
+        swipeLikes: [],
+        swipePasses: [],
       }),
     ).toThrow();
   });
@@ -96,7 +120,8 @@ describe("analyticsTimeseriesSchema", () => {
         bucket: "day",
         dataStartsAt: null,
         userAcquisition: {},
-        swipeVolume: [],
+        swipeLikes: [],
+        swipePasses: [],
       }),
     ).toThrow();
   });

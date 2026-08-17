@@ -33,7 +33,7 @@ export function AcquisitionChart({
       title={copy.dashboard.charts.acquisitionTitle}
       description={copy.dashboard.charts.acquisitionDescription}
       bucket={bucket}
-      data={data}
+      series={[{ key: "value", label: config.value.label, data }]}
       isFetching={isFetching}
     >
       {/* h-56 covers the plot AND the x-axis band — sizing to the plot alone

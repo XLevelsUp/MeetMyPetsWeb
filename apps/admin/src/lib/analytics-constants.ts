@@ -18,6 +18,21 @@ export const DEFAULT_RANGE_PRESET: RangePreset = "30d";
 export const BUCKETS = ["day", "week", "month"] as const;
 export type Bucket = (typeof BUCKETS)[number];
 
+/**
+ * `matching.pet_likes.interaction_type` — the direction of a swipe.
+ *
+ * Verified live 2026-08-17: 370 `like`, 1081 `pass`, 1451 total, both present
+ * from the first row. Named here because the SQL function filters on these
+ * literals and the summary adapter counts on them; two hand-written copies of
+ * the same string is how one of them silently stops matching.
+ *
+ * Note `pass` rows carry `status = null` while `like` rows carry an outcome
+ * (pending / accepted / rejected) — not surfaced today, since 69% of likes are
+ * still pending.
+ */
+export const SWIPE_TYPES = ["like", "pass"] as const;
+export type SwipeType = (typeof SWIPE_TYPES)[number];
+
 /** `YYYY-MM-DD` for a Date, in UTC. */
 export function toIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);

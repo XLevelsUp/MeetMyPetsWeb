@@ -16,8 +16,16 @@
 -- default, so the revokes below are load-bearing, not decoration.
 --
 -- Sources, verified 2026-08-06 and re-verified 2026-08-17 against the live
--- database: user acquisition = identity.accounts.created_at; swipe volume =
+-- database: user acquisition = identity.accounts.created_at; swipes =
 -- matching.pet_likes.created_at.
+--
+-- Swipes are returned SPLIT by direction rather than as one total.
+-- matching.pet_likes.interaction_type records 'like' or 'pass' (verified
+-- 2026-08-17: 370 like / 1081 pass / 1451 total, both present from the first
+-- row on 2026-07-09). Both counts come off the SAME scan via FILTER, so the
+-- second series costs no extra pass over the table. The total is deliberately
+-- not returned — it is likes + passes, and a derivable third series is a third
+-- thing that can drift out of agreement with the other two.
 
 create or replace function public.admin_analytics_timeseries(
   p_from date,
@@ -66,7 +74,10 @@ begin
     group by 1
   ),
   swipes as (
-    select date_trunc(p_bucket, created_at)::date as bucket, count(*) as n
+    select
+      date_trunc(p_bucket, created_at)::date as bucket,
+      count(*) filter (where interaction_type = 'like') as likes,
+      count(*) filter (where interaction_type = 'pass') as passes
     from matching.pet_likes
     where created_at >= v_start
       and created_at < v_end + v_step
@@ -96,9 +107,16 @@ begin
       )
       from series s left join acquisition a using (bucket)
     ),
-    'swipeVolume', (
+    'swipeLikes', (
       select coalesce(
-        jsonb_agg(jsonb_build_object('date', to_char(s.bucket, 'YYYY-MM-DD'), 'value', coalesce(w.n, 0)) order by s.bucket),
+        jsonb_agg(jsonb_build_object('date', to_char(s.bucket, 'YYYY-MM-DD'), 'value', coalesce(w.likes, 0)) order by s.bucket),
+        '[]'::jsonb
+      )
+      from series s left join swipes w using (bucket)
+    ),
+    'swipePasses', (
+      select coalesce(
+        jsonb_agg(jsonb_build_object('date', to_char(s.bucket, 'YYYY-MM-DD'), 'value', coalesce(w.passes, 0)) order by s.bucket),
         '[]'::jsonb
       )
       from series s left join swipes w using (bucket)

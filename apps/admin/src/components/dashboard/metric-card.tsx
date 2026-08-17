@@ -20,13 +20,18 @@ export function MetricCard({
   metric,
   icon: Icon,
   comparison,
+  /** `percent` for rates — `toLocaleString` on 25.5 would read as a count. */
+  format = "number",
 }: {
   label: string;
   metric: MetricValue;
   icon: LucideIcon;
   comparison: string;
+  format?: "number" | "percent";
 }) {
   const { current, changePct } = metric;
+  const value =
+    format === "percent" ? `${current}%` : current.toLocaleString("en-IN");
   const direction = changePct === null ? "flat" : changePct > 0 ? "up" : changePct < 0 ? "down" : "flat";
   const DeltaIcon = direction === "up" ? TrendingUp : direction === "down" ? TrendingDown : Minus;
 
@@ -37,9 +42,7 @@ export function MetricCard({
           <span className="truncate text-sm text-muted-foreground">{label}</span>
           <Icon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
         </div>
-        <span className="font-heading text-2xl font-semibold tabular-nums">
-          {current.toLocaleString("en-IN")}
-        </span>
+        <span className="font-heading text-2xl font-semibold tabular-nums">{value}</span>
         <span
           className={cn(
             "flex items-center gap-1 text-xs tabular-nums",

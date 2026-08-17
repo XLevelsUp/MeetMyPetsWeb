@@ -112,12 +112,15 @@ export const copy = {
       activeChats: "Active Chats",
       pendingVerifications: "Pending Verifications",
       openReports: "Open Reports",
+      likeRate: "Like Rate",
     },
     charts: {
       acquisitionTitle: "User acquisition",
       acquisitionDescription: "New sign-ups",
       swipeTitle: "Swipe volume",
-      swipeDescription: "Swipes",
+      swipeDescription: "Swipes by direction",
+      swipeLikes: "Like",
+      swipePasses: "Pass",
       speciesTitle: "Active pets by species",
       /** Appended to a description, e.g. "New sign-ups · per week". */
       perBucket: { day: "per day", week: "per week", month: "per month" },
