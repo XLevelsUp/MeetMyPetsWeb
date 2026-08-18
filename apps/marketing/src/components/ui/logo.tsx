@@ -2,11 +2,11 @@ import { cn } from "@/lib/utils";
 import { site } from "@/config/site";
 
 /**
- * Placeholder brand mark — an inline SVG paw, drawn rather than imported.
- *
- * Inline keeps it zero-request and colourable via currentColor, and avoids
- * shipping a raster logo that would blur on retina. Swap for the real asset
- * when brand delivers one; only this file needs to change.
+ * Original placeholder brand mark — an inline SVG paw, drawn rather than
+ * imported. Superseded by the real asset in <Logo> below, but kept because it
+ * is the only mark that inherits currentColor: use it anywhere the glyph has
+ * to take the colour of its surroundings (a single-colour print context, a
+ * monochrome favicon fallback, an icon inside a filled button).
  */
 export function PawMark({ className }: { className?: string }) {
   return (
@@ -27,12 +27,38 @@ export function PawMark({ className }: { className?: string }) {
   );
 }
 
+/**
+ * The brand lockup used in the header and footer.
+ *
+ * The mark is served from /brand-mark.svg rather than inlined: it carries four
+ * linear gradients of its own (#E50037 → #FF7A00 → #FFC107), so unlike
+ * PawMark it cannot take currentColor, and inlining ~7.6KB of gradient defs
+ * into every page would cost more than the one cached request it replaces.
+ *
+ * Plain <img>, not next/image: `images.unoptimized` is set under static
+ * export, so next/image would add a wrapper and no optimisation. An SVG is
+ * already resolution-independent — there is nothing to optimise.
+ *
+ * No coloured tile behind it any more. The old placeholder was a white paw
+ * that needed a brand-orange plate to read at all; this mark supplies its own
+ * colour, and a plate would clash with its gradient.
+ */
 export function Logo({ className }: { className?: string }) {
   return (
-    <span className={cn("inline-flex items-center gap-2", className)}>
-      <span className="grid size-9 place-items-center rounded-xl bg-brand p-1.5 text-white">
-        <PawMark />
-      </span>
+    <span className={cn("inline-flex items-center gap-2.5", className)}>
+      {/* Decorative: the wordmark beside it already names the brand, so an
+          alt here would make screen readers announce "MeetMyPets" twice. */}
+      {/* eslint-disable-next-line @next/next/no-img-element --
+          see the doc comment above: unoptimized static export, and an SVG has
+          no raster variants for next/image to generate. */}
+      <img
+        src="/brand-mark.svg"
+        alt=""
+        aria-hidden="true"
+        width={36}
+        height={36}
+        className="size-9 shrink-0"
+      />
       <span className="font-heading text-lg font-semibold tracking-tight">{site.name}</span>
     </span>
   );
