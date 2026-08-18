@@ -37,6 +37,21 @@ const APP_ROOT = path.join(DIR, "..");
 const OUT = path.join(APP_ROOT, "src", "data", "reels.json");
 
 /**
+ * --seed-only: guarantee reels.json exists, then stop. No network call.
+ *
+ * src/lib/reels.ts imports the file statically, so tsc and eslint fail with
+ * "Cannot find module '@/data/reels.json'" when it is absent — and it IS
+ * absent on a fresh clone and in CI, because the file is gitignored (a
+ * committed copy would be exactly the unverified data that fail-closed
+ * exists to keep off the site).
+ *
+ * Hence the pre* hooks on dev/lint/typecheck. Those tasks need the file to
+ * exist; they have no reason to spend an Instagram API call on it. Only
+ * `build` does the real fetch.
+ */
+const SEED_ONLY = process.argv.includes("--seed-only");
+
+/**
  * Loads .env.local by hand.
  *
  * Next.js reads it automatically, but this is a plain `node` script run before
@@ -170,9 +185,21 @@ async function collectReels() {
   return reels;
 }
 
-const reels = await collectReels();
-
 await mkdir(path.dirname(OUT), { recursive: true });
+
+if (SEED_ONLY) {
+  // Create the file only if it is missing. Overwriting would wipe the reels a
+  // previous build fetched, which would silently empty the section in dev.
+  try {
+    await readFile(OUT, "utf8");
+  } catch {
+    await writeFile(OUT, "[]\n", "utf8");
+    console.log("[reels] seeded an empty src/data/reels.json (run `npm run reels` to fetch).");
+  }
+  process.exit(0);
+}
+
+const reels = await collectReels();
 
 if (reels) {
   await writeFile(OUT, JSON.stringify(reels, null, 2) + "\n", "utf8");
