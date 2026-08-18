@@ -31,6 +31,25 @@ function configureEnv() {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
 }
 
+/**
+ * The inverse of configureEnv, and it must be called explicitly.
+ *
+ * The unconfigured-path tests used to just assume these were absent, which
+ * made them pass on a laptop with no .env.local and fail in CI, where the
+ * Supabase secrets are set for the build: the adapter correctly saw a
+ * configured environment, ran the query against the mock, and returned
+ * "query_failed" instead of "unconfigured".
+ *
+ * Stubbing to "" rather than deleting is what isSupabaseConfigured() reads —
+ * it is a Boolean() check on the three values, so an empty string is falsy
+ * and reproduces "missing" regardless of what the real environment holds.
+ */
+function clearEnv() {
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
+  vi.stubEnv("SUPABASE_SECRET_KEY", "");
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "");
+}
+
 afterEach(() => {
   vi.unstubAllEnvs();
   holder.admin = null;
@@ -132,6 +151,7 @@ describe("analytics filters only reference columns that exist", () => {
 
 describe("fetchAnalyticsSummary", () => {
   it("returns unconfigured when env vars are missing", async () => {
+    clearEnv();
     const result = await fetchAnalyticsSummary(RANGE);
     expect(result).toEqual({ ok: false, reason: "unconfigured", message: expect.any(String) });
   });
@@ -205,6 +225,7 @@ function timeseriesPayload(over: Partial<Record<string, unknown>> = {}) {
 
 describe("fetchAnalyticsTimeseries", () => {
   it("returns unconfigured when env vars are missing", async () => {
+    clearEnv();
     const result = await fetchAnalyticsTimeseries(RANGE);
     expect(result).toEqual({ ok: false, reason: "unconfigured", message: expect.any(String) });
   });
