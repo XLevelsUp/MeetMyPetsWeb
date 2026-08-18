@@ -13,6 +13,17 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => holder.admin }
 vi.mock("@supabase/supabase-js", () => ({ createClient: () => holder.reference }));
 
 import { fetchAnalyticsSummary, fetchAnalyticsTimeseries } from "@/lib/analytics";
+import {
+  bucketFor,
+  comparisonLabel,
+  daysBetween,
+  previousWindow,
+  resolveRange,
+  type ResolvedRange,
+} from "@/lib/analytics-constants";
+
+/** A fixed window, so nothing in this suite depends on the wall clock. */
+const RANGE: ResolvedRange = { from: "2026-07-19", to: "2026-08-17" };
 
 function configureEnv() {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
@@ -73,7 +84,7 @@ describe("analytics filters only reference columns that exist", () => {
     });
     holder.reference = makeSupabaseMock({ "pets.species": { rows: [] } });
 
-    const result = await fetchAnalyticsSummary();
+    const result = await fetchAnalyticsSummary(RANGE);
     expect(result.ok).toBe(true);
 
     const offenders: string[] = [];
@@ -104,7 +115,7 @@ describe("analytics filters only reference columns that exist", () => {
     });
     holder.reference = makeSupabaseMock({ "pets.species": { rows: [] } });
 
-    await fetchAnalyticsSummary();
+    await fetchAnalyticsSummary(RANGE);
 
     // Pins the intent even if the generic check above is ever loosened.
     const matchFilters = holder.admin.calls
@@ -121,7 +132,7 @@ describe("analytics filters only reference columns that exist", () => {
 
 describe("fetchAnalyticsSummary", () => {
   it("returns unconfigured when env vars are missing", async () => {
-    const result = await fetchAnalyticsSummary();
+    const result = await fetchAnalyticsSummary(RANGE);
     expect(result).toEqual({ ok: false, reason: "unconfigured", message: expect.any(String) });
   });
 
@@ -139,7 +150,7 @@ describe("fetchAnalyticsSummary", () => {
       "pets.species": { rows: [{ id: "d", name: "Dog" }, { id: "c", name: "Cat" }] },
     });
 
-    const result = await fetchAnalyticsSummary();
+    const result = await fetchAnalyticsSummary(RANGE);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -170,7 +181,7 @@ describe("fetchAnalyticsSummary", () => {
     });
     holder.reference = makeSupabaseMock({ "pets.species": { rows: [] } });
 
-    const result = await fetchAnalyticsSummary();
+    const result = await fetchAnalyticsSummary(RANGE);
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason).toBe("query_failed");
@@ -178,32 +189,220 @@ describe("fetchAnalyticsSummary", () => {
   });
 });
 
+/** A response the contract accepts, with the fields each test cares about. */
+function timeseriesPayload(over: Partial<Record<string, unknown>> = {}) {
+  return {
+    from: "2026-07-19",
+    to: "2026-08-17",
+    bucket: "day",
+    dataStartsAt: "2026-06-29",
+    userAcquisition: [{ date: "2026-08-06", value: 3 }],
+    swipeLikes: [{ date: "2026-08-06", value: 70 }],
+    swipePasses: [{ date: "2026-08-06", value: 202 }],
+    ...over,
+  };
+}
+
 describe("fetchAnalyticsTimeseries", () => {
   it("returns unconfigured when env vars are missing", async () => {
-    const result = await fetchAnalyticsTimeseries(30);
+    const result = await fetchAnalyticsTimeseries(RANGE);
     expect(result).toEqual({ ok: false, reason: "unconfigured", message: expect.any(String) });
   });
 
   it("returns the validated rpc payload on the happy path", async () => {
     configureEnv();
-    const payload = {
-      days: 7,
-      userAcquisition: [{ date: "2026-08-06", value: 3 }],
-      swipeVolume: [{ date: "2026-08-06", value: 272 }],
-    };
+    const payload = timeseriesPayload();
     holder.admin = makeSupabaseMock({}, { admin_analytics_timeseries: payload });
 
-    const result = await fetchAnalyticsTimeseries(7);
+    const result = await fetchAnalyticsTimeseries(RANGE);
     expect(result).toEqual({ ok: true, data: payload });
+  });
+
+  /**
+   * Asserts the RPC ARGUMENTS, not the returned rows. The mock hands back its
+   * fixture whatever it is asked for, so a row-based assertion would pass just
+   * as happily against an adapter that ignored the selected range entirely —
+   * the trap an earlier taxonomy test fell into.
+   */
+  it("passes the range and the derived bucket to Postgres", async () => {
+    configureEnv();
+    const range = { from: "2025-09-01", to: "2026-08-17" }; // > 180 days → month
+    holder.admin = makeSupabaseMock(
+      {},
+      { admin_analytics_timeseries: timeseriesPayload({ from: range.from, bucket: "month", dataStartsAt: null }) },
+    );
+
+    await fetchAnalyticsTimeseries(range);
+
+    const call = holder.admin.calls.find((c) => c.op === "rpc");
+    expect(call?.values).toEqual({
+      p_from: "2025-09-01",
+      p_to: "2026-08-17",
+      p_bucket: "month",
+    });
+  });
+
+  it("re-queries clamped to the first real row when the range predates the data", async () => {
+    configureEnv();
+    holder.admin = makeSupabaseMock(
+      {},
+      { admin_analytics_timeseries: timeseriesPayload({ dataStartsAt: "2026-06-29" }) },
+    );
+
+    // A year back against a database whose first row is 2026-06-29.
+    await fetchAnalyticsTimeseries({ from: "2025-08-18", to: "2026-08-17" });
+
+    const rpcCalls = holder.admin.calls.filter((c) => c.op === "rpc");
+    expect(rpcCalls).toHaveLength(2);
+    // Second pass starts at the data, not at the requested date — otherwise the
+    // chart draws ten empty buckets and reads as an outage.
+    expect((rpcCalls[1].values as { p_from: string }).p_from).toBe("2026-06-29");
+  });
+
+  it("does not re-query when the range already starts inside the data", async () => {
+    configureEnv();
+    holder.admin = makeSupabaseMock(
+      {},
+      { admin_analytics_timeseries: timeseriesPayload({ dataStartsAt: "2026-06-29" }) },
+    );
+
+    await fetchAnalyticsTimeseries({ from: "2026-07-19", to: "2026-08-17" });
+
+    expect(holder.admin.calls.filter((c) => c.op === "rpc")).toHaveLength(1);
   });
 
   it("returns query_failed when the rpc errors", async () => {
     configureEnv();
     holder.admin = makeSupabaseMock({}, {}); // rpc not configured → error
 
-    const result = await fetchAnalyticsTimeseries(30);
+    const result = await fetchAnalyticsTimeseries(RANGE);
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason).toBe("query_failed");
+  });
+
+  /**
+   * The one error a reader can act on. PGRST202 means the ranged overload has
+   * not been applied yet; the raw text is a paragraph about schema cache
+   * lookups that sends a moderator to us instead of to the fix.
+   */
+  it("names the migration when the ranged function is missing", async () => {
+    configureEnv();
+    holder.admin = makeSupabaseMock({}, {});
+    holder.admin.rpc = async () => ({
+      data: null,
+      error: { code: "PGRST202", message: "Searched for the function … schema cache" },
+    });
+
+    const result = await fetchAnalyticsTimeseries(RANGE);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.message).toContain("20260817000000_admin_analytics_timeseries_ranged.sql");
+  });
+});
+
+describe("likeRate", () => {
+  /**
+   * The mock returns one count for every query against a table, so a fixture
+   * cannot express "370 likes and 1081 passes". These assert the SHAPE of the
+   * maths instead: that the metric is a percentage, that it is filtered by
+   * interaction_type at all, and that an empty window does not divide by zero.
+   */
+  function setup(swipeCount: number) {
+    configureEnv();
+    holder.admin = makeSupabaseMock({
+      "identity.accounts": { count: 1 },
+      "pets.pets": { count: 1, rows: [] },
+      "matching.matches": { count: 1 },
+      "chat.conversations": { count: 1 },
+      "identity.account_verifications": { count: 0 },
+      "matching.pet_reports": { count: 0 },
+      "matching.pet_likes": { count: swipeCount },
+    });
+    holder.reference = makeSupabaseMock({ "pets.species": { rows: [] } });
+    return holder.admin;
+  }
+
+  it("filters pet_likes by interaction_type rather than counting every swipe", async () => {
+    const mock = setup(100);
+    await fetchAnalyticsSummary(RANGE);
+
+    const types = mock.calls
+      .filter((c) => c.key === "matching.pet_likes")
+      .flatMap((c) => c.filters ?? [])
+      .filter((f) => f.method === "eq" && f.args[0] === "interaction_type")
+      .map((f) => f.args[1]);
+
+    // Both directions, in both the current and the prior window.
+    expect(types).toEqual(["like", "pass", "like", "pass"]);
+  });
+
+  it("expresses the rate as a percentage", async () => {
+    setup(100); // every count returns 100 → 100/(100+100) = 50%
+    const result = await fetchAnalyticsSummary(RANGE);
+    expect(result.ok && result.data.metrics.likeRate.current).toBe(50);
+  });
+
+  it("reports an unknown rate rather than NaN when nothing was swiped", async () => {
+    setup(0);
+    const result = await fetchAnalyticsSummary(RANGE);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // 0/0 is not "0% and falling" — changePct guards the numerator too, which
+    // the shared `changePct` helper alone does not do.
+    expect(result.data.metrics.likeRate.current).toBe(0);
+    expect(result.data.metrics.likeRate.changePct).toBeNull();
+  });
+});
+
+describe("range maths", () => {
+  const NOW = new Date("2026-08-17T09:30:00Z");
+
+  it.each([
+    ["7d", "2026-08-11"],
+    ["30d", "2026-07-19"],
+    ["90d", "2026-05-20"],
+    ["month", "2026-07-19"],
+    ["year", "2025-08-18"],
+  ] as const)("resolves the %s preset", (preset, from) => {
+    expect(resolveRange(preset, undefined, undefined, NOW)).toEqual({ from, to: "2026-08-17" });
+  });
+
+  it("honours a valid custom range and falls back on a broken one", () => {
+    expect(resolveRange("custom", "2026-08-01", "2026-08-10", NOW)).toEqual({
+      from: "2026-08-01",
+      to: "2026-08-10",
+    });
+    // Inverted and incomplete ranges degrade to the default rather than throwing.
+    expect(resolveRange("custom", "2026-08-10", "2026-08-01", NOW).from).toBe("2026-07-19");
+    expect(resolveRange("custom", undefined, undefined, NOW).from).toBe("2026-07-19");
+  });
+
+  it("counts days inclusively at both ends", () => {
+    expect(daysBetween("2026-08-17", "2026-08-17")).toBe(1);
+    expect(daysBetween("2026-08-11", "2026-08-17")).toBe(7);
+  });
+
+  /** Boundaries, because an off-by-one here silently changes every axis. */
+  it.each([
+    ["2026-07-04", "2026-08-17", "day"], // 45 days
+    ["2026-07-03", "2026-08-17", "week"], // 46
+    ["2026-02-19", "2026-08-17", "week"], // 180
+    ["2026-02-18", "2026-08-17", "month"], // 181
+  ] as const)("buckets %s→%s as %s", (from, to, expected) => {
+    expect(bucketFor(from, to)).toBe(expected);
+  });
+
+  it("puts the previous window immediately before, at equal length", () => {
+    // 30 days ending 08-17 → the 30 days ending the day before it starts.
+    expect(previousWindow({ from: "2026-07-19", to: "2026-08-17" })).toEqual({
+      from: "2026-06-19",
+      to: "2026-07-18",
+    });
+  });
+
+  it("labels the comparison with the window length", () => {
+    expect(comparisonLabel({ from: "2026-07-19", to: "2026-08-17" })).toBe("vs previous 30 days");
+    expect(comparisonLabel({ from: "2026-08-17", to: "2026-08-17" })).toBe("vs previous day");
   });
 });

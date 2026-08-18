@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { timeseriesDaysSchema, type ApiError } from "@/lib/api-contract";
+import { analyticsRangeQuerySchema, type ApiError } from "@/lib/api-contract";
+import { resolveRange } from "@/lib/analytics-constants";
 import { fetchAnalyticsTimeseries } from "@/lib/analytics";
+import { searchParamsToQuery } from "@/lib/contract-shared";
 import { requireRole } from "@/lib/dal";
 import { ANALYTICS_ROLES } from "@/lib/roles";
 
@@ -18,10 +20,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Out-of-range or garbage ?days= falls back to 30 (zod .catch).
-  const days = timeseriesDaysSchema.parse(request.nextUrl.searchParams.get("days") ?? undefined);
-
-  const result = await fetchAnalyticsTimeseries(days);
+  // Garbage or missing params fall back to the default preset (zod .catch).
+  const query = searchParamsToQuery(analyticsRangeQuerySchema, request.nextUrl.searchParams);
+  const result = await fetchAnalyticsTimeseries(
+    resolveRange(query.preset, query.from, query.to),
+  );
   if (!result.ok) {
     return NextResponse.json<ApiError>(
       { error: result.reason, message: result.message },

@@ -1,13 +1,15 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { z } from "zod";
 
 import {
   analyticsSummarySchema,
   analyticsTimeseriesSchema,
   apiErrorSchema,
+  type AnalyticsRangeQuery,
 } from "@/lib/api-contract";
+import { queryToSearchParams } from "@/lib/contract-shared";
 
 /**
  * React Query hooks for the analytics endpoints. Responses are zod-parsed
@@ -26,21 +28,30 @@ async function fetchJson<S extends z.ZodType>(url: string, schema: S): Promise<z
   return schema.parse(await res.json());
 }
 
-export function useAnalyticsSummary() {
+/**
+ * `keepPreviousData` on both: changing the range must hold the previous render
+ * rather than flashing a skeleton and collapsing the page height. The charts
+ * dim while `isFetching` instead — see `metric-grid.tsx`.
+ */
+export function useAnalyticsSummary(range: AnalyticsRangeQuery) {
+  const search = queryToSearchParams(range).toString();
   return useQuery({
-    queryKey: ["analytics", "summary"],
-    queryFn: () => fetchJson("/api/v1/admin/analytics/summary", analyticsSummarySchema),
+    queryKey: ["analytics", "summary", range],
+    queryFn: () => fetchJson(`/api/v1/admin/analytics/summary?${search}`, analyticsSummarySchema),
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
   });
 }
 
-export function useAnalyticsTimeseries(days = 30) {
+export function useAnalyticsTimeseries(range: AnalyticsRangeQuery) {
+  const search = queryToSearchParams(range).toString();
   return useQuery({
-    queryKey: ["analytics", "timeseries", days],
+    queryKey: ["analytics", "timeseries", range],
     queryFn: () =>
-      fetchJson(`/api/v1/admin/analytics/timeseries?days=${days}`, analyticsTimeseriesSchema),
+      fetchJson(`/api/v1/admin/analytics/timeseries?${search}`, analyticsTimeseriesSchema),
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,

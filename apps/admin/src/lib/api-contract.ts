@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { BUCKETS, DEFAULT_RANGE_PRESET, RANGE_PRESETS } from "@/lib/analytics-constants";
+
 /**
  * Typed contract for the admin analytics API.
  *
@@ -19,13 +21,16 @@ export const METRIC_KEYS = [
   "activeChats",
   "pendingVerifications",
   "openReports",
+  /** A PERCENTAGE, not a count — `likes / (likes + passes)`. Cards format it. */
+  "likeRate",
 ] as const;
 
 export type MetricKey = (typeof METRIC_KEYS)[number];
 
 /**
- * `changePct` is week-over-week and null when the prior week is zero —
- * rendering "—" beats rendering "Infinity%" on a pre-launch database.
+ * `changePct` compares the selected range against the window immediately
+ * before it, and is null when that prior window is zero — rendering "—" beats
+ * rendering "Infinity%" on a pre-launch database.
  */
 export const metricValueSchema = z.object({
   current: z.number(),
@@ -44,20 +49,40 @@ export const analyticsSummarySchema = z.object({
   generatedAt: z.iso.datetime(),
   metrics: z.record(z.enum(METRIC_KEYS), metricValueSchema),
   activePetsBySpecies: z.array(speciesCountSchema),
+  /** The window the deltas were computed over, echoed for the card labels. */
+  from: z.string(),
+  to: z.string(),
 });
 export type AnalyticsSummaryResponse = z.infer<typeof analyticsSummarySchema>;
 
 export const timeseriesPointSchema = z.object({
-  /** YYYY-MM-DD (UTC day bucket). */
+  /** YYYY-MM-DD — the START of the bucket, whichever granularity is in play. */
   date: z.string(),
   value: z.number(),
 });
 export type TimeseriesPoint = z.infer<typeof timeseriesPointSchema>;
 
 export const analyticsTimeseriesSchema = z.object({
-  days: z.number(),
+  /** Echoed back because the server may CLAMP `from` — see `dataStartsAt`. */
+  from: z.string(),
+  to: z.string(),
+  bucket: z.enum(BUCKETS),
+  /**
+   * Earliest row in either source table, or null on an empty database.
+   *
+   * Drives the clamp: a 12-month range against a product that is seven weeks
+   * old would otherwise render nine empty buckets, which reads as an outage
+   * rather than as a launch.
+   */
+  dataStartsAt: z.string().nullable(),
   userAcquisition: z.array(timeseriesPointSchema),
-  swipeVolume: z.array(timeseriesPointSchema),
+  /**
+   * Swipes split by direction. The TOTAL is deliberately absent — it is
+   * `likes + passes`, and a derivable third series is a third thing that can
+   * drift out of agreement with the other two. The stacked chart shows it.
+   */
+  swipeLikes: z.array(timeseriesPointSchema),
+  swipePasses: z.array(timeseriesPointSchema),
 });
 export type AnalyticsTimeseriesResponse = z.infer<typeof analyticsTimeseriesSchema>;
 
@@ -68,5 +93,26 @@ export const apiErrorSchema = z.object({
 });
 export type ApiError = z.infer<typeof apiErrorSchema>;
 
-/** Bounds for the timeseries `?days=` query param. */
-export const timeseriesDaysSchema = z.coerce.number().int().min(7).max(90).catch(30);
+/**
+ * The dashboard's range selection, as it travels in the query string.
+ *
+ * `.catch()` on every field mirrors `users-contract.ts`: a hand-edited or stale
+ * URL degrades to the default view rather than 400-ing an admin out of a page
+ * they can otherwise use. `from`/`to` only mean anything when `preset` is
+ * "custom"; `resolveRange` ignores them otherwise.
+ */
+const rangeDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .optional()
+  .catch(undefined);
+
+export const analyticsRangeQuerySchema = z.object({
+  preset: z.enum(RANGE_PRESETS).catch(DEFAULT_RANGE_PRESET),
+  from: rangeDate,
+  to: rangeDate,
+});
+export type AnalyticsRangeQuery = z.infer<typeof analyticsRangeQuerySchema>;
+
+export const DEFAULT_ANALYTICS_RANGE_QUERY: AnalyticsRangeQuery =
+  analyticsRangeQuerySchema.parse({});
