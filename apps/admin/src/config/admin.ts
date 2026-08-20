@@ -690,6 +690,8 @@ export const copy = {
       namePlaceholder: "e.g. Rabbit",
       descriptionLabel: "Description (optional)",
       speciesLabel: "Species",
+      /** Shown if the form somehow submits with no species chosen. */
+      speciesRequired: "Pick a species.",
       statusLabel: "Status",
       reasonLabel: "Reason (recorded in the audit log)",
       reasonPlaceholder: "Why are you making this change?",

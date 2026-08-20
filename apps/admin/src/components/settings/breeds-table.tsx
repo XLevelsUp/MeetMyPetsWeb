@@ -72,7 +72,11 @@ export function BreedsTable() {
   }, []);
 
   async function handleCreate(draft: TaxonomyDraft) {
-    if (!draft.speciesId) return;
+    // Throw rather than return: a bare `return` left the dialog open with the
+    // button re-enabled and nothing said, which is indistinguishable from the
+    // save having silently failed. TaxonomyDialog catches this into its error
+    // line.
+    if (!draft.speciesId) throw new Error(copy.settings.form.speciesRequired);
     await create.mutateAsync({
       speciesId: draft.speciesId,
       name: draft.name,

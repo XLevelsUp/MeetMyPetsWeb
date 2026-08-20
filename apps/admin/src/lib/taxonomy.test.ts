@@ -21,7 +21,7 @@ import {
   updateBreed,
   updateSpecies,
 } from "@/lib/taxonomy";
-import type { BreedsQuery, SpeciesQuery } from "@/lib/taxonomy-contract";
+import { createBreedSchema, type BreedsQuery, type SpeciesQuery } from "@/lib/taxonomy-contract";
 
 const DOG_ID = "11111111-1111-1111-1111-111111111111";
 const BIRD_ID = "22222222-2222-2222-2222-222222222222";
@@ -81,6 +81,54 @@ function setup(tables: Record<string, TableResult>) {
 afterEach(() => {
   holder.admin = null;
   holder.configured = true;
+});
+
+/**
+ * REGRESSION for the bug that made the breed form unusable: a populated species
+ * dropdown that always answered "Pick a species."
+ *
+ * Every species the app team owns has a sequential placeholder id whose version
+ * and variant nibbles are `0` — not a conforming RFC 9562 UUID. zod v4
+ * tightened `.uuid()` to enforce the spec, so `.uuid()` rejects the ENTIRE live
+ * taxonomy. `z.guid()` is the lenient shape check that accepts it.
+ *
+ * The first case below fails against `z.string().uuid()`, which is the point.
+ */
+describe("createBreedSchema", () => {
+  const REAL_SPECIES_IDS = [
+    "00000000-0000-0000-0000-000000000001", // Dog, live
+    "00000000-0000-0000-0000-000000000006", // Small Pet, live
+  ];
+
+  it.each(REAL_SPECIES_IDS)("accepts the app team's placeholder id %s", (speciesId) => {
+    const parsed = createBreedSchema.safeParse({
+      speciesId,
+      name: "Cockatiel",
+      description: null,
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("accepts a conforming v4 uuid too", () => {
+    expect(
+      createBreedSchema.safeParse({
+        speciesId: "0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b",
+        name: "Cockatiel",
+        description: null,
+      }).success,
+    ).toBe(true);
+  });
+
+  it("still rejects something that is not an id at all", () => {
+    const parsed = createBreedSchema.safeParse({
+      speciesId: "Dog",
+      name: "Cockatiel",
+      description: null,
+    });
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+    expect(parsed.error.issues[0]?.message).toBe("Pick a species.");
+  });
 });
 
 describe("listSpecies", () => {
@@ -204,6 +252,32 @@ describe("createSpecies", () => {
     expect(audit.action).toBe("species.create");
     expect(audit.target_type).toBe("species");
   });
+
+  /**
+   * REGRESSION. pets.species.id is `uuid NOT NULL` with NO DEFAULT, so an
+   * insert that omits it fails with
+   * `null value in column "id" … violates not-null constraint` — which is
+   * exactly what the settings screen did. The mock accepts any payload, so the
+   * only way to catch this without a database is to assert the payload itself.
+   */
+  it("supplies an id, because the column has no default", async () => {
+    const mock = setup({
+      "pets.species#select": { rows: SPECIES_ROWS, single: { id: "new-id" } },
+      "pets.species#insert": { single: { id: "new-id" } },
+      "public.admin_audit_logs": {},
+    });
+
+    await createSpecies({ name: "Ferret", description: null }, "Adding ferrets", ACTOR);
+
+    const insert = mock.calls.find((c) => c.op === "insert" && c.key === "pets.species")
+      ?.values as Record<string, unknown>;
+    expect(insert.id).toEqual(expect.any(String));
+    // A real v4, not the next number in the app team's sequential placeholders:
+    // read-then-increment would collide when two admins add at once.
+    expect(insert.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+  });
 });
 
 describe("updateSpecies", () => {
@@ -305,6 +379,27 @@ describe("createBreed", () => {
 
     const dupeCheck = mock.calls.find((c) => c.op === "select" && c.key === "pets.breeds");
     expect(dupeCheck?.filters).toContainEqual({ method: "eq", args: ["species_id", BIRD_ID] });
+  });
+
+  /** Same missing default as species — see the note on the species case. */
+  it("supplies an id, because the column has no default", async () => {
+    const mock = setup({
+      "pets.species#select": { single: { id: BIRD_ID, name: "Bird" } },
+      "pets.breeds#select": { rows: [] },
+      "pets.breeds#insert": { single: { id: "new-breed" } },
+      "public.admin_audit_logs": {},
+    });
+
+    await createBreed(
+      { speciesId: BIRD_ID, name: "Cockatiel", description: null },
+      "Adding a bird breed",
+      ACTOR,
+    );
+
+    const insert = mock.calls.find((c) => c.op === "insert" && c.key === "pets.breeds")
+      ?.values as Record<string, unknown>;
+    expect(insert.id).toEqual(expect.any(String));
+    expect(insert.species_id).toBe(BIRD_ID);
   });
 
   it("refuses a duplicate within the same species", async () => {

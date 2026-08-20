@@ -86,6 +86,28 @@ two changes (handoff §3.6b); until then, **anything computing a score from
 `trust_score_events` alone will under-count reverted pets**, and this is the
 table to join against.
 
+## Taxonomy ids are not UUIDs, and have no default (verified 2026-08-21)
+
+Two facts about `pets.species` / `pets.breeds` that both broke `/settings`:
+
+- **Neither `id` column has a DEFAULT.** `uuid NOT NULL`, `column_default`
+  empty. Omitting `id` on insert fails with
+  `null value in column "id" … violates not-null constraint` — reproduced as
+  `service_role` in a rolled-back transaction. `id` **is** inside our INSERT
+  grant, so the panel now supplies `crypto.randomUUID()`. Their Flutter client
+  generates ids too, which is why the app never hit this.
+- **The six live species ids are sequential placeholders**, `…0001` (Dog)
+  through `…0006` (Small Pet), with the RFC 9562 version and variant nibbles
+  both `0`. Postgres accepts them; strict validators do not. **zod v4's
+  `.uuid()` rejects all six** — that is what made the breed form answer "Pick a
+  species." to a fully populated dropdown. `taxonomy-contract.ts` uses
+  `z.guid()` and carries a comment saying why; `taxonomy.test.ts` pins two real
+  ids so a change back to `.uuid()` fails the suite.
+
+New rows created by the panel get real v4 UUIDs, so the table now holds a
+deliberate mix. Do not "tidy" it into a sequence — read-then-increment races
+when two admins add at once.
+
 ## The trust engine, as it actually is (verified 2026-08-20)
 
 Read before touching anything trust-related; several of these contradict what

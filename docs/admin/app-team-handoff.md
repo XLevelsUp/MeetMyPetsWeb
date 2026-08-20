@@ -642,6 +642,54 @@ a pet credited out of the ban band keeps a stale `temporary_ban_until`. We
 cannot write those columns (column-scoped grant), which is a second reason we
 keep reversals to a single deduction.
 
+### 3.6d Taxonomy: two schema gaps that broke our settings screen
+
+Both found the hard way when `/settings` could not add a species or a breed.
+Neither blocks us any more — we work around both — but the first will bite the
+next client that inserts, and the second will bite anything that validates ids.
+
+**1. `pets.species.id` and `pets.breeds.id` have no DEFAULT.**
+
+Both are `uuid NOT NULL` with `column_default` empty, so an insert that omits
+`id` fails outright:
+
+```
+null value in column "id" of relation "species" violates not-null constraint
+```
+
+Reproduced as `service_role` in a rolled-back transaction, which is exactly what
+our panel hit. Your Flutter client generates ids itself, so it never noticed.
+One line each would make the column self-sufficient for every caller:
+
+```sql
+alter table pets.species alter column id set default gen_random_uuid();
+alter table pets.breeds  alter column id set default gen_random_uuid();
+```
+
+We now generate a v4 UUID panel-side, so new rows land fine either way.
+
+**2. The existing species ids are not valid UUIDs.**
+
+All six are sequential placeholders — `00000000-0000-0000-0000-000000000001`
+(Dog) through `…0006` (Small Pet) — with the RFC 9562 version nibble and variant
+nibble both `0`. A conforming UUID needs version 1–8 and variant 8/9/a/b.
+
+That is not a problem in Postgres, which stores them happily, but **any strict
+validator rejects your entire taxonomy**. Ours did: zod v4 tightened its
+`.uuid()` to enforce the spec, so our breed form rendered a fully populated
+species dropdown and then refused every option with "Pick a species." We
+switched to zod's lenient `guid` check.
+
+Flagging it rather than asking you to change it — `pets.pets.species_id` points
+at these, so rewriting them is a migration nobody needs. Just know that "it's a
+uuid column" does not mean the values pass a UUID validator, in any language.
+
+**3. Restating two constraint gaps our adapter compensates for**, since they are
+adjacent and still open: `species.name` is UNIQUE but **case-sensitive** (so
+"dog" and "Dog" both insert and render identically), and `breeds` has **no
+uniqueness constraint at all**. The duplicate checks in `lib/taxonomy.ts` are
+therefore load-bearing application logic, not belt-and-braces.
+
 ### 3.6c Things that look useful and are not (please confirm)
 
 Found while building `/users` and the dashboard. All of these are readable by
