@@ -55,6 +55,35 @@ FastAPI-side role system — see decision notes). `pets.pets` has `species_id`
 `matching.pet_likes` is the swipes table (`interaction_type`, `status`,
 `created_at`).
 
+## The trust engine, as it actually is (verified 2026-08-20)
+
+Read before touching anything trust-related; several of these contradict what
+the deltas alone suggest.
+
+- **`pets.trust_score_delta(text)` is the authority on deltas**, and it holds
+  `like 5`, `super_like 150`, `follow 10`, `match 30`, `block −80`,
+  `report −80`, `certificate_verified 500`. Note `super_like` — absent from our
+  constants until now — and note what is **missing**: `post_report` returns
+  **NULL**, which breaks post reporting outright (handoff §3.6a).
+- **`pets.adjust_pet_trust_score(pet, reason, actor?, event_ref?)`** is how every
+  delta is applied: it inserts the ledger row and updates the score in one
+  transaction. EXECUTE is granted to `postgres` only — the panel cannot call it.
+- **The ledger dedups on a unique index**,
+  `(target_pet_id, coalesce(actor_pet_id,0), reason, coalesce(event_ref,0))`,
+  with `ON CONFLICT DO NOTHING`. So a second report from the same reporter
+  against the same pet **scores nothing** — and two reports can share one
+  deduction, which is why dismissal reversals check for siblings.
+- **`event_ref` does not point at the report.** `report` rows carry NULL;
+  `post_report` rows point at the **post** (`social.posts.id`, 11/11 verified);
+  `certificate_verified` rows point at the certificate. Reconstruct the dedup
+  key from the report row instead — all 17 live reports resolve to exactly one
+  event that way, none ambiguous.
+- **`trust_status_on_score_change` tests `= 555` FIRST** and clears
+  `trust_warning_acknowledged`, `temporary_banned_at`, `temporary_ban_until`.
+  Confirmed in a rolled-back transaction: 475→555 clears the ban window,
+  400→480 leaves it intact. It also **never clears a ban when a score rises past
+  100**, so a pet credited out of the ban band keeps a stale ban date.
+
 **Swipe composition, verified 2026-08-17.** `interaction_type` is
 `like` (**370**) or `pass` (**1081**) of 1451 total — a 25.5% like rate — and
 both values are present from the first row (2026-07-09), so the split covers
@@ -68,7 +97,7 @@ EMPTY (0 rows, verified 2026-08-17)**, despite having exactly the columns a
 device-mix chart needs (`platform`, `app_version`, `last_active_at`;
 `user_agent`, `ip_address`). The schema is ready and the service key can
 already read them — nothing writes them. A requested device chart was
-therefore **not built**; see handoff §3.6b.
+therefore **not built**; see handoff §3.6c.
 
 ⚠️ **`identity.accounts.status` and `pets.pets.status` have NO check
 constraint** — the `active`/`archived` vocabulary is convention, not enforced.

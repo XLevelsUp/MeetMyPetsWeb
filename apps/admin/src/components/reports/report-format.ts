@@ -1,5 +1,5 @@
 import { copy } from "@/config/admin";
-import type { TrustSignal } from "@/lib/reports-contract";
+import type { TrustRevertPreview, TrustSignal } from "@/lib/reports-contract";
 
 /** Shared formatting so the table row and the detail dialog never disagree. */
 
@@ -44,6 +44,36 @@ export function statusVariant(status: string): "default" | "secondary" | "outlin
   if (status === "pending") return "default";
   if (status === "actioned") return "secondary";
   return "outline";
+}
+
+/**
+ * What dismissing will do — or did do — to the pet's trust score.
+ *
+ * `tense` picks between the prediction shown in the dialog and the statement
+ * shown after saving; every other outcome reads the same either way, because
+ * "nothing happened" does not have a future tense worth distinguishing.
+ */
+export function revertMessage(
+  revert: TrustRevertPreview,
+  tense: "will" | "did" = "will",
+): string {
+  const messages = copy.reports.revert as Record<string, string>;
+  if (revert.outcome === "reverted") {
+    const template = tense === "did" ? messages.revertedDone : messages.reverted;
+    return template
+      .replace("{delta}", String(revert.delta ?? 0))
+      .replace("{score}", String(revert.scoreAfter ?? 0));
+  }
+  return messages[revert.outcome] ?? revert.outcome;
+}
+
+/** Only a blocked or failed credit needs to pull the eye. */
+export function revertTone(revert: TrustRevertPreview): "warn" | "muted" {
+  return revert.outcome === "would_restore" ||
+    revert.outcome === "failed" ||
+    revert.outcome === "score_moved"
+    ? "warn"
+    : "muted";
 }
 
 /**

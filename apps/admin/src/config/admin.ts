@@ -402,8 +402,13 @@ export const copy = {
       warning: "Warning",
       normal: "Normal",
     },
-    /** Trust is the backend's automated signal; the panel only displays it. */
-    trustHint: "Automated trust score, owned by the app backend. The panel never changes it.",
+    /**
+     * Trust is the backend's automated signal. The panel used to only display
+     * it; that stopped being true when the trust review queue shipped, and
+     * again when dismissing a report began crediting its deduction back.
+     */
+    trustHint:
+      "Automated trust score, owned by the app backend. The panel changes it only by restoring a pet in Trust review, or by crediting back the deduction from a dismissed report.",
     noTrustScore: "Unknown",
     details: "Review",
     detailDialog: {
@@ -434,6 +439,27 @@ export const copy = {
       submit: "Confirm",
       submitting: "Saving…",
       error: "Could not resolve the report.",
+    },
+    /**
+     * What dismissing does to the trust score the report cost the pet.
+     *
+     * Every outcome is stated, including the ones where nothing happens: a
+     * refund that quietly did not occur is worse than one that never claimed
+     * to. `{delta}` and `{score}` are substituted.
+     */
+    revert: {
+      heading: "Trust score",
+      reverted: "Returns +{delta} to this pet, taking it to {score}.",
+      revertedDone: "Returned +{delta} to this pet. Now {score}.",
+      no_deduction: "No deduction on record for this report — nothing to return.",
+      already_reverted: "Already returned by an earlier dismissal.",
+      still_earned:
+        "Another report from the same reporter shares this deduction, so it stands.",
+      would_restore:
+        "Returning it would land on exactly 555, which the app reads as a full restore and would lift this pet's ban. Use Trust review if that is what you intend.",
+      score_moved:
+        "The score changed while this was being saved, so nothing was returned. Check Trust review.",
+      failed: "The report was dismissed, but the trust credit failed. Check Trust review.",
     },
   },
   verifications: {

@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
+import { toast } from "sonner";
 
 import {
   formatWhen,
   reasonLabel,
+  revertMessage,
+  revertTone,
   scopeLabel,
   statusLabel,
   trustLabel,
@@ -29,6 +32,7 @@ import { useResolveReport } from "@/hooks/use-reports";
 import { reasonSchema } from "@/lib/contract-shared";
 import { REPORT_RESOLUTIONS, type ReportResolution } from "@/lib/report-constants";
 import type { ReportSummary } from "@/lib/reports-contract";
+import { cn } from "@/lib/utils";
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -71,7 +75,18 @@ export function ReportDetailDialog({ report }: { report: ReportSummary }) {
     }
     setError(null);
     try {
-      await resolve.mutateAsync({ id: report.id, resolution, reason: reasonCheck.data });
+      const result = await resolve.mutateAsync({
+        id: report.id,
+        resolution,
+        reason: reasonCheck.data,
+      });
+      // Report what actually happened to the score. A dismissal that declined
+      // to credit anything back looks identical to one that did, unless it says.
+      if (result.revert) {
+        const message = revertMessage(result.revert, "did");
+        if (result.revert.outcome === "reverted") toast.success(message);
+        else toast.warning(message);
+      }
       setOpen(false);
       reset();
     } catch (err) {
@@ -185,6 +200,20 @@ export function ReportDetailDialog({ report }: { report: ReportSummary }) {
             <p className="text-xs text-muted-foreground">
               {copy.reports.resolve.confirmDescription}
             </p>
+
+            {/* Stated BEFORE the click, not discovered after it: dismissing is
+                the one resolution that also moves the pet's trust score. */}
+            <div
+              className={cn(
+                "rounded-md border px-3 py-2 text-xs",
+                revertTone(report.revert) === "warn"
+                  ? "border-destructive/40 bg-destructive/5 text-foreground"
+                  : "border-border bg-muted/40 text-muted-foreground",
+              )}
+            >
+              <span className="font-medium">{copy.reports.revert.heading}</span>{" "}
+              <span>{revertMessage(report.revert)}</span>
+            </div>
           </div>
         )}
 

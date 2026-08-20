@@ -573,7 +573,76 @@ Not blocking us, but worth your queue:
 - Performance: 18 unindexed foreign keys, and ~24 RLS policies calling
   `auth.uid()` per-row instead of `(select auth.uid())`.
 
-### 3.6b Things that look useful and are not (please confirm)
+### 3.6a 🚨 P1 — post-scoped reporting is broken in production
+
+**`pets.trust_score_delta('post_report')` returns NULL.** Its `CASE` has arms for
+`like`, `super_like`, `follow`, `match`, `block`, `report` and
+`certificate_verified` — but not `post_report`.
+
+`pets.adjust_pet_trust_score` raises on a NULL delta:
+
+```
+adjust_pet_trust_score: unknown reason %. Valid reasons are defined in
+pets.trust_score_delta.
+```
+
+and `matching.trust_on_pet_report()` calls it with `'post_report'` for every
+report carrying `context_entity_type = 'post'`. **Inserting a post-scoped report
+therefore fails outright** — the trigger raises and the INSERT rolls back.
+
+It used to work: there are **11 `post_report` rows in
+`pets.trust_score_events` at −20**, the newest from before the arm disappeared.
+The `WHEN` clause looks dropped in an edit rather than removed deliberately.
+
+Reproduce (read-only): `select pets.trust_score_delta('post_report');` → NULL.
+
+Verified 2026-08-20. Nothing on our side depends on the fix, but users cannot
+report a post until it lands.
+
+### 3.6b Two things we would like, to do trust reversals properly
+
+The panel now credits a report's trust deduction back when a moderator
+**dismisses** it (`dismissed` = "not a legitimate report", so the penalty
+should not stand). We had to do that the awkward way, and two small changes on
+your side would let us delete our workaround entirely:
+
+1. **Add `report_dismissed` (+80) and `post_report_dismissed` (+20) to
+   `pets.trust_score_delta`.**
+2. **`grant execute on function pets.adjust_pet_trust_score(uuid,text,uuid,uuid)
+   to service_role;`** — currently `postgres` only.
+
+With those, dismissing calls your function, which writes the ledger row and the
+score in one transaction and dedups on your own unique index. Exactly the same
+mechanism that applied the penalty, run in reverse.
+
+**What we do instead, today.** We hold `UPDATE (trust_score)` on `pets.pets` and
+SELECT on `pets.trust_score_events`, so we move the score ourselves and record
+the reason in our own `public.admin_trust_reversals`. The consequence is
+deliberate but not good: **your ledger shows a −80 with no matching credit while
+the score sits 80 higher.** Our table is what explains the difference, and our
+trust view merges it into the timeline — but it is our table, not yours, so
+anything reading `trust_score_events` alone will see the discrepancy.
+
+We find the right deduction through your unique index
+`(target_pet_id, coalesce(actor_pet_id,0), reason, coalesce(event_ref,0))`,
+every field of which is reconstructible from the report row. Verified against
+all 17 live reports: each resolves to exactly one event, none ambiguous.
+
+⚠️ **One behaviour of `trust_status_on_score_change` worth knowing**, since it
+shaped the design: it tests `NEW.trust_score = 555` *first* and clears
+`trust_warning_acknowledged`, `temporary_banned_at` and `temporary_ban_until`.
+A pet on 475 credited +80 lands exactly there, so an ordinary reversal would
+silently lift a ban earned from unrelated blocks or other reports. **One live
+report is in exactly that position.** We block the credit in that case rather
+than let it happen; confirmed in a rolled-back transaction that 475→555 clears
+the ban window while 400→480 leaves it intact.
+
+Related: the trigger never *clears* a ban when a score rises back above 100, so
+a pet credited out of the ban band keeps a stale `temporary_ban_until`. We
+cannot write those columns (column-scoped grant), which is a second reason we
+keep reversals to a single deduction.
+
+### 3.6c Things that look useful and are not (please confirm)
 
 Found while building `/users` and the dashboard. All of these are readable by
 us and empty for the entire population, so we built around them rather than

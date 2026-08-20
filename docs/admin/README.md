@@ -151,7 +151,7 @@ Verified end-to-end: anonymous → redirect/401, `support` → 403,
     page boundary; `listAccounts` has a dedicated path for this.
   - **Filters were chosen from the data, not the column list.**
     `last_activity_at` (null 41/41) and `phone_verified` (false 41/41) are
-    deliberately not offered — see handoff §3.6b.
+    deliberately not offered — see handoff §3.6c.
 - ✅ **Audit logging** — shipped (`21d4211`). `public.admin_audit_logs` exists
   and `/audit` reads it.
 - **Content & report moderation queue** — reads the app team's existing
@@ -283,7 +283,7 @@ Verified end-to-end: anonymous → redirect/401, `support` → 403,
 - **Two dead columns on `identity.accounts`** — `last_activity_at` (null for
   all 41) and `phone_verified` (false for all 41). Neither blocks anything;
   we've asked the app team to say whether they'll be populated or dropped, so
-  a filter can be built on them or the column removed (handoff §3.6b).
+  a filter can be built on them or the column removed (handoff §3.6c).
 - **`/users` was never verified in an authenticated browser.** The sorting,
   the page-boundary behaviour of the computed `pet_count` sort, and the URL
   round-trip are covered by unit tests, live PostgREST probes and an e2e spec,
