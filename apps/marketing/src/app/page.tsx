@@ -5,6 +5,7 @@ import { Footer } from "@/components/sections/footer";
 import { Header } from "@/components/sections/header";
 import { Hero } from "@/components/sections/hero";
 import { HowItWorks } from "@/components/sections/how-it-works";
+import { Reels } from "@/components/sections/reels";
 import { VerificationFlow } from "@/components/sections/verification-flow";
 import { WaitlistForm } from "@/components/sections/waitlist-form";
 import { FaqLd, OrganizationLd, SoftwareApplicationLd } from "@/components/seo/json-ld";
@@ -25,6 +26,7 @@ export default function Home() {
         <VerificationFlow />
         <WaitlistForm />
         <Faq />
+        <Reels />
       </main>
       <Footer />
     </>

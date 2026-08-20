@@ -45,6 +45,55 @@ export const listQuerySchema = z.object({
 
 export type ListQuery = z.infer<typeof listQuerySchema>;
 
+/* -------------------------------------------------------------------------
+ * URL round-trip
+ *
+ * Both directions are derived from a schema's own keys. Route handlers and
+ * client hooks used to hand-list the params each cared about, which meant a new
+ * filter had to be added in three places — and if one was missed, the filter was
+ * silently dropped on the way to the database instead of failing. These walk
+ * `shape`, so declaring a field wires it end to end.
+ *
+ * Lives here rather than in one feature's contract because `/users`, the
+ * dashboard range filter, and any list surface that follows all need the same
+ * pair.
+ * ---------------------------------------------------------------------- */
+
+/** Any object schema whose fields all carry a `.catch()`. */
+type QuerySchema = z.ZodObject<z.ZodRawShape>;
+
+/** Reads only the keys the schema declares; everything else is parsed away. */
+export function searchParamsToQuery<S extends QuerySchema>(
+  schema: S,
+  params: URLSearchParams,
+): z.infer<S> {
+  const input: Record<string, string> = {};
+  for (const key of Object.keys(schema.shape)) {
+    const value = params.get(key);
+    // An empty param means "not set" — `?q=` should not search for "".
+    if (value !== null && value !== "") input[key] = value;
+  }
+  return schema.parse(input) as z.infer<S>;
+}
+
+/**
+ * The inverse. Pass `defaults` to leave unchanged values out — what the address
+ * bar wants (`/users` rather than `/users?dir=desc&trust=all&…`). Omit it for a
+ * fetch URL, where being explicit costs nothing.
+ */
+export function queryToSearchParams(
+  query: Record<string, unknown>,
+  defaults?: Record<string, unknown>,
+): URLSearchParams {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value === undefined || value === null || value === "") continue;
+    if (defaults && defaults[key] === value) continue;
+    params.set(key, String(value));
+  }
+  return params;
+}
+
 /**
  * Every destructive admin action carries one. The minimum length is
  * deliberate: "spam" is not an audit trail a reviewer can act on months later.

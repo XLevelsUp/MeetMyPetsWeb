@@ -573,18 +573,27 @@ Not blocking us, but worth your queue:
 - Performance: 18 unindexed foreign keys, and ~24 RLS policies calling
   `auth.uid()` per-row instead of `(select auth.uid())`.
 
-### 3.6b Two columns that look useful and are not (please confirm)
+### 3.6b Things that look useful and are not (please confirm)
 
-Found while building sorting and filtering for `/users` — both are read by
-us and both are empty for the entire population, so we built around them.
-Neither is blocking; we'd just like to know which way they're going.
+Found while building `/users` and the dashboard. All of these are readable by
+us and empty for the entire population, so we built around them rather than
+shipping controls that always return nothing. None is blocking; we'd just like
+to know which way each is going.
 
-| Column | Reality (verified 2026-08-16) | What we did |
+| What | Reality (verified 2026-08-16/17) | What we did |
 |---|---|---|
 | `identity.accounts.last_activity_at` | **null for all 41 accounts** — nothing appears to write it | Not offered as a list column or a sort. We sort on `last_login_at` instead, which is populated 41/41. The detail view still renders it, so if you start writing it, it lights up for free |
 | `identity.accounts.phone_verified` | **false for all 41 accounts** | No "phone verified" filter — it would always return zero rows and read as a broken screen. We offer "has a phone number" instead (24/41) |
+| **`identity.account_devices`** | **0 rows.** Columns are exactly right: `platform`, `app_version`, `last_active_at`, `status`, `device_token` | A device-mix chart was requested for the dashboard and **could not be built**. Schema is ready; nothing writes it |
+| **`identity.account_sessions`** | **0 rows.** Has `user_agent`, `ip_address`, `device_id`, `logged_in_at` | Same. Either table would answer "what do our users run?" — this is the one we'd most like populated |
 
-Either is fine as an answer: *"we intend to populate it"* means we leave the
+**On the two device tables specifically:** if the app starts writing a row on
+login (or on token registration), we will draw the platform breakdown with no
+further schema work and no new grants — `identity.*` is already readable by the
+admin service key. Until then a chart there would be a permanently empty card,
+and nobody can tell an unpopulated chart from a broken one.
+
+Either answer is fine per row: *"we intend to populate it"* means we leave the
 plumbing in place, and *"it's dead"* means it should be dropped rather than
 left as a column that reads like a feature. What we want to avoid is a third
 state where it stays half-wired indefinitely.

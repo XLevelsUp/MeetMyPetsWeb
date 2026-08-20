@@ -1,14 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
-import type { ApiError } from "@/lib/api-contract";
+import { analyticsRangeQuerySchema, type ApiError } from "@/lib/api-contract";
+import { resolveRange } from "@/lib/analytics-constants";
 import { fetchAnalyticsSummary } from "@/lib/analytics";
+import { searchParamsToQuery } from "@/lib/contract-shared";
 import { requireRole } from "@/lib/dal";
 import { ANALYTICS_ROLES } from "@/lib/roles";
 
 // Touches auth cookies on every hit — never cacheable.
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   // Authoritative RBAC — the proxy's 401 is only the optimistic first line.
   const session = await requireRole(...ANALYTICS_ROLES);
   if (!session.ok) {
@@ -19,7 +21,9 @@ export async function GET() {
     );
   }
 
-  const result = await fetchAnalyticsSummary();
+  // The range scopes the DELTAS, not the headline totals — see the adapter.
+  const query = searchParamsToQuery(analyticsRangeQuerySchema, request.nextUrl.searchParams);
+  const result = await fetchAnalyticsSummary(resolveRange(query.preset, query.from, query.to));
   if (!result.ok) {
     return NextResponse.json<ApiError>(
       { error: result.reason, message: result.message },
