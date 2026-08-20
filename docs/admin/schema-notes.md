@@ -55,6 +55,37 @@ FastAPI-side role system — see decision notes). `pets.pets` has `species_id`
 `matching.pet_likes` is the swipes table (`interaction_type`, `status`,
 `created_at`).
 
+## Score vs ledger: they already disagree, and by how much (2026-08-20)
+
+The app's implied invariant is `trust_score = 555 + sum(ledger deltas)`.
+Reconciled across all 59 scored pets: **55 agree, 4 do not.**
+
+| Pet | Ledger implies | Actual | Drift | Panel trust actions |
+|---|---|---|---|---|
+| Lola | 575 | 555 | −20 | 1 |
+| Mouzy | 565 | 555 | −10 | 2 |
+| Teddy | 560 | 555 | −5 | 2 |
+| Mano | 525 | 555 | **+30** | 1 |
+
+Every one sits at exactly 555 and every one has a panel trust action against it:
+these are the pets **`/trust` restored**. Restore writes an absolute 555 with no
+ledger entry, so it discards whatever drift existed — Mano gained 30 points
+nothing records.
+
+So the divergence did **not** start with report reversals; it started with the
+trust review queue. A reversal adds to it, but differently: it is a precise
+delta tied to a specific ledger row and a specific report in
+`public.admin_trust_reversals`, so it can be reconciled exactly —
+
+```
+sum(trust_score_events.delta) + sum(admin_trust_reversals.delta) + 555 == trust_score
+```
+
+— which is not true of a restore. Closing the gap for good needs the app team's
+two changes (handoff §3.6b); until then, **anything computing a score from
+`trust_score_events` alone will under-count reverted pets**, and this is the
+table to join against.
+
 ## The trust engine, as it actually is (verified 2026-08-20)
 
 Read before touching anything trust-related; several of these contradict what
@@ -442,6 +473,22 @@ matching label in `copy.audit.actionLabels`.
   `public.swipes`) and applied; `analytics.ts` now calls it via `rpc`.
 - `20260806000003_admin_moderation_tables` (Step 1) — `admin_audit_logs` +
   `admin_restrictions` with the revokes and constraints described above.
+
+## Applied 2026-08-20 — trust reversals
+
+- `20260820000000_admin_trust_reversals` — `public.admin_trust_reversals`, the
+  counter-entry for a trust deduction credited back when its report is dismissed.
+
+Verified after applying:
+
+| Check | Result |
+|---|---|
+| Grants | `service_role: SELECT, INSERT` only — `anon` and `authenticated` absent, so the default-privileges trap was caught by the revokes |
+| RLS | enabled |
+| Unique indexes | `report_id` and `trust_event_id`, both present |
+| Full path, in a rolled-back transaction | dedup-key lookup → CAS matched 1 row → score 675→755 → reversal row inserted |
+| Double refund | **blocked by the unique constraint**, not by application logic |
+| Nothing persisted | reversals 0 rows, no pet at 755, no dismissed reports |
 
 ## Applied 2026-08-17 — ranged analytics
 
