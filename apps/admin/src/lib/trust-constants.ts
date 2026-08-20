@@ -90,10 +90,33 @@ export const TRUST_REVIEW_SCORE_CEILING = 250;
  */
 export const TRUST_EVENT_DELTAS: Record<string, number> = {
   like: 5,
+  super_like: 150,
   follow: 10,
   match: 30,
   block: -80,
   report: -80,
+  /**
+   * ⚠️ In the DATA (11 rows at -20) but NOT in the live
+   * `pets.trust_score_delta`, whose CASE returns NULL for it — which makes
+   * `adjust_pet_trust_score` raise, which makes inserting any post-scoped
+   * report fail outright. Verified 2026-08-20; reported as a P1 in
+   * docs/admin/app-team-handoff.md. Kept here so the existing rows still
+   * render with the delta they were written with.
+   */
   post_report: -20,
   certificate_verified: 500,
 };
+
+/**
+ * What a dismissal credits back, by report scope. The sign is flipped from
+ * `TRUST_EVENT_DELTAS` at the point of use — these are the penalties, and a
+ * revert adds their magnitude.
+ */
+export function reportPenaltyFor(scope: "profile" | "post"): number {
+  return scope === "post" ? -TRUST_EVENT_DELTAS.post_report : -TRUST_EVENT_DELTAS.report;
+}
+
+/** The app's ledger reason for a report penalty, by scope. */
+export function reportEventReason(scope: "profile" | "post"): string {
+  return scope === "post" ? "post_report" : "report";
+}

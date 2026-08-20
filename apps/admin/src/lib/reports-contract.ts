@@ -6,6 +6,7 @@ import {
   REPORT_RESOLUTIONS,
   REPORT_SCOPES,
   REPORT_STATUSES,
+  TRUST_REVERT_OUTCOMES,
 } from "@/lib/report-constants";
 
 /**
@@ -42,6 +43,21 @@ export const trustSignalSchema = z.object({
 });
 export type TrustSignal = z.infer<typeof trustSignalSchema>;
 
+/**
+ * Preview of the trust credit a dismissal would apply.
+ *
+ * `outcome` is what WOULD happen, computed from the same guards the write path
+ * runs; `delta` and `scoreAfter` are only meaningful when it is `reverted`.
+ * The preview is advisory — the write re-checks everything, because the score
+ * can move between rendering a row and submitting the dialog.
+ */
+export const trustRevertPreviewSchema = z.object({
+  outcome: z.enum(TRUST_REVERT_OUTCOMES),
+  delta: z.number().int().nullable(),
+  scoreAfter: z.number().int().nullable(),
+});
+export type TrustRevertPreview = z.infer<typeof trustRevertPreviewSchema>;
+
 export const reportSummarySchema = z.object({
   id: z.string(),
   status: z.enum(REPORT_STATUSES),
@@ -64,6 +80,12 @@ export const reportSummarySchema = z.object({
   trust: trustSignalSchema,
   /** Total reports ever filed against this pet, this one included. */
   reportsAgainstPet: z.number().int().min(0),
+  /**
+   * What dismissing this report would do to the pet's trust score, resolved
+   * ahead of time so the dialog can state the consequence instead of the
+   * moderator discovering it afterwards.
+   */
+  revert: trustRevertPreviewSchema,
 });
 export type ReportSummary = z.infer<typeof reportSummarySchema>;
 
@@ -106,5 +128,12 @@ export const resolveReportSchema = z.object({
 });
 export type ResolveReportRequest = z.infer<typeof resolveReportSchema>;
 
-/** `{ ok: true }` — the client refetches rather than trusting a returned row. */
-export const reportActionResponseSchema = z.object({ ok: z.literal(true) });
+/**
+ * The action echoes what happened to the trust score, because "dismissed" alone
+ * would hide whether the credit landed. `null` for non-dismissal resolutions,
+ * which never touch trust.
+ */
+export const reportActionResponseSchema = z.object({
+  ok: z.literal(true),
+  revert: trustRevertPreviewSchema.nullable(),
+});
