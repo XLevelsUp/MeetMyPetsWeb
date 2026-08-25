@@ -13,6 +13,19 @@ import "./globals.css";
  */
 const META_PIXEL_ID = "1615323050153590";
 
+/**
+ * Microsoft Clarity project id.
+ *
+ * NEXT_PUBLIC_* because it is read in the browser — and that is fine: a
+ * Clarity id is a public identifier that ships in the HTML of every page
+ * either way, not a secret. The env var exists so the id can differ per
+ * environment (or be left unset to disable recording entirely on previews).
+ *
+ * Inlined at BUILD time, so changing it in Vercel requires a redeploy.
+ * Unset, the <Script> below is not rendered at all.
+ */
+const MS_CLARITY_ID = process.env.NEXT_PUBLIC_MS_CLARITY_ID;
+
 // Self-hosted at build time by next/font — no external request to Google, no
 // render-blocking <link>, and `display: swap` prevents invisible text.
 const display = Bricolage_Grotesque({
@@ -109,6 +122,22 @@ s.parentNode.insertBefore(t,s)}(window, document,'script',
 fbq('init', '${META_PIXEL_ID}');
 fbq('track', 'PageView');`}
         </Script>
+
+        {/* Microsoft Clarity — session recordings and heatmaps. Same
+            `afterInteractive` reasoning as the pixel above: analytics must
+            never sit in front of the hero paint.
+
+            Rendered only when the id is set, so an environment without one
+            ships no tag rather than a script that requests /tag/undefined. */}
+        {MS_CLARITY_ID && (
+          <Script id="ms-clarity" strategy="afterInteractive">
+            {`(function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "${MS_CLARITY_ID}");`}
+          </Script>
+        )}
 
         {/* Fallback for visitors with JavaScript disabled. Plain <img>, not
             next/image: it is a 1x1 tracking beacon, not content to optimise. */}
