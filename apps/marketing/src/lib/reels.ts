@@ -1,53 +1,50 @@
-import reelsJson from "@/data/reels.json";
+import type { ReelDto } from "@/app/api/instagram/reels/route";
 
 /**
- * One Instagram reel, as written by scripts/fetch-reels.mjs at build time.
+ * One Instagram reel, as served by /api/instagram/reels.
  *
- * The section renders whatever is in src/data/reels.json. That file is
- * committed with an empty array as its seed: the fetch script overwrites it
- * when a token is present, and leaves it alone when the token is missing or
- * Instagram is down. An empty array hides the section entirely rather than
- * rendering an empty shell.
+ * Fetched at request time, not build time. Instagram's media_url is a signed
+ * CDN link that expires within hours, so anything baked into the HTML is dead
+ * before most visitors arrive — see the comments in the two route handlers.
  */
-export type Reel = {
-  id: string;
-  permalink: string;
-  /** Poster frame. Signed CDN URL — expires, so it is re-fetched every build. */
-  thumbnail: string | null;
-  /** The mp4 itself. Only the featured reel actually loads it. */
-  video: string | null;
-  caption: string;
-  timestamp: string | null;
-};
-
-const all = reelsJson as Reel[];
-
-/** Build-time constant, so the page can drop the section without a runtime check. */
-export const hasReels = all.length > 0;
+export type Reel = ReelDto;
 
 /**
- * Reordered so the NEWEST reel sits in the middle slot.
+ * Playback source for a reel.
  *
- * Instagram returns newest-first, which would put the freshest reel on the
- * left. The centre is the optical anchor of a three-up row — it is what the
- * eye lands on first and what the featured treatment is built around — so the
- * newest belongs there.
+ * Deliberately this app's own path, never Instagram's media_url: the proxy
+ * mints a fresh signed URL per request, which is the whole reason playback
+ * cannot go stale. The id is permanent and safe to embed.
+ */
+export function videoSrc(id: string): string {
+  return `/api/instagram/reels/video/${id}`;
+}
+
+/**
+ * Reorders so the NEWEST reel sits in the middle slot.
+ *
+ * The API returns newest-first, which would put the freshest reel on the left.
+ * The centre is the optical anchor of a three-up row — it is what the eye lands
+ * on first and what the featured treatment is built around — so the newest
+ * belongs there.
  *
  * [newest, second, third] -> [second, NEWEST, third]
  *
  * Only the exact three-item case is reordered. With one or two reels there is
- * no meaningful "centre", and shuffling them would just scramble the order for
- * no visual gain.
+ * no meaningful "centre", and shuffling them would scramble the order for no
+ * visual gain.
  */
-export const reels: Reel[] = all.length === 3 ? [all[1], all[0], all[2]] : all;
-
-/** Index of the featured (largest, autoplaying) card. */
-export const featuredIndex = all.length === 3 ? 1 : 0;
+export function arrangeReels(all: Reel[]): { reels: Reel[]; featuredIndex: number } {
+  if (all.length === 3) {
+    return { reels: [all[1], all[0], all[2]], featuredIndex: 1 };
+  }
+  return { reels: all, featuredIndex: 0 };
+}
 
 /**
  * Instagram captions run long and carry hashtag tails. The card shows a single
- * line as context, not the post itself — the reel is the content, and a wall
- * of hashtags under each thumbnail is noise.
+ * line as context, not the post itself — the reel is the content, and a wall of
+ * hashtags under each thumbnail is noise.
  */
 export function captionPreview(caption: string, max = 72): string {
   const firstLine = caption.split("\n").find((line) => line.trim().length > 0) ?? "";

@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Reveal } from "@/components/motion/Reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { captionPreview, featuredIndex, hasReels, reels, type Reel } from "@/lib/reels";
+import { arrangeReels, captionPreview, videoSrc, type Reel } from "@/lib/reels";
 import { site } from "@/config/site";
 import { cn } from "@/lib/utils";
 
@@ -194,8 +194,9 @@ function ReelCard({
   const [hovered, setHovered] = useState(false);
 
   // Side cards swap their poster <img> for a <video> on hover; the featured
-  // card is video from the start.
-  const playsVideo = Boolean(reel.video) && (featured || hovered);
+  // card is video from the start. `playable` is false when Meta withheld
+  // media_url for this reel — those stay a poster that opens the permalink.
+  const playsVideo = reel.playable && (featured || hovered);
 
   return (
     <motion.a
@@ -244,9 +245,11 @@ function ReelCard({
         )}
         style={{ clipPath: clip }}
       >
-        {playsVideo && reel.video ? (
+        {playsVideo ? (
           <ReelVideo
-            src={reel.video}
+            // This app's proxy, never Instagram's media_url — the proxy mints
+            // a fresh signed URL per request, so playback cannot go stale.
+            src={videoSrc(reel.id)}
             poster={reel.thumbnail}
             label={caption ? `Instagram reel: ${caption}` : "Instagram reel from MeetMyPets"}
             featured={featured}
@@ -326,14 +329,39 @@ function ReelCard({
  * clip-path also reliably clips <video>, which overflow-hidden on a rounded
  * parent does not in Safari.
  *
- * Thumbnails and video are plain <img>/<video>. next/image needs a loader this
- * app does not have (`images.unoptimized` under static export), and Instagram
- * CDN URLs are signed and expire, so they cannot be pre-optimised at build.
+ * Thumbnails are plain <img>: Instagram CDN URLs are signed and short-lived,
+ * so there is nothing for next/image to pre-optimise.
  */
 export function Reels() {
-  // Build-time constant: with no reels the whole section disappears rather
-  // than rendering a heading above an empty row.
-  if (!hasReels) return null;
+  const [all, setAll] = useState<Reel[] | null>(null);
+
+  // Fetched on mount rather than at build: a build-time media_url is a signed
+  // link that expires within hours, so the HTML would ship a dead URL.
+  useEffect(() => {
+    let active = true;
+
+    fetch("/api/instagram/reels")
+      .then((response) => (response.ok ? response.json() : { reels: [] }))
+      .then((body: { reels?: Reel[] }) => {
+        if (active) setAll(Array.isArray(body.reels) ? body.reels : []);
+      })
+      .catch(() => {
+        // The section hides itself on failure; a visitor can do nothing with
+        // an error message about our Instagram feed.
+        if (active) setAll([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // null = still loading. Render nothing rather than a skeleton: this sits
+  // above the footer, and a placeholder that resolves to nothing would shift
+  // the page under anyone already scrolled there.
+  if (all === null || all.length === 0) return null;
+
+  const { reels, featuredIndex } = arrangeReels(all);
 
   return (
     <section id="reels" className="relative scroll-mt-24 overflow-hidden py-20 sm:py-28">
