@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Nunito_Sans } from "next/font/google";
+import { Bricolage_Grotesque, Love_Ya_Like_A_Sister, Nunito_Sans } from "next/font/google";
 import Script from "next/script";
 
 import { site } from "@/config/site";
@@ -37,6 +37,21 @@ const display = Bricolage_Grotesque({
 const body = Nunito_Sans({
   variable: "--font-body",
   subsets: ["latin"],
+  display: "swap",
+});
+
+/**
+ * The wordmark face — used ONLY for the "MeetMyPets" brand name, never for
+ * running text. It is a single-weight handwritten display font: charming as a
+ * logotype, unreadable as a paragraph.
+ *
+ * `weight: "400"` is required — this family ships one weight, and next/font
+ * will not infer it for a non-variable font.
+ */
+const brand = Love_Ya_Like_A_Sister({
+  variable: "--font-brand",
+  subsets: ["latin"],
+  weight: "400",
   display: "swap",
 });
 
@@ -86,7 +101,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en-IN" className={`${display.variable} ${body.variable} h-full antialiased`}>
+    <html
+      lang="en-IN"
+      className={`${display.variable} ${body.variable} ${brand.variable} h-full antialiased`}
+    >
       <head>
         {/* Scroll-reveal elements are prerendered at opacity:0. Without JS they
             would never animate in, leaving the page visually blank, so force

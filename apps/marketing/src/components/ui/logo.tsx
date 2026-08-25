@@ -57,7 +57,10 @@ export function Logo({ className }: { className?: string }) {
         priority
         className="size-9 shrink-0"
       />
-      <span className="font-heading text-lg font-semibold tracking-tight">{site.name}</span>
+      {/* Love Ya Like A Sister. Its lowercase runs small and its strokes are
+          thin, so it needs a size bump and normal weight to sit level with the
+          mark — font-semibold on a handwritten face just muddies it. */}
+      <span className="font-wordmark text-2xl leading-none text-ink">{site.name}</span>
     </span>
   );
 }
