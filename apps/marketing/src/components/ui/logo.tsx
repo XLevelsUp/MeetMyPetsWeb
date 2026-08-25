@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 import { cn } from "@/lib/utils";
 import { site } from "@/config/site";
 
@@ -30,33 +32,29 @@ export function PawMark({ className }: { className?: string }) {
 /**
  * The brand lockup used in the header and footer.
  *
- * The mark is served from /brand-mark.svg rather than inlined: it carries four
- * linear gradients of its own (#E50037 → #FF7A00 → #FFC107), so unlike
- * PawMark it cannot take currentColor, and inlining ~7.6KB of gradient defs
- * into every page would cost more than the one cached request it replaces.
+ * next/image, not a plain <img>: the source is an 87KB 512px PNG and this
+ * renders at 36px. The optimiser serves a correctly-sized WebP instead, which
+ * matters because the mark sits in the header of every page. (This was a plain
+ * <img> while the app was a static export and had no optimiser; dropping
+ * `output: "export"` for the Instagram proxy made next/image work here.)
  *
- * Plain <img>, not next/image: `images.unoptimized` is set under static
- * export, so next/image would add a wrapper and no optimisation. An SVG is
- * already resolution-independent — there is nothing to optimise.
- *
- * No coloured tile behind it any more. The old placeholder was a white paw
- * that needed a brand-orange plate to read at all; this mark supplies its own
- * colour, and a plate would clash with its gradient.
+ * No coloured tile behind it. The old placeholder was a white paw that needed
+ * a brand-orange plate to read at all; this mark supplies its own gradient,
+ * and a plate would clash with it.
  */
 export function Logo({ className }: { className?: string }) {
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       {/* Decorative: the wordmark beside it already names the brand, so an
           alt here would make screen readers announce "MeetMyPets" twice. */}
-      {/* eslint-disable-next-line @next/next/no-img-element --
-          see the doc comment above: unoptimized static export, and an SVG has
-          no raster variants for next/image to generate. */}
-      <img
-        src="/brand-mark.svg"
+      <Image
+        src="/brand-mark.png"
         alt=""
         aria-hidden="true"
-        width={36}
-        height={36}
+        width={72}
+        height={72}
+        // In the header on every page, so it must not arrive late.
+        priority
         className="size-9 shrink-0"
       />
       <span className="font-heading text-lg font-semibold tracking-tight">{site.name}</span>
