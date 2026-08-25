@@ -35,6 +35,10 @@
   --font-sans: var(--font-body);
   --font-heading: var(--font-display);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Wordmark only — `font-wordmark` on the brand name, never on running text.
+     A single-weight handwritten face is charming as a logotype and unreadable
+     as a paragraph. */
+  --font-wordmark: var(--font-brand);
 
   /* Brand scale */
   --color-brand: var(--brand);
