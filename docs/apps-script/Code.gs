@@ -153,6 +153,14 @@ const BADGE_URL = SITE_URL + '/cil_badge.png';
 /** Figma "ci:chat-circle" paw icon, exported pre-rotated. Source: apps/marketing/public/ci_chat-circle.png. */
 const PAW_URL = SITE_URL + '/ci_chat-circle.png';
 
+/** Dark-text "MeetMyPets" wordmark, for the light-background footer box shown
+ * on dark-mode desktop. Source: apps/marketing/public/MeetMyPets (1).png. */
+const FOOTER_LOGO_DARK_TEXT_URL = SITE_URL + '/MeetMyPets%20(1).png';
+
+/** Light-text "MeetMyPets" wordmark, for the brand-color footer box shown on
+ * light-mode desktop. Source: apps/marketing/public/MeetMyPets (2).png. */
+const FOOTER_LOGO_LIGHT_TEXT_URL = SITE_URL + '/MeetMyPets%20(2).png';
+
 /**
  * Email body — matches the Figma "Waitlist mail mobile" frame (light card
  * #FFFAFA, dark card variant from the design's night-mode screenshot).
@@ -181,136 +189,245 @@ function welcomeHtml() {
     '<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500&family=Nunito+Sans:wght@400;500;600&display=swap" rel="stylesheet">',
     '<title>Your MeetMyPets pre-registration is confirmed</title>',
     '<style>',
+
+    '/* 1. PAGE / LAYOUT */',
+    'html, body { height:100%; margin:0; padding:0; background:#e4e4e7; }',
+    '.mmp-preheader { display:none; max-height:0; overflow:hidden; opacity:0; line-height:1px; }',
+    '.mmp-viewport { width:100%; max-width:380px; margin:0 auto; display:flex; align-items:center; justify-content:center; min-height:100vh; }',
+    '.mmp-outer { width:100%; box-sizing:border-box; background:#f4f4f5; padding:32px 16px; }',
+
+    '/* 2. CARD CONTAINER */',
+    '.mmp-card { width:100%; max-width:320px; min-height:763px; background:#FFFAFA; border-radius:24px; font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif; }',
+
+    '/* 3. LOGO */',
+    '.mmp-logo-cell { padding:56px 24px 0; }',
+    '.mmp-logo-icon { display:block; width:103px; height:103px; margin:0 auto; }',
+    '.mmp-logo-wordmark { display:block; width:163px; height:28px; margin:1px auto 0; }',
+
+    '/* 4. HEADLINE */',
+    '.mmp-headline-cell { padding:12px 16px 0; }',
+    '.mmp-headline { font-family:\'Bricolage Grotesque\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif; font-size:16px; font-weight:500; line-height:100%; color:#FF1744; }',
+    '.mmp-headline-text { display:block; font-family:\'Bricolage Grotesque\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif; font-size:20px; font-weight:500; font-style:normal; line-height:100%; letter-spacing:0; text-align:center; }',
+
+    '/* 5. BADGE + EARLY CREW MESSAGE */',
+    '.mmp-badge-cell { padding:28px 32px 0; }',
+    '.mmp-badge-icon { display:block; width:40px; height:40px; margin:0 auto; }',
+    '.mmp-crew-text { margin:12px 0 0; font-family:\'Bricolage Grotesque\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif; font-size:20px; font-weight:500; line-height:100%; color:#FFC107; }',
+
+    '/* 6. BODY TEXT (shared) */',
+    '.mmp-body { font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif; font-size:13px; font-weight:500; line-height:13px; color:#212738; }',
+    '.mmp-thanks-cell { padding:20px 38px 0; }',
+
+    '/* 7. CALLOUT BOX — liquid-glass, MSO fallback in the conditional block below */',
+    '.mmp-callout-cell { padding:28px 38px 0; }',
+    '.mmp-callout-inner {',
+    'position: relative;',
+    'background: #FFFFFF;',
+    'border: 1px solid rgba(255,255,255,0.65);',
+    'border-radius:14px;',
+    '-webkit-backdrop-filter: blur(18px) saturate(160%);',
+    'backdrop-filter: blur(18px) saturate(160%);',
+    'box-shadow: 0 8px 24px rgba(33,39,56,0.10), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 -1px 0 rgba(255,255,255,0.15);',
+    '}',
+    '.mmp-callout-text { padding:19px 12px; font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif; font-size:13px; font-weight:500; font-style:normal; line-height:100%; letter-spacing:0; text-align:center; color:#212738; position: relative; z-index: 1; }',
+
+    '/* 8. STAY CONNECTED ROW */',
+    '.mmp-stay-cell { padding:17px 32px 0; }',
+    '.mmp-stay-table { margin:0 auto; }',
+    '.mmp-stay { font-family:\'Bricolage Grotesque\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif; font-size:16px; font-weight:500; line-height:16px; color:#212738; }',
+    '.mmp-stay-text { padding-right:6px; }',
+    '.mmp-stay-icon-cell { width:24px; }',
+    '.mmp-stay-icon { display:block; width:24px; height:24px; opacity:0.9; }',
+
+    '/* 9. FOLLOW / SOCIAL LINKS */',
+    '.mmp-follow-cell { padding:23px 38px 0; font-weight:400; }',
+    '.mmp-links-cell { padding:18px 38px 0; font-weight:400; }',
+    '.mmp-link { color:#212738; }',
+    '.mmp-follow-text, .mmp-links-text { font-size:13px; line-height:100%; }',
+
+    '/* 10. CLOSING SIGN-OFF */',
+    '.mmp-closing-cell { padding:28px 32px 40px; font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif; font-size:16px; font-weight:600; font-style:semi-bold; line-height:100%; color:#212738; }',
+    '.mmp-closing-text { font-size:16px; line-height:100%; }',
+    '.mmp-dark-footer-box { display:none; }',
+    '.mmp-dark-footer-spacer { display:none; }',
+    '.mmp-light-footer-box { display:none; }',
+    '.mmp-light-footer-spacer { display:none; }',
+
+    '/* 11. DARK MODE OVERRIDES */',
     '@media (prefers-color-scheme: dark) {',
-    '.mmp-card { background:#1c2033 !important; }',
+    'html, body { background:#14171F !important; }',
+    '.mmp-outer { background:#14171F !important; }',
+    '.mmp-card { background:#212738 !important; }',
+    '.mmp-callout-inner { background: var(--Brand-Soft-Accent, rgba(255, 250, 250, 0.2)) !important; border:1px solid rgba(255,255,255,0.12) !important; box-shadow:0 8px 24px rgba(33,39,56,0.10) !important; }',
+    '.mmp-callout-text { font-weight:400 !important; }',
     '.mmp-headline { color:#FF1744 !important; }',
     '.mmp-body, .mmp-footer, .mmp-stay { color:#F5F5F7 !important; }',
-    '.mmp-link { color:#F5F5F7 !important; }',
+    '.mmp-link { color:#FFFAFA !important; }',
+    '.mmp-light-footer-box { display:none !important; }',
     '}',
-    // Tablet/desktop (Figma "600x900" frame): 1.875x scale of the 320px
-    // mobile card. Ignored by clients with no media-query support (Outlook
-    // desktop), which safely keep the mobile layout as a fallback.
-    '@media (min-width: 481px) {',
-    '.mmp-card { max-width:600px !important; }',
-    '.mmp-logo-icon { width:193px !important; height:193px !important; }',
-    '.mmp-logo-wordmark { width:306px !important; height:53px !important; }',
-    '.mmp-headline-cell { padding:22px 30px 0 !important; }',
-    '.mmp-headline-text { font-size:30px !important; line-height:30px !important; }',
-    '.mmp-badge-cell { padding:52px 60px 0 !important; }',
-    '.mmp-badge-icon { width:75px !important; height:75px !important; }',
-    '.mmp-crew-text { font-size:37px !important; line-height:37px !important; margin-top:22px !important; }',
-    '.mmp-thanks-cell { padding:37px 70px 0 !important; }',
-    '.mmp-thanks-text { font-size:24px !important; line-height:24px !important; }',
-    '.mmp-callout-cell { padding:52px 70px 0 !important; }',
-    '.mmp-callout-inner { border-radius:26px !important; }',
-    '.mmp-callout-text { padding:36px 22px !important; font-size:24px !important; line-height:24px !important; }',
-    '.mmp-stay-cell { padding:32px 60px 0 !important; }',
-    '.mmp-stay-text { font-size:30px !important; line-height:30px !important; padding-right:11px !important; }',
-    '.mmp-stay-icon { width:45px !important; height:45px !important; }',
-    '.mmp-follow-cell { padding:43px 71px 0 !important; }',
-    '.mmp-follow-text { font-size:24px !important; line-height:24px !important; }',
-    '.mmp-links-cell { padding:34px 71px 0 !important; }',
-    '.mmp-links-text { font-size:24px !important; line-height:24px !important; }',
-    '.mmp-closing-cell { padding:52px 60px 75px !important; }',
-    '.mmp-closing-text { font-size:30px !important; line-height:30px !important; }',
-    '}',
-    '</style>',
-    '</head>',
-    '<body style="margin:0;padding:0;background:#f4f4f5;">',
-    // Hidden preview line — what inboxes show next to the subject.
-    '<div style="display:none;max-height:0;overflow:hidden;opacity:0;">',
-    'You are on the early access list. We will email you the day MeetMyPets goes live.',
-    '</div>',
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"',
-    ' style="background:#f4f4f5;padding:32px 16px;">',
-    '<tr><td align="center">',
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="mmp-card"',
-    ' style="max-width:320px;background:#FFFAFA;border-radius:24px;',
-    'font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">',
 
-    // Logo mark — Figma: icon 103x103 top:56, wordmark 186x31.5 top:160 (i.e.
-    // touching the icon's bottom edge). Wordmark is a flattened gradient PNG:
-    // email clients cannot render gradient text reliably as live markup.
-    '<tr><td align="center" style="padding:56px 24px 0;">',
-    '<img src="' + LOGO_URL + '" width="103" height="103" alt="" class="mmp-logo-icon"',
-    ' style="display:block;width:103px;height:103px;margin:0 auto;">',
-    '<img src="' + WORDMARK_URL + '" width="163" height="28" alt="MeetMyPets" class="mmp-logo-wordmark"',
-    ' style="display:block;width:163px;height:28px;margin:1px auto 0;">',
+    '/* 12. LARGER SCREENS (>=481px) */',
+    '@media (min-width: 481px) {',
+    '.mmp-viewport { max-width:632px !important; align-items:flex-start; }',
+    '.mmp-outer { padding:62px 16px 32px !important; }',
+    '.mmp-card { width:100% !important; max-width:600px !important; min-height:900px !important; }',
+    '.mmp-logo-icon { width:193px !important; height:193px !important; max-width:100% !important; }',
+    '.mmp-logo-wordmark { width:183.0188px !important; height:33.6248px !important; max-width:100% !important; }',
+    '.mmp-headline-cell { padding:22px 30px 0 !important; }',
+    '.mmp-badge-cell { padding:52px 60px 0 !important; }',
+    '.mmp-badge-icon { width:56px !important; height:56px !important; }',
+    '.mmp-crew-text { font-family:\'Bricolage Grotesque\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif !important; font-size:28px !important; font-weight:500 !important; font-style:normal !important; line-height:100% !important; letter-spacing:0 !important; text-align:center !important; margin-top:22px !important; }',
+    '.mmp-thanks-cell { padding:37px 70px 0 !important; }',
+    '.mmp-thanks-text { font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif !important; font-size:16px !important; font-weight:500 !important; font-style:normal !important; line-height:100% !important; letter-spacing:0 !important; text-align:center !important; }',
+    '.mmp-callout-cell { padding:52px 36px 0 !important; }',
+    '.mmp-callout-inner { width:100% !important; max-width:100% !important; min-height:112px !important; border-radius:14px !important; }',
+    '.mmp-light-footer-box { display:none !important; width:100% !important; max-width:600px !important; height:136px !important; box-sizing:border-box; padding-top:22px !important; background:var(--Brand-Primary, #FF1744) !important; }',
+    '.mmp-light-footer-logo { display:block !important; width:145px !important; height:26.6399px !important; max-width:100% !important; margin:22px auto 0 !important; }',
+    '.mmp-light-footer-box .mmp-light-footer-logo { margin-top:0 !important; }',
+    '.mmp-light-footer-links { display:block !important; width:153px !important; height:16px !important; max-width:100% !important; margin:19px auto 0 !important; color:#FFFAFA !important; font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif !important; font-size:12px !important; font-weight:400 !important; line-height:100% !important; text-align:center !important; }',
+    '.mmp-light-footer-notice { display:block !important; width:374px !important; height:15px !important; max-width:100% !important; margin:10px auto 0 !important; color:#FFFAFA !important; font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif !important; font-size:11px !important; font-weight:400 !important; line-height:100% !important; text-align:center !important; }',
+    '.mmp-callout-text { padding:36px 22px !important; font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif !important; font-size:16px !important; font-weight:500 !important; font-style:normal !important; line-height:100% !important; letter-spacing:0 !important; text-align:center !important; }',
+    '.mmp-stay-cell { padding:32px 60px 0 !important; }',
+    '.mmp-stay-text { font-family:\'Bricolage Grotesque\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif !important; font-size:20px !important; font-weight:500 !important; font-style:normal !important; line-height:100% !important; letter-spacing:0 !important; text-align:center !important; padding-right:11px !important; }',
+    '.mmp-stay-icon { width:31px !important; height:31px !important; opacity:0.9 !important; }',
+    '@media (prefers-color-scheme: dark) and (min-width: 769px) {',
+    '.mmp-stay-text { font-family:\'Bricolage Grotesque\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif !important; font-size:20px !important; font-weight:500 !important; font-style:normal !important; line-height:100% !important; letter-spacing:0 !important; text-align:center !important; }',
+    '.mmp-stay-icon { width:31px !important; height:31px !important; opacity:0.9 !important; }',
+    '}',
+    '.mmp-follow-cell { padding:43px 71px 0 !important; }',
+    '.mmp-follow-text { font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif !important; font-size:16px !important; font-weight:400 !important; font-style:normal !important; line-height:100% !important; letter-spacing:0 !important; text-align:center !important; }',
+    '.mmp-links-cell { padding:34px 71px 0 !important; }',
+    '.mmp-links-text { font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif !important; font-size:16px !important; font-weight:400 !important; font-style:normal !important; line-height:100% !important; letter-spacing:0 !important; text-align:center !important; }',
+    '.mmp-links-text .mmp-link { text-decoration-line:underline !important; text-decoration-style:solid !important; text-decoration-thickness:0% !important; text-decoration-skip-ink:auto !important; }',
+    '.mmp-closing-cell { padding:52px 60px 75px !important; }',
+    '.mmp-closing-text { font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif !important; font-size:20px !important; font-weight:600 !important; font-style:semi-bold !important; line-height:100% !important; letter-spacing:0 !important; text-align:center !important; }',
+    '}',
+
+    '@media (min-width: 769px) {',
+    '.mmp-card { width:600px !important; max-width:600px !important; min-height:1200px !important; }',
+    '.mmp-logo-cell { padding-top:22.32px !important; }',
+    '.mmp-logo-icon { width:109.8894px !important; height:109.8894px !important; }',
+    '.mmp-logo-wordmark { width:183.0188px !important; height:33.6248px !important; }',
+    '.mmp-headline-cell { padding:34px 36px 0 !important; }',
+    '.mmp-headline-text { width:528px !important; max-width:100% !important; font-size:24px !important; line-height:100% !important; }',
+    '.mmp-badge-cell { padding:12px 36px 0 !important; }',
+    '.mmp-badge-icon { width:56px !important; height:56px !important; }',
+    '.mmp-thanks-cell { padding:37px 36px 0 !important; }',
+    '.mmp-thanks-text { width:528px !important; max-width:100% !important; font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif !important; font-size:16px !important; font-weight:500 !important; font-style:normal !important; line-height:100% !important; letter-spacing:0 !important; text-align:center !important; }',
+    '.mmp-callout-cell { padding:52px 36px 0 !important; }',
+    '.mmp-callout-inner { width:528px !important; max-width:100% !important; height:112px !important; min-height:112px !important; border-radius:14px !important; }',
+    '.mmp-light-footer-box { display:block !important; width:600px !important; max-width:100% !important; height:136px !important; background:var(--Brand-Primary, #FF1744) !important; }',
+    '.mmp-light-footer-logo { display:block !important; width:145px !important; height:26.6399px !important; max-width:100% !important; margin:22px auto 0 !important; }',
+    '.mmp-light-footer-spacer { display:block !important; width:600px !important; max-width:100% !important; height:110px !important; background:var(--Brand-Soft-Accent, #FFFAFA) !important; border-bottom-left-radius:24px !important; border-bottom-right-radius:24px !important; overflow:hidden; }',
+    '}',
+
+    '@media (prefers-color-scheme: dark) and (min-width: 769px) {',
+    '.mmp-light-footer-box { display:none !important; }',
+    '.mmp-light-footer-spacer { display:none !important; }',
+    '.mmp-outer { padding-bottom:0 !important; }',
+    '.mmp-callout-cell { padding-top:33px !important; }',
+    '.mmp-links-cell { width:528px !important; max-width:100% !important; height:44px !important; box-sizing:border-box; padding:34px 36px 0 !important; }',
+    '.mmp-links-text { width:528px !important; max-width:100% !important; font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif !important; font-size:16px !important; font-weight:400 !important; font-style:normal !important; line-height:100% !important; letter-spacing:0 !important; text-align:center !important; }',
+    '.mmp-links-text .mmp-link { text-decoration-line:underline !important; text-decoration-style:solid !important; text-decoration-offset:0% !important; text-decoration-thickness:0% !important; text-decoration-skip-ink:auto !important; }',
+    '.mmp-closing-cell { padding-bottom:24px !important; }',
+    '.mmp-closing-text { display:block !important; width:254px !important; max-width:100% !important; height:54px !important; box-sizing:border-box; font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif !important; font-size:20px !important; font-weight:600 !important; font-style:normal !important; line-height:100% !important; letter-spacing:0 !important; text-align:center !important; }',
+    '.mmp-dark-footer-box { display:block !important; width:600px !important; max-width:100% !important; height:136px !important; box-sizing:border-box; padding:22px 0 !important; background:var(--Brand-Soft-Accent, #FFFAFA) !important; }',
+    '.mmp-footer-logo { display:block !important; width:145px !important; height:26.6399px !important; max-width:100% !important; margin:0 auto !important; background:var(--Brand-Soft-Accent, #FFFAFA) !important; }',
+    '.mmp-footer-links { display:block !important; width:153px !important; height:16px !important; max-width:100% !important; margin:19px auto 0 !important; color:#667086 !important; font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif !important; font-size:12px !important; font-weight:400 !important; font-style:normal !important; line-height:100% !important; letter-spacing:0 !important; text-align:center !important; }',
+    '.mmp-footer-notice { display:block !important; width:374px !important; height:15px !important; max-width:100% !important; margin:10px auto 0 !important; color:#667086 !important; font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif !important; font-size:11px !important; font-weight:400 !important; font-style:normal !important; line-height:100% !important; letter-spacing:0 !important; text-align:center !important; }',
+    '.mmp-dark-footer-spacer { display:block !important; width:600px !important; max-width:100% !important; height:110px !important; background:#212738 !important; border-bottom-left-radius:24px !important; border-bottom-right-radius:24px !important; overflow:hidden; }',
+    '}',
+
+    '</style>',
+
+    '<!--[if mso]>',
+    '<style type="text/css">',
+    '.mmp-callout-inner { background:#F1EFEA !important; border:1px solid #E3DFD6 !important; }',
+    '</style>',
+    '<![endif]-->',
+
+    '</head>',
+    '<body>',
+    '<div class="mmp-preheader">You are on the early access list. We will email you the day MeetMyPets goes live.</div>',
+    '<div class="mmp-viewport">',
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="mmp-outer">',
+    '<tr><td align="center">',
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="mmp-card">',
+
+    // 3. LOGO
+    '<tr><td align="center" class="mmp-logo-cell">',
+    '<img src="' + LOGO_URL + '" width="103" height="103" alt="" class="mmp-logo-icon">',
+    '<img src="' + WORDMARK_URL + '" width="163" height="28" alt="MeetMyPets" class="mmp-logo-wordmark">',
     '</td></tr>',
 
-    // Headline — Figma: Bricolage Grotesque 500 16px/100%, #FF1744, 281x19 box.
-    // nowrap matches the fixed-width Figma box, which never wraps this line.
-    '<tr><td align="center" class="mmp-headline mmp-headline-cell" style="padding:12px 16px 0;white-space:nowrap;',
-    'font-family:\'Bricolage Grotesque\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;',
-    'font-size:16px;font-weight:500;line-height:16px;color:#FF1744;">',
+    // 4. HEADLINE
+    '<tr><td align="center" class="mmp-headline mmp-headline-cell">',
     '<span class="mmp-headline-text">You&rsquo;re in &mdash; welcome to MeetMyPets!</span>',
     '</td></tr>',
 
-    // Badge icon (Figma "cil:badge", 40x40) + "officially part of the crew"
-    '<tr><td align="center" class="mmp-badge-cell" style="padding:28px 32px 0;">',
-    '<img src="' + BADGE_URL + '" width="40" height="40" alt="" class="mmp-badge-icon"',
-    ' style="display:block;width:40px;height:40px;margin:0 auto;">',
-    '<p class="mmp-crew-text" style="margin:12px 0 0;font-family:\'Bricolage Grotesque\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;',
-    'font-size:20px;font-weight:500;line-height:20px;color:#FFC107;">',
-    'You&rsquo;re officially part of the MeetMyPets early crew!</p>',
+    // 5. BADGE + EARLY CREW MESSAGE
+    '<tr><td align="center" class="mmp-badge-cell">',
+    '<img src="' + BADGE_URL + '" width="40" height="40" alt="" class="mmp-badge-icon">',
+    '<p class="mmp-crew-text">You&rsquo;re officially part of the MeetMyPets early crew!</p>',
     '</td></tr>',
 
-    // Body copy — Nunito Sans 500 13px/100%, #212738
-    '<tr><td align="center" class="mmp-body mmp-thanks-cell" style="padding:20px 38px 0;',
-    'font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;',
-    'font-size:13px;font-weight:500;line-height:13px;color:#212738;">',
+    // 6. THANKS LINE
+    '<tr><td align="center" class="mmp-body mmp-thanks-cell">',
     '<span class="mmp-thanks-text">Thanks for joining us before launch. Your spot is saved.</span>',
     '</td></tr>',
 
-    // Callout box — Figma "Rectangle 111": 244x112, radius 14, #FFFAFA @ 20%
-    '<tr><td class="mmp-callout-cell" style="padding:28px 38px 0;">',
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="mmp-callout mmp-callout-inner"',
-    ' style="background:rgba(255,250,250,0.2);border-radius:14px;">',
-    '<tr><td align="center" class="mmp-body mmp-callout-text" style="padding:19px 12px;',
-    'font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;',
-    'font-size:13px;font-weight:500;line-height:13px;color:#212738;">',
-    'No endless emails. Just one important update when we&rsquo;re ready. ',
-    'Something exciting is coming for you and your pet.',
+    // 7. CALLOUT BOX
+    '<tr><td class="mmp-callout-cell">',
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F1EFEA" class="mmp-callout mmp-callout-inner">',
+    '<tr><td align="center" class="mmp-body mmp-callout-text">',
+    'No endless emails. Just one important update when we&rsquo;re ready. Something exciting is coming for you and your pet.',
     '</td></tr>',
     '</table>',
     '</td></tr>',
 
-    // Stay connected — Bricolage Grotesque 500 16px/100%, #212738 + paw icon
-    // (Figma "ci:chat-circle", 24x24, pre-rotated -180 in the exported PNG)
-    '<tr><td align="center" class="mmp-stay-cell" style="padding:17px 32px 0;">',
-    '<table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr>',
-    '<td class="mmp-stay mmp-stay-text" style="font-family:\'Bricolage Grotesque\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;',
-    'font-size:16px;font-weight:500;line-height:16px;color:#212738;padding-right:6px;">',
-    'Stay connected</td>',
-    '<td style="width:24px;">',
-    '<img src="' + PAW_URL + '" width="24" height="24" alt="" class="mmp-stay-icon"',
-    ' style="display:block;width:24px;height:24px;opacity:0.9;">',
-    '</td>',
+    // 8. STAY CONNECTED ROW
+    '<tr><td align="center" class="mmp-stay-cell">',
+    '<table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" class="mmp-stay-table"><tr>',
+    '<td class="mmp-stay mmp-stay-text">Stay connected</td>',
+    '<td class="mmp-stay-icon-cell"><img src="' + PAW_URL + '" width="24" height="24" alt="" class="mmp-stay-icon"></td>',
     '</tr></table>',
     '</td></tr>',
 
-    '<tr><td align="center" class="mmp-body mmp-follow-cell" style="padding:23px 38px 0;',
-    'font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;',
-    'font-size:13px;font-weight:400;line-height:13px;color:#212738;">',
+    // 9. FOLLOW / SOCIAL LINKS
+    '<tr><td align="center" class="mmp-body mmp-follow-cell">',
     '<span class="mmp-follow-text">Follow us for pet stories, tips, fun, and sneak peeks.</span>',
     '</td></tr>',
-
-    '<tr><td align="center" class="mmp-body mmp-links-cell" style="padding:18px 38px 0;',
-    'font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;',
-    'font-size:13px;font-weight:400;line-height:13px;color:#212738;">',
-    '<span class="mmp-links-text">Website: <a href="' + SITE_URL + '" class="mmp-link" style="color:#212738;">MeetMyPets</a><br>',
-    'Instagram: <a href="https://instagram.com/meetmypets.app" class="mmp-link" style="color:#212738;">@meetmypets.app</a></span>',
+    '<tr><td align="center" class="mmp-body mmp-links-cell">',
+    '<span class="mmp-links-text">Website: <a href="' + SITE_URL + '" class="mmp-link">MeetMyPets</a><br>',
+    'Instagram: <a href="https://instagram.com/meetmypets.app" class="mmp-link">@meetmypets.app</a></span>',
     '</td></tr>',
 
-    '<tr><td align="center" class="mmp-stay mmp-closing-cell" style="padding:28px 32px 40px;',
-    'font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;',
-    'font-size:16px;font-weight:600;line-height:16px;color:#212738;">',
+    // 10. CLOSING SIGN-OFF
+    '<tr><td align="center" class="mmp-stay mmp-closing-cell">',
     '<span class="mmp-closing-text">See you and your pet soon,<br>Team MeetMyPets &#10084;&#65039;</span>',
     '</td></tr>',
 
-    '</table>',
+    // LIGHT MODE FOOTER BOX (brand-color bg, light-text wordmark)
+    '<tr><td align="center" valign="top" class="mmp-light-footer-box">',
+    '<img src="' + FOOTER_LOGO_LIGHT_TEXT_URL + '" width="145" height="27" alt="MeetMyPets" class="mmp-light-footer-logo">',
+    '<span class="mmp-light-footer-links">Privacy &bull; Terms &bull; Support</span>',
+    '<span class="mmp-light-footer-notice">You received this email because an account was created with this address.</span>',
+    '</td></tr>',
+    '<tr><td class="mmp-light-footer-spacer" aria-hidden="true"></td></tr>',
 
-    '</td></tr></table></body></html>',
+    // DARK MODE FOOTER BOX (soft-accent bg, dark-text wordmark)
+    '<tr><td align="center" valign="top" class="mmp-dark-footer-box">',
+    '<img src="' + FOOTER_LOGO_DARK_TEXT_URL + '" width="145" height="27" alt="MeetMyPets" class="mmp-footer-logo">',
+    '<span class="mmp-footer-links">Privacy &bull; Terms &bull; Support</span>',
+    '<span class="mmp-footer-notice">You received this email because an account was created with this address.</span>',
+    '</td></tr>',
+    '<tr><td class="mmp-dark-footer-spacer" aria-hidden="true"></td></tr>',
+
+    '</table>',
+    '</td></tr>',
+    '</table>',
+    '</div>',
+    '</body></html>',
   ].join('');
 }
 
@@ -344,6 +461,10 @@ function welcomeText() {
     '',
     'See you and your pet soon,',
     'Team MeetMyPets',
+    '',
+    '---',
+    'Privacy - Terms - Support',
+    'You received this email because an account was created with this address.',
   ].join('\r\n');
 }
 
