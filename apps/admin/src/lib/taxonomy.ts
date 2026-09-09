@@ -68,6 +68,30 @@ type Actor = { userId: string; email: string; role: AdminRole };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * The id for a new species or breed. WE must supply it.
+ *
+ * `pets.species.id` and `pets.breeds.id` are `uuid NOT NULL` with **no
+ * DEFAULT** (verified live) — their Flutter client generates ids itself, so the
+ * column was never given one. An insert that omits `id` fails with
+ * `null value in column "id" … violates not-null constraint`, which is exactly
+ * what the settings screen did. `id` is inside our INSERT grant on both tables,
+ * so supplying one is permitted.
+ *
+ * A real random v4, not the next number in their sequence. Their existing rows
+ * are sequential placeholders (`…0001` = Dog) and continuing that would mean
+ * read-then-increment — two admins adding at the same moment would pick the
+ * same number and one insert would fail on the primary key. The table ends up
+ * with a mix of their placeholders and real UUIDs; that is deliberate, not
+ * something to tidy up.
+ *
+ * Asked the app team for `set default gen_random_uuid()`; until then this is
+ * the workaround (docs/admin/app-team-handoff.md).
+ */
+function newTaxonomyId(): string {
+  return crypto.randomUUID();
+}
+
 function client() {
   return createAdminClient();
 }
@@ -331,6 +355,9 @@ export async function createSpecies(
 
     const { data, error } = await from(TABLES.species)
       .insert({
+        // See newTaxonomyId: the column has no default, so omitting this is a
+        // not-null violation rather than an auto-generated row.
+        id: newTaxonomyId(),
         name: input.name,
         description: input.description,
         status: "active",
@@ -457,6 +484,8 @@ export async function createBreed(
 
     const { data, error } = await from(TABLES.breeds)
       .insert({
+        // Same missing default as species — see newTaxonomyId.
+        id: newTaxonomyId(),
         species_id: input.speciesId,
         name: input.name,
         description: input.description,

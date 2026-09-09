@@ -55,5 +55,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json<ApiError>({ error: result.reason, message: result.message }, { status });
   }
 
-  return NextResponse.json({ ok: true });
+  // `revert` rides along so the client can say what happened to the trust
+  // score — a dismissal that silently declined to credit anything back would
+  // look identical to one that did.
+  return NextResponse.json({ ok: true, revert: result.revert });
 }

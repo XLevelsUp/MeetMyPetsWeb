@@ -5,12 +5,23 @@ import { isSupabaseConfigured } from "@/lib/supabase/reference";
 import { writeAuditLog } from "@/lib/audit";
 import type { AuditAction } from "@/lib/audit-actions";
 import type { AdminRole } from "@/lib/roles";
-import type { ReportResolution, ReportScope, ReportStatus } from "@/lib/report-constants";
-import { trustStatusFor } from "@/lib/trust-constants";
+import {
+  REVERTS_TRUST,
+  type ReportResolution,
+  type ReportScope,
+  type ReportStatus,
+  type TrustRevertOutcome,
+} from "@/lib/report-constants";
+import {
+  TRUST_RESTORE_SCORE,
+  reportEventReason,
+  trustStatusFor,
+} from "@/lib/trust-constants";
 import type {
   ReportSummary,
   ReportsQuery,
   ReportsResponse,
+  TrustRevertPreview,
 } from "@/lib/reports-contract";
 
 /**
@@ -42,7 +53,7 @@ export type ReportsResult<T> =
 
 /** Mirrors `users.ts` — `unaudited` means the status DID change but the audit write failed. */
 export type ReportActionResult =
-  | { ok: true }
+  | { ok: true; revert: TrustRevertPreview | null }
   | {
       ok: false;
       reason: "unconfigured" | "not_found" | "action_failed" | "unaudited";
@@ -54,6 +65,10 @@ const TABLES = {
   pets: { schema: "pets", table: "pets" },
   accounts: { schema: "identity", table: "accounts" },
   posts: { schema: "social", table: "posts" },
+  /** The app's trust ledger — SELECT only. We read it to find what to credit. */
+  trustEvents: { schema: "pets", table: "trust_score_events" },
+  /** Ours: the counter-entry their ledger will not let us write. */
+  reversals: { schema: "public", table: "admin_trust_reversals" },
 } as const;
 
 type TableRef = { schema: string; table: string };
@@ -127,6 +142,26 @@ async function petsById(ids: string[]): Promise<Map<string, PetRow>> {
   return map;
 }
 
+/**
+ * pet id → trust score, for the `trust` sort only.
+ *
+ * Separate from `petsById` because that one is called with the pets on a single
+ * page, whereas this needs every pet named by every matching report before the
+ * page is chosen.
+ */
+async function trustScoresFor(petIds: string[]): Promise<Map<string, number | null>> {
+  const scores = new Map<string, number | null>();
+  if (petIds.length === 0) return scores;
+
+  const { data, error } = await from(TABLES.pets).select("id,trust_score").in("id", petIds);
+  if (error) throw new Error(`pets.pets: ${error.message}`);
+
+  for (const row of (data ?? []) as { id: string; trust_score: number | null }[]) {
+    scores.set(row.id, row.trust_score);
+  }
+  return scores;
+}
+
 /** account id → email. */
 async function ownerEmails(ids: string[]): Promise<Map<string, string | null>> {
   const map = new Map<string, string | null>();
@@ -180,6 +215,278 @@ async function reportCountsFor(petIds: string[]): Promise<Map<string, number>> {
 }
 
 /* -------------------------------------------------------------------------
+ * Trust reversal
+ *
+ * Filing a report costs the reported pet points. Dismissing it — "not a
+ * legitimate report" — should give them back.
+ *
+ * FINDING THE RIGHT DEDUCTION IS EXACT, NOT A GUESS. `trust_score_events`
+ * carries no report id (profile rows have `event_ref = NULL`; post rows point
+ * at the POST). But the app dedups its own writes with a unique index on
+ * `(target_pet_id, coalesce(actor_pet_id,0), reason, coalesce(event_ref,0))`,
+ * and every one of those is reconstructible from the report row — so the lookup
+ * below matches at most one event, by that same key. Verified live: 15 of 15
+ * reports resolve to exactly one deduction.
+ *
+ * That dedup index also creates the `still_earned` case: two reports from the
+ * same reporter against the same pet share ONE deduction, so dismissing one of
+ * them must not refund a penalty the other still justifies.
+ * ---------------------------------------------------------------------- */
+
+type ReportIdentity = {
+  id: string;
+  reportedPetId: string;
+  reporterPetId: string;
+  scope: ReportScope;
+  /** The post id for a post-scoped report; null for a profile report. */
+  contextEntityId: string | null;
+};
+
+type TrustEventRow = { id: string; delta: number };
+
+/**
+ * The single ledger row this report's penalty was written as, or null.
+ *
+ * `is()` rather than `eq()` for the nullable columns: PostgREST renders
+ * `eq.null` as the literal string "null", which matches nothing.
+ */
+async function deductionFor(report: ReportIdentity): Promise<TrustEventRow | null> {
+  let request = from(TABLES.trustEvents)
+    .select("id,delta")
+    .eq("target_pet_id", report.reportedPetId)
+    .eq("actor_pet_id", report.reporterPetId)
+    .eq("reason", reportEventReason(report.scope));
+
+  request = report.contextEntityId
+    ? request.eq("event_ref", report.contextEntityId)
+    : request.is("event_ref", null);
+
+  const { data, error } = await request.limit(1);
+  if (error) throw new Error(`pets.trust_score_events: ${error.message}`);
+
+  const rows = (data ?? []) as TrustEventRow[];
+  return rows[0] ?? null;
+}
+
+/** Other reports that would map to this same ledger row. */
+async function siblingReportCount(report: ReportIdentity): Promise<number> {
+  let request = from(TABLES.reports)
+    .select("id")
+    .eq("reported_pet_id", report.reportedPetId)
+    .eq("reporter_pet_id", report.reporterPetId)
+    .neq("id", report.id);
+
+  request = report.contextEntityId
+    ? request.eq("context_entity_id", report.contextEntityId)
+    : request.is("context_entity_id", null);
+
+  const { data, error } = await request;
+  if (error) throw new Error(`matching.pet_reports: ${error.message}`);
+  return (data ?? []).length;
+}
+
+/** Has this ledger row already been credited back? */
+async function alreadyReverted(trustEventId: string): Promise<boolean> {
+  const { data, error } = await from(TABLES.reversals)
+    .select("id")
+    .eq("trust_event_id", trustEventId)
+    .limit(1);
+  if (error) throw new Error(`admin_trust_reversals: ${error.message}`);
+  return (data ?? []).length > 0;
+}
+
+/**
+ * Decide what a dismissal would do, without doing it.
+ *
+ * Shared by the list preview and the write path so the dialog cannot promise
+ * something the write then refuses. The write re-runs this: a score can move
+ * between rendering a row and submitting the dialog.
+ */
+async function planRevert(
+  report: ReportIdentity,
+): Promise<{ preview: TrustRevertPreview; event: TrustEventRow | null; scoreBefore: number | null }> {
+  const none = (outcome: TrustRevertOutcome): TrustRevertPreview => ({
+    outcome,
+    delta: null,
+    scoreAfter: null,
+  });
+
+  const event = await deductionFor(report);
+  if (!event) return { preview: none("no_deduction"), event: null, scoreBefore: null };
+
+  if (await alreadyReverted(event.id)) {
+    return { preview: none("already_reverted"), event, scoreBefore: null };
+  }
+  if ((await siblingReportCount(report)) > 0) {
+    return { preview: none("still_earned"), event, scoreBefore: null };
+  }
+
+  const { data, error } = await from(TABLES.pets)
+    .select("trust_score")
+    .eq("id", report.reportedPetId)
+    .maybeSingle();
+  if (error) throw new Error(`pets.pets: ${error.message}`);
+
+  const scoreBefore = (data as { trust_score: number | null } | null)?.trust_score ?? null;
+  if (scoreBefore === null) return { preview: none("no_deduction"), event, scoreBefore: null };
+
+  // The credit is the magnitude of the penalty the app actually recorded, not
+  // our constant — if they ever change a delta, existing rows keep their own.
+  const delta = Math.abs(event.delta);
+  const scoreAfter = scoreBefore + delta;
+
+  // Their trigger reads exactly 555 as a full restoration and clears the ban
+  // window. Landing there by arithmetic would lift a ban this dismissal did not
+  // adjudicate. Blocked on purpose — see TRUST_REVERT_OUTCOMES.
+  if (scoreAfter === TRUST_RESTORE_SCORE) {
+    return { preview: none("would_restore"), event, scoreBefore };
+  }
+
+  return { preview: { outcome: "reverted", delta, scoreAfter }, event, scoreBefore };
+}
+
+/**
+ * The dedup key the app writes its deductions under, as a string.
+ *
+ * One helper so the report side and the ledger side are always keyed the same
+ * way — building this string twice is how the two halves would drift.
+ */
+function dedupKey(parts: {
+  petId: string;
+  actorPetId: string | null;
+  reason: string;
+  eventRef: string | null;
+}): string {
+  return [parts.petId, parts.actorPetId ?? "-", parts.reason, parts.eventRef ?? "-"].join("|");
+}
+
+/**
+ * Revert previews for a whole page, in THREE queries rather than four per row.
+ *
+ * The per-row `planRevert` is correct but would be ~100 round trips for a page
+ * of 25. This resolves the same guards in bulk and matches them in memory —
+ * the same fan-out-then-merge shape `listReports` already uses for pets, posts
+ * and counts.
+ */
+async function revertPreviewsFor(
+  rows: ReportRow[],
+  pets: Map<string, PetRow>,
+): Promise<Map<string, TrustRevertPreview>> {
+  const previews = new Map<string, TrustRevertPreview>();
+  if (rows.length === 0) return previews;
+
+  const petIds = unique(rows.map((r) => r.reported_pet_id));
+
+  const [eventsRes, siblingRes] = await Promise.all([
+    from(TABLES.trustEvents)
+      .select("id,delta,target_pet_id,actor_pet_id,reason,event_ref")
+      .in("target_pet_id", petIds)
+      .in("reason", ["report", "post_report"]),
+    // Every report against these pets, to find ones sharing a dedup key.
+    from(TABLES.reports)
+      .select("id,reported_pet_id,reporter_pet_id,context_entity_type,context_entity_id")
+      .in("reported_pet_id", petIds),
+  ]);
+  if (eventsRes.error) throw new Error(`pets.trust_score_events: ${eventsRes.error.message}`);
+  if (siblingRes.error) throw new Error(`matching.pet_reports: ${siblingRes.error.message}`);
+
+  const eventByKey = new Map<string, TrustEventRow>();
+  for (const e of (eventsRes.data ?? []) as {
+    id: string;
+    delta: number;
+    target_pet_id: string;
+    actor_pet_id: string | null;
+    reason: string;
+    event_ref: string | null;
+  }[]) {
+    eventByKey.set(
+      dedupKey({
+        petId: e.target_pet_id,
+        actorPetId: e.actor_pet_id,
+        reason: e.reason,
+        eventRef: e.event_ref,
+      }),
+      { id: e.id, delta: e.delta },
+    );
+  }
+
+  const reportsPerKey = new Map<string, number>();
+  for (const r of (siblingRes.data ?? []) as {
+    reported_pet_id: string;
+    reporter_pet_id: string;
+    context_entity_type: string | null;
+    context_entity_id: string | null;
+  }[]) {
+    const key = dedupKey({
+      petId: r.reported_pet_id,
+      actorPetId: r.reporter_pet_id,
+      reason: r.context_entity_type === "post" ? "post_report" : "report",
+      eventRef: r.context_entity_id,
+    });
+    reportsPerKey.set(key, (reportsPerKey.get(key) ?? 0) + 1);
+  }
+
+  const eventIds = [...eventByKey.values()].map((e) => e.id);
+  const reverted = new Set<string>();
+  if (eventIds.length > 0) {
+    const { data, error } = await from(TABLES.reversals)
+      .select("trust_event_id")
+      .in("trust_event_id", eventIds);
+    if (error) throw new Error(`admin_trust_reversals: ${error.message}`);
+    for (const row of (data ?? []) as { trust_event_id: string }[]) {
+      reverted.add(row.trust_event_id);
+    }
+  }
+
+  const none = (outcome: TrustRevertOutcome): TrustRevertPreview => ({
+    outcome,
+    delta: null,
+    scoreAfter: null,
+  });
+
+  for (const row of rows) {
+    const scope: ReportScope = row.context_entity_type === "post" ? "post" : "profile";
+    const key = dedupKey({
+      petId: row.reported_pet_id,
+      actorPetId: row.reporter_pet_id,
+      reason: reportEventReason(scope),
+      eventRef: row.context_entity_id,
+    });
+
+    const event = eventByKey.get(key);
+    if (!event) {
+      previews.set(row.id, none("no_deduction"));
+      continue;
+    }
+    if (reverted.has(event.id)) {
+      previews.set(row.id, none("already_reverted"));
+      continue;
+    }
+    if ((reportsPerKey.get(key) ?? 0) > 1) {
+      previews.set(row.id, none("still_earned"));
+      continue;
+    }
+
+    const score = pets.get(row.reported_pet_id)?.trust_score ?? null;
+    if (score === null) {
+      previews.set(row.id, none("no_deduction"));
+      continue;
+    }
+
+    const delta = Math.abs(event.delta);
+    const scoreAfter = score + delta;
+    previews.set(
+      row.id,
+      scoreAfter === TRUST_RESTORE_SCORE
+        ? none("would_restore")
+        : { outcome: "reverted", delta, scoreAfter },
+    );
+  }
+
+  return previews;
+}
+
+/* -------------------------------------------------------------------------
  * Read
  * ---------------------------------------------------------------------- */
 
@@ -189,36 +496,127 @@ export async function listReports(query: ReportsQuery): Promise<ReportsResult<Re
   }
 
   try {
-    const { page, pageSize, q, status, reason, scope } = query;
+    const { page, pageSize, q, status, reason, scope, sort, dir } = query;
     const offset = (page - 1) * pageSize;
+    const ascending = dir === "asc";
 
-    let request = from(TABLES.reports).select(REPORT_COLUMNS, { count: "exact" });
+    /**
+     * Every filter except ordering and paging, in one place so the trust path's
+     * id query and the page query can never disagree about what "matching"
+     * means. Same reason `users.ts` factors this out.
+     */
+    /**
+     * The filter chain, shared by the trust path's id query and the page query
+     * so the two can never disagree about what "matching" means.
+     *
+     * ⚠️ THE TYPING HERE IS DELIBERATE, and two tidier-looking versions do not
+     * work. supabase types its builder per-select, so:
+     *   - `ReturnType<…["select"]>` describes a bare `.select()` whose row type
+     *     is `unknown[]`, which a column-string builder is not assignable to;
+     *   - a self-referential `<T extends Filterable<T>>` makes TS check the
+     *     entire PostgrestFilterBuilder against it and hit TS2589,
+     *     "type instantiation is excessively deep".
+     * The first version compiled under `tsc --noEmit` and then crashed the Next
+     * build worker with a stack overflow — green locally, dead in CI.
+     *
+     * So the chain is applied through a narrow, NON-recursive structural view
+     * and handed back as the caller's own type. Both casts are confined to this
+     * one function; the runtime behaviour is an ordinary builder chain.
+     */
+    type Filterable = {
+      eq(column: string, value: string): Filterable;
+      is(column: string, value: null): Filterable;
+      or(filters: string): Filterable;
+      ilike(column: string, pattern: string): Filterable;
+    };
 
-    if (status !== "all") request = request.eq("status", status);
-    if (reason !== "all") request = request.eq("reason", reason);
+    const applyFilters = <T>(input: T): T => {
+      let out = input as unknown as Filterable;
 
-    // Scope is derived from the context pair, which the backend's
-    // `pet_reports_context_pair` constraint keeps both-null or both-set.
-    if (scope === "profile") request = request.is("context_entity_type", null);
-    else if (scope === "post") request = request.eq("context_entity_type", "post");
+      if (status !== "all") out = out.eq("status", status);
+      if (reason !== "all") out = out.eq("reason", reason);
 
-    if (q) {
-      const term = sanitizeSearch(q);
-      if (term) {
-        request = UUID_RE.test(term)
-          ? request.or(`id.eq.${term},reported_pet_id.eq.${term},reporter_pet_id.eq.${term}`)
-          : request.ilike("details", `%${term}%`);
+      // Scope is derived from the context pair, which the backend's
+      // `pet_reports_context_pair` constraint keeps both-null or both-set.
+      if (scope === "profile") out = out.is("context_entity_type", null);
+      else if (scope === "post") out = out.eq("context_entity_type", "post");
+
+      if (q) {
+        const term = sanitizeSearch(q);
+        if (term) {
+          out = UUID_RE.test(term)
+            ? out.or(`id.eq.${term},reported_pet_id.eq.${term},reporter_pet_id.eq.${term}`)
+            : out.ilike("details", `%${term}%`);
+        }
+      }
+
+      return out as unknown as T;
+    };
+
+    /**
+     * `trust` is NOT a column — the score lives in `pets.pets` and PostgREST
+     * cannot join across schemas. So it gets its own path: resolve every
+     * matching report id, order those by the reported pet's score, and slice
+     * the page in memory.
+     *
+     * Ordering the fetched page instead would sort WITHIN the page and be
+     * wrong the moment there is a second one. That is the bug this avoids, and
+     * it is invisible on page 1 — which is why the test asserts call ordering.
+     *
+     * TODO(scale): resolves every matching id, fine at 20 reports; becomes a
+     * SQL view or an aggregate when it isn't.
+     */
+    let orderedPageIds: string[] | null = null;
+    let computedTotal: number | null = null;
+
+    if (sort === "trust") {
+      const { data: idData, error: idError } = await applyFilters(
+        from(TABLES.reports).select("id,reported_pet_id"),
+      );
+      if (idError) throw new Error(`matching.pet_reports: ${idError.message}`);
+
+      const candidates = (idData ?? []) as { id: string; reported_pet_id: string }[];
+      const scores = await trustScoresFor(unique(candidates.map((r) => r.reported_pet_id)));
+
+      // A null score is UNKNOWN, not "worst" — park it at the end of an
+      // ascending list rather than at the top where a ban-risk sort looks.
+      const rank = (petId: string) => scores.get(petId) ?? Number.POSITIVE_INFINITY;
+
+      const ordered = [...candidates].sort((a, b) => {
+        const delta = rank(a.reported_pet_id) - rank(b.reported_pet_id);
+        // Stable tie-break by id so paging never repeats or drops a row.
+        return (ascending ? delta : -delta) || a.id.localeCompare(b.id);
+      });
+
+      computedTotal = ordered.length;
+      orderedPageIds = ordered.slice(offset, offset + pageSize).map((r) => r.id);
+      if (orderedPageIds.length === 0) {
+        return { ok: true, data: { items: [], page, pageSize, total: computedTotal } };
       }
     }
 
-    const { data, count, error } = await request
-      .order("created_at", { ascending: false })
-      .range(offset, offset + pageSize - 1);
+    let request = orderedPageIds
+      ? from(TABLES.reports).select(REPORT_COLUMNS).in("id", orderedPageIds)
+      : applyFilters(from(TABLES.reports).select(REPORT_COLUMNS, { count: "exact" }));
+
+    if (!orderedPageIds) {
+      request = request
+        .order(sort, { ascending, nullsFirst: false })
+        .range(offset, offset + pageSize - 1);
+    }
+
+    const { data, count, error } = await request;
     if (error) throw new Error(`matching.pet_reports: ${error.message}`);
 
-    const rows = (data ?? []) as ReportRow[];
+    let rows = (data ?? []) as ReportRow[];
+
+    // PostgREST returns `in()` rows in its OWN order, so restore the ranking.
+    if (orderedPageIds) {
+      const position = new Map(orderedPageIds.map((id, i) => [id, i]));
+      rows = [...rows].sort((a, b) => (position.get(a.id) ?? 0) - (position.get(b.id) ?? 0));
+    }
     if (rows.length === 0) {
-      return { ok: true, data: { items: [], page, pageSize, total: count ?? 0 } };
+      return { ok: true, data: { items: [], page, pageSize, total: computedTotal ?? count ?? 0 } };
     }
 
     const petIds = unique(rows.flatMap((r) => [r.reported_pet_id, r.reporter_pet_id]));
@@ -235,14 +633,18 @@ export async function listReports(query: ReportsQuery): Promise<ReportsResult<Re
       reportCountsFor(reportedPetIds),
     ]);
 
-    // Owner emails need the pet lookup first, so this one can't join the fan-out.
-    const owners = await ownerEmails(
-      unique(
-        reportedPetIds
-          .map((id) => pets.get(id)?.owner_account_id)
-          .filter((v): v is string => Boolean(v)),
+    // Owner emails and revert previews both need the pet lookup first, so they
+    // form a second wave rather than joining the fan-out above.
+    const [owners, reverts] = await Promise.all([
+      ownerEmails(
+        unique(
+          reportedPetIds
+            .map((id) => pets.get(id)?.owner_account_id)
+            .filter((v): v is string => Boolean(v)),
+        ),
       ),
-    );
+      revertPreviewsFor(rows, pets),
+    ]);
 
     const items: ReportSummary[] = rows.map((row) => {
       const reported = pets.get(row.reported_pet_id) ?? null;
@@ -283,10 +685,13 @@ export async function listReports(query: ReportsQuery): Promise<ReportsResult<Re
           bannedUntil: reported?.temporary_ban_until ?? null,
         },
         reportsAgainstPet: counts.get(row.reported_pet_id) ?? 0,
+        revert: reverts.get(row.id) ?? { outcome: "no_deduction", delta: null, scoreAfter: null },
       };
     });
 
-    return { ok: true, data: { items, page, pageSize, total: count ?? 0 } };
+    // The trust path paginates in memory, so its total comes from the candidate
+    // set rather than a PostgREST count header (the `in()` query has none).
+    return { ok: true, data: { items, page, pageSize, total: computedTotal ?? count ?? 0 } };
   } catch (error) {
     return {
       ok: false,
@@ -314,6 +719,63 @@ const RESOLUTION_ACTIONS: Record<ReportResolution, AuditAction> = {
   dismissed: "report.dismiss",
 };
 
+/**
+ * Credit the deduction back. Called only after the status change succeeded.
+ *
+ * Never throws and never fails the dismissal: the moderator asked for the
+ * report to be dismissed, and trust plumbing must not hold that hostage. Every
+ * path returns an outcome the caller reports verbatim.
+ */
+async function applyRevert(
+  report: ReportIdentity,
+  reason: string,
+  actor: Actor,
+): Promise<TrustRevertPreview> {
+  try {
+    const { preview, event, scoreBefore } = await planRevert(report);
+    if (preview.outcome !== "reverted" || !event || scoreBefore === null) return preview;
+
+    /**
+     * Compare-and-swap. PostgREST cannot express `trust_score = trust_score +
+     * 80`, so the read and the write are separate statements — the `.eq` on the
+     * old value is what makes that safe. Zero rows back means something else
+     * moved the score in between (another dismissal, a restore, the app itself)
+     * and our arithmetic is stale.
+     */
+    const { data: updated, error: updateError } = await from(TABLES.pets)
+      .update({ trust_score: preview.scoreAfter })
+      .eq("id", report.reportedPetId)
+      .eq("trust_score", scoreBefore)
+      .select("id");
+    if (updateError) throw new Error(`pets.pets: ${updateError.message}`);
+    if ((updated ?? []).length === 0) {
+      return { outcome: "score_moved", delta: null, scoreAfter: null };
+    }
+
+    // Only after a confirmed score change. The unique constraint on
+    // trust_event_id is the real idempotency guarantee — the `alreadyReverted`
+    // check above is a courtesy that avoids the error in the common case.
+    const { error: insertError } = await from(TABLES.reversals).insert({
+      report_id: report.id,
+      trust_event_id: event.id,
+      pet_id: report.reportedPetId,
+      delta: preview.delta,
+      score_before: scoreBefore,
+      score_after: preview.scoreAfter,
+      reverted_by: actor.userId,
+      reason,
+    });
+    if (insertError) throw new Error(`admin_trust_reversals: ${insertError.message}`);
+
+    return preview;
+  } catch {
+    // The score may or may not have moved; the audit metadata records the
+    // attempt either way, and `failed` tells the moderator to check /trust
+    // rather than assuming a credit landed.
+    return { outcome: "failed", delta: null, scoreAfter: null };
+  }
+}
+
 export async function resolveReport(
   reportId: string,
   resolution: ReportResolution,
@@ -329,7 +791,7 @@ export async function resolveReport(
 
   try {
     const { data: existing, error: readError } = await from(TABLES.reports)
-      .select("id,status,reported_pet_id,reason,context_entity_type")
+      .select("id,status,reported_pet_id,reporter_pet_id,reason,context_entity_type,context_entity_id")
       .eq("id", reportId)
       .maybeSingle();
     if (readError) throw new Error(`matching.pet_reports: ${readError.message}`);
@@ -339,8 +801,10 @@ export async function resolveReport(
       id: string;
       status: string;
       reported_pet_id: string;
+      reporter_pet_id: string;
       reason: string;
       context_entity_type: string | null;
+      context_entity_id: string | null;
     };
 
     // Only `status` — the grant is column-scoped, so a wider update would be
@@ -353,6 +817,29 @@ export async function resolveReport(
     if ((updated ?? []).length === 0) {
       return { ok: false, reason: "not_found", message: "No report with that id." };
     }
+
+    /**
+     * Trust comes AFTER the status change, and only for a dismissal.
+     *
+     * A dismissal says the report was not legitimate, so the penalty it caused
+     * should not stand. `reviewed` and `actioned` both mean the report WAS
+     * legitimate — crediting there would undo a deduction the pet earned.
+     */
+    const scope: ReportScope = before.context_entity_type === "post" ? "post" : "profile";
+    const revert =
+      resolution === REVERTS_TRUST
+        ? await applyRevert(
+            {
+              id: before.id,
+              reportedPetId: before.reported_pet_id,
+              reporterPetId: before.reporter_pet_id,
+              scope,
+              contextEntityId: before.context_entity_id,
+            },
+            reason,
+            actor,
+          )
+        : null;
 
     const result = await writeAuditLog({
       actorId: actor.userId,
@@ -367,7 +854,12 @@ export async function resolveReport(
         newStatus: resolution,
         reportedPetId: before.reported_pet_id,
         reportReason: before.reason,
-        scope: before.context_entity_type === "post" ? "post" : "profile",
+        scope,
+        // What happened to the trust score, recorded whether or not it moved —
+        // "we chose not to" is as much a decision as "we did".
+        ...(revert
+          ? { trustRevert: revert.outcome, trustDelta: revert.delta, trustScoreAfter: revert.scoreAfter }
+          : {}),
       },
     });
     if (!result.ok) {
@@ -378,7 +870,7 @@ export async function resolveReport(
       };
     }
 
-    return { ok: true };
+    return { ok: true, revert };
   } catch (error) {
     return {
       ok: false,

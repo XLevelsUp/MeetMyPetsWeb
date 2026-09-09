@@ -106,7 +106,21 @@ export const updateSpeciesSchema = z.object({
 export type UpdateSpeciesRequest = z.infer<typeof updateSpeciesSchema>;
 
 export const createBreedSchema = z.object({
-  speciesId: z.string().uuid("Pick a species."),
+  /**
+   * ⚠️ `z.guid()`, NOT `z.uuid()` — do not "modernise" this back.
+   *
+   * The app team's species ids are sequential placeholders
+   * (`00000000-0000-0000-0000-000000000001` = Dog) whose version and variant
+   * nibbles are both `0`. That is not a conforming RFC 9562 UUID, and zod v4
+   * tightened `.uuid()` to enforce the spec — so `.uuid()` rejects **every
+   * species that exists**, and the breed form fails with "Pick a species."
+   * while showing a perfectly populated dropdown. Verified against zod 4.4.3.
+   *
+   * `z.guid()` is zod's deliberately lenient 8-4-4-4-12 check, which is the
+   * right validator for ids owned by someone else's system: we still reject
+   * junk, without asserting a spec their data does not follow.
+   */
+  speciesId: z.guid("Pick a species."),
   name: nameSchema,
   description: descriptionSchema,
 });

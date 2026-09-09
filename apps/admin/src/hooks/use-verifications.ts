@@ -4,6 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import { apiErrorSchema } from "@/lib/api-contract";
 import type { RejectionReason } from "@/lib/certificate-constants";
+import { queryToSearchParams } from "@/lib/contract-shared";
 import {
   certificateActionResponseSchema,
   certificatesResponseSchema,
@@ -16,13 +17,9 @@ export function useCertificates(query: CertificatesQuery) {
   return useQuery({
     queryKey: ["verifications", query],
     queryFn: async () => {
-      const params = new URLSearchParams({
-        page: String(query.page),
-        pageSize: String(query.pageSize),
-        status: query.status,
-        certificateType: query.certificateType,
-      });
-      if (query.q) params.set("q", query.q);
+      // Derived from the query object rather than hand-listed, so a new sort
+      // or filter cannot be silently left out of the request.
+      const params = queryToSearchParams(query);
 
       const res = await fetch(`/api/v1/admin/verifications?${params.toString()}`);
       if (!res.ok) {

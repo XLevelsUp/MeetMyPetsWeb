@@ -1,6 +1,11 @@
 import { z } from "zod";
 
-import { listQuerySchema, paginated, reasonSchema } from "@/lib/contract-shared";
+import {
+  listQuerySchema,
+  paginated,
+  reasonSchema,
+  SORT_DIRECTIONS,
+} from "@/lib/contract-shared";
 import {
   CERTIFICATE_DECISIONS,
   CERTIFICATE_STATUSES,
@@ -110,11 +115,40 @@ export const CERTIFICATE_TYPE_FILTERS = ["all", ...CERTIFICATE_TYPES] as const;
  * show the work. Each `.catch()`-defaults so a stale URL degrades rather than
  * 400-ing an admin out of the page.
  */
+/**
+ * Sort keys — all four are real columns on `pets.pet_certificates`, so each
+ * becomes a PostgREST `.order()` with no pre-resolution.
+ *
+ * Deliberately absent: **pet name**, which is merged in from `pets.pets`
+ * through a Map because PostgREST cannot join across schemas, and **document**,
+ * which is derived from `file_path` — populated on every row, so ordering by it
+ * would never move anything.
+ */
+export const CERTIFICATE_SORTS = [
+  "created_at",
+  "certificate_type",
+  "status",
+  "expires_at",
+] as const;
+export type CertificateSort = (typeof CERTIFICATE_SORTS)[number];
+
 export const certificatesQuerySchema = listQuerySchema.extend({
   status: z.enum(CERTIFICATE_STATUS_FILTERS).catch("pending"),
   certificateType: z.enum(CERTIFICATE_TYPE_FILTERS).catch("all"),
+  sort: z.enum(CERTIFICATE_SORTS).catch("created_at"),
+  /**
+   * ⚠️ `asc`, NOT `desc` — this is the one list in the app that opens
+   * ascending. A review queue should surface what has waited longest, so
+   * oldest-first is the point of the screen rather than an accident. Copying
+   * the `desc` default from `users-contract.ts` would silently invert it.
+   */
+  dir: z.enum(SORT_DIRECTIONS).catch("asc"),
 });
 export type CertificatesQuery = z.infer<typeof certificatesQuerySchema>;
+
+/** What an empty query string means — the default queue view. */
+export const DEFAULT_CERTIFICATES_QUERY: CertificatesQuery =
+  certificatesQuerySchema.parse({});
 
 /* -------------------------------------------------------------------------
  * Decision

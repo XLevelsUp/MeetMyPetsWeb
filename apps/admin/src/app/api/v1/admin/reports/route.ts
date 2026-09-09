@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import type { ApiError } from "@/lib/api-contract";
+import { searchParamsToQuery } from "@/lib/contract-shared";
 import { requireRole } from "@/lib/dal";
 import { listReports } from "@/lib/reports";
 import { reportsQuerySchema } from "@/lib/reports-contract";
@@ -18,16 +19,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const params = request.nextUrl.searchParams;
-  const query = reportsQuerySchema.parse({
-    page: params.get("page") ?? undefined,
-    pageSize: params.get("pageSize") ?? undefined,
-    q: params.get("q") ?? undefined,
-    status: params.get("status") ?? undefined,
-    reason: params.get("reason") ?? undefined,
-    scope: params.get("scope") ?? undefined,
-  });
-
+  // Derived from the schema's own keys, so adding a sort or a filter wires it
+  // end to end rather than being silently dropped here.
+  const query = searchParamsToQuery(reportsQuerySchema, request.nextUrl.searchParams);
   const result = await listReports(query);
   if (!result.ok) {
     return NextResponse.json<ApiError>(

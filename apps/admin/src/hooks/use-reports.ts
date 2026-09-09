@@ -3,6 +3,7 @@
 import { keepPreviousData, useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 
 import { apiErrorSchema } from "@/lib/api-contract";
+import { queryToSearchParams } from "@/lib/contract-shared";
 import type { ReportResolution } from "@/lib/report-constants";
 import {
   reportActionResponseSchema,
@@ -15,14 +16,9 @@ export function useReports(query: ReportsQuery) {
   return useQuery({
     queryKey: ["reports", query],
     queryFn: async () => {
-      const params = new URLSearchParams({
-        page: String(query.page),
-        pageSize: String(query.pageSize),
-        status: query.status,
-        reason: query.reason,
-        scope: query.scope,
-      });
-      if (query.q) params.set("q", query.q);
+      // Derived from the query object rather than hand-listed, so a new sort
+      // or filter cannot be left out of the request.
+      const params = queryToSearchParams(query);
 
       const res = await fetch(`/api/v1/admin/reports?${params.toString()}`);
       if (!res.ok) {

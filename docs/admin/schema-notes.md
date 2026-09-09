@@ -55,6 +55,91 @@ FastAPI-side role system — see decision notes). `pets.pets` has `species_id`
 `matching.pet_likes` is the swipes table (`interaction_type`, `status`,
 `created_at`).
 
+## Score vs ledger: they already disagree, and by how much (2026-08-20)
+
+The app's implied invariant is `trust_score = 555 + sum(ledger deltas)`.
+Reconciled across all 59 scored pets: **55 agree, 4 do not.**
+
+| Pet | Ledger implies | Actual | Drift | Panel trust actions |
+|---|---|---|---|---|
+| Lola | 575 | 555 | −20 | 1 |
+| Mouzy | 565 | 555 | −10 | 2 |
+| Teddy | 560 | 555 | −5 | 2 |
+| Mano | 525 | 555 | **+30** | 1 |
+
+Every one sits at exactly 555 and every one has a panel trust action against it:
+these are the pets **`/trust` restored**. Restore writes an absolute 555 with no
+ledger entry, so it discards whatever drift existed — Mano gained 30 points
+nothing records.
+
+So the divergence did **not** start with report reversals; it started with the
+trust review queue. A reversal adds to it, but differently: it is a precise
+delta tied to a specific ledger row and a specific report in
+`public.admin_trust_reversals`, so it can be reconciled exactly —
+
+```
+sum(trust_score_events.delta) + sum(admin_trust_reversals.delta) + 555 == trust_score
+```
+
+— which is not true of a restore. Closing the gap for good needs the app team's
+two changes (handoff §3.6b); until then, **anything computing a score from
+`trust_score_events` alone will under-count reverted pets**, and this is the
+table to join against.
+
+## Taxonomy ids are not UUIDs, and have no default (verified 2026-08-21)
+
+Two facts about `pets.species` / `pets.breeds` that both broke `/settings`:
+
+- **Neither `id` column has a DEFAULT.** `uuid NOT NULL`, `column_default`
+  empty. Omitting `id` on insert fails with
+  `null value in column "id" … violates not-null constraint` — reproduced as
+  `service_role` in a rolled-back transaction. `id` **is** inside our INSERT
+  grant, so the panel now supplies `crypto.randomUUID()`. Their Flutter client
+  generates ids too, which is why the app never hit this.
+- **The six live species ids are sequential placeholders**, `…0001` (Dog)
+  through `…0006` (Small Pet), with the RFC 9562 version and variant nibbles
+  both `0`. Postgres accepts them; strict validators do not. **zod v4's
+  `.uuid()` rejects all six** — that is what made the breed form answer "Pick a
+  species." to a fully populated dropdown. `taxonomy-contract.ts` uses
+  `z.guid()` and carries a comment saying why; `taxonomy.test.ts` pins two real
+  ids so a change back to `.uuid()` fails the suite.
+
+New rows created by the panel get real v4 UUIDs, so the table now holds a
+deliberate mix. Do not "tidy" it into a sequence — read-then-increment races
+when two admins add at once.
+
+## The trust engine, as it actually is (verified 2026-08-20)
+
+Read before touching anything trust-related; several of these contradict what
+the deltas alone suggest.
+
+- **`pets.trust_score_delta(text)` is the authority on deltas**, and it holds
+  `like 5`, `super_like 150`, `follow 10`, `match 30`, `block −80`,
+  `report −80`, `post_report −20`, `certificate_verified 500`. Note
+  `super_like`, which was absent from our constants until 2026-08-20.
+  ⚠️ `post_report` was **missing** between roughly 08-18 and 08-20, which
+  returned NULL and broke post reporting outright; the app team restored the
+  arm and it was confirmed working 2026-08-21 (handoff §3.6a). A missing arm
+  anywhere in that CASE takes down the whole originating INSERT.
+- **`pets.adjust_pet_trust_score(pet, reason, actor?, event_ref?)`** is how every
+  delta is applied: it inserts the ledger row and updates the score in one
+  transaction. EXECUTE is granted to `postgres` only — the panel cannot call it.
+- **The ledger dedups on a unique index**,
+  `(target_pet_id, coalesce(actor_pet_id,0), reason, coalesce(event_ref,0))`,
+  with `ON CONFLICT DO NOTHING`. So a second report from the same reporter
+  against the same pet **scores nothing** — and two reports can share one
+  deduction, which is why dismissal reversals check for siblings.
+- **`event_ref` does not point at the report.** `report` rows carry NULL;
+  `post_report` rows point at the **post** (`social.posts.id`, 11/11 verified);
+  `certificate_verified` rows point at the certificate. Reconstruct the dedup
+  key from the report row instead — all 17 live reports resolve to exactly one
+  event that way, none ambiguous.
+- **`trust_status_on_score_change` tests `= 555` FIRST** and clears
+  `trust_warning_acknowledged`, `temporary_banned_at`, `temporary_ban_until`.
+  Confirmed in a rolled-back transaction: 475→555 clears the ban window,
+  400→480 leaves it intact. It also **never clears a ban when a score rises past
+  100**, so a pet credited out of the ban band keeps a stale ban date.
+
 **Swipe composition, verified 2026-08-17.** `interaction_type` is
 `like` (**370**) or `pass` (**1081**) of 1451 total — a 25.5% like rate — and
 both values are present from the first row (2026-07-09), so the split covers
@@ -68,7 +153,7 @@ EMPTY (0 rows, verified 2026-08-17)**, despite having exactly the columns a
 device-mix chart needs (`platform`, `app_version`, `last_active_at`;
 `user_agent`, `ip_address`). The schema is ready and the service key can
 already read them — nothing writes them. A requested device chart was
-therefore **not built**; see handoff §3.6b.
+therefore **not built**; see handoff §3.6c.
 
 ⚠️ **`identity.accounts.status` and `pets.pets.status` have NO check
 constraint** — the `active`/`archived` vocabulary is convention, not enforced.
@@ -312,10 +397,28 @@ are needed for reads. Residual asks for the backend team:
 | Email | Role | Created | Purpose |
 |-------|------|---------|---------|
 | `xlevelsup.tech@gmail.com` | **`super_admin`** | 2026-08-16 | The real operator account — first and only super_admin |
-| `admin.moderator.test@meetmypets.dev` | `moderator` | 2026-08-05 | Can sign in + call analytics APIs |
-| `admin.support.test@meetmypets.dev` | `support` | 2026-08-05 | Signs in but gets 403 from analytics — proves the role allowlist |
+| `moderator@meetmypets.app` | `moderator` | 2026-08-26 | **Real moderator account** on the production domain |
+| `admin.moderator.test@meetmypets.dev` | `moderator` | 2026-08-05 | Test fixture. The e2e suite signs in as this one (`E2E_MODERATOR_*`) |
+| `admin.support.test@meetmypets.dev` | `support` | 2026-08-05 | Test fixture. Signs in but gets 403 from analytics — proves the role allowlist |
 
-Passwords are delivered in-session and never recorded here.
+Passwords are delivered in-session and never recorded here. ⚠️ They are also
+**not recoverable**: `auth.users.encrypted_password` is a bcrypt hash, and the
+CI copies live in GitHub repo secrets, which are write-only. A lost admin
+password is reset through the GoTrue admin API, not looked up.
+
+**About `moderator@meetmypets.app` (created 2026-08-26):** same method as the
+super_admin below — GoTrue admin API, `email_confirm: true`, role in
+`app_metadata`. Verified end to end rather than assumed: the role is in
+`raw_app_meta_data` and **absent from `raw_user_meta_data`** (which end users
+can edit and is therefore worthless for authorization), password sign-in
+succeeds against the *publishable* key, and the returned ES256 access token
+carries `app_metadata.role = moderator` — which is the claim `proxy.ts`
+`getClaims()` and `dal.ts` actually read. The verification session was revoked
+immediately afterwards.
+
+⚠️ Like every admin, it is **also a regular app account**: `handle_new_user()`
+fired and gave it `identity.accounts` row `328525d4-…` with `display_name`
+"moderator", so it appears in `/users` and in the `totalUsers` metric.
 
 **About the super_admin account (created 2026-08-16):** made through the GoTrue
 admin API with `email_confirm: true`, so it works without an email round-trip —
@@ -413,6 +516,22 @@ matching label in `copy.audit.actionLabels`.
   `public.swipes`) and applied; `analytics.ts` now calls it via `rpc`.
 - `20260806000003_admin_moderation_tables` (Step 1) — `admin_audit_logs` +
   `admin_restrictions` with the revokes and constraints described above.
+
+## Applied 2026-08-20 — trust reversals
+
+- `20260820000000_admin_trust_reversals` — `public.admin_trust_reversals`, the
+  counter-entry for a trust deduction credited back when its report is dismissed.
+
+Verified after applying:
+
+| Check | Result |
+|---|---|
+| Grants | `service_role: SELECT, INSERT` only — `anon` and `authenticated` absent, so the default-privileges trap was caught by the revokes |
+| RLS | enabled |
+| Unique indexes | `report_id` and `trust_event_id`, both present |
+| Full path, in a rolled-back transaction | dedup-key lookup → CAS matched 1 row → score 675→755 → reversal row inserted |
+| Double refund | **blocked by the unique constraint**, not by application logic |
+| Nothing persisted | reversals 0 rows, no pet at 755, no dismissed reports |
 
 ## Applied 2026-08-17 — ranged analytics
 

@@ -26,9 +26,13 @@ break each other.
    refreshing and sign-in starts failing. **Your app must handle that error
    state gracefully** — see §2.1. This is the single most likely source of "the
    app is broken" reports that are actually working as designed.
-2. **We never write your columns.** `identity.accounts.status`,
-   `pets.pets.status` and `pets.pets.trust_score` stay yours. All moderation
-   state lives in our own `public.admin_restrictions` table.
+2. **We write almost none of your columns.** `identity.accounts.status` and
+   `pets.pets.status` stay yours, and all moderation state lives in our own
+   `public.admin_restrictions`. The **one exception is `pets.pets.trust_score`**,
+   which the panel now moves in three cases: a restore (555), a permanent ban
+   (0), and crediting back the deduction from a dismissed report (§3.6b). It
+   was accurate that we never touched it until the trust review queue shipped;
+   it is not any more.
 3. **`anon` access to the `identity` schema was revoked** on 2026-08-06 — it
    was a live PII leak (§2.4). The `authenticated` half is still open and
    **only you can fix it properly** (§3.1). This is the top ask, and as of
@@ -573,7 +577,127 @@ Not blocking us, but worth your queue:
 - Performance: 18 unindexed foreign keys, and ~24 RLS policies calling
   `auth.uid()` per-row instead of `(select auth.uid())`.
 
-### 3.6b Things that look useful and are not (please confirm)
+### 3.6a ✅ RESOLVED — post-scoped reporting (was P1)
+
+**`pets.trust_score_delta('post_report')` returns NULL.** Its `CASE` has arms for
+`like`, `super_like`, `follow`, `match`, `block`, `report` and
+`certificate_verified` — but not `post_report`.
+
+`pets.adjust_pet_trust_score` raises on a NULL delta:
+
+```
+adjust_pet_trust_score: unknown reason %. Valid reasons are defined in
+pets.trust_score_delta.
+```
+
+and `matching.trust_on_pet_report()` calls it with `'post_report'` for every
+report carrying `context_entity_type = 'post'`. **Inserting a post-scoped report
+therefore fails outright** — the trigger raises and the INSERT rolls back.
+
+It used to work: there are **11 `post_report` rows in
+`pets.trust_score_events` at −20**, the newest from before the arm disappeared.
+The `WHEN` clause looks dropped in an edit rather than removed deliberately.
+
+Reproduce (read-only): `select pets.trust_score_delta('post_report');` → NULL.
+
+**Fixed by the app team, confirmed 2026-08-21.** The `WHEN 'post_report' THEN
+-20` arm is back in `pets.trust_score_delta`, and post-scoped reports have
+resumed: 11 at the time of the report, **13 now**. Kept here as a record rather
+than deleted — the failure mode (a NULL delta anywhere in that CASE takes down
+the whole insert path for that reason) is worth remembering.
+
+### 3.6b Two things we would like, to do trust reversals properly
+
+The panel now credits a report's trust deduction back when a moderator
+**dismisses** it (`dismissed` = "not a legitimate report", so the penalty
+should not stand). We had to do that the awkward way, and two small changes on
+your side would let us delete our workaround entirely:
+
+1. **Add `report_dismissed` (+80) and `post_report_dismissed` (+20) to
+   `pets.trust_score_delta`.**
+2. **`grant execute on function pets.adjust_pet_trust_score(uuid,text,uuid,uuid)
+   to service_role;`** — currently `postgres` only.
+
+With those, dismissing calls your function, which writes the ledger row and the
+score in one transaction and dedups on your own unique index. Exactly the same
+mechanism that applied the penalty, run in reverse.
+
+**What we do instead, today.** We hold `UPDATE (trust_score)` on `pets.pets` and
+SELECT on `pets.trust_score_events`, so we move the score ourselves and record
+the reason in our own `public.admin_trust_reversals`. The consequence is
+deliberate but not good: **your ledger shows a −80 with no matching credit while
+the score sits 80 higher.** Our table is what explains the difference, and our
+trust view merges it into the timeline — but it is our table, not yours, so
+anything reading `trust_score_events` alone will see the discrepancy.
+
+We find the right deduction through your unique index
+`(target_pet_id, coalesce(actor_pet_id,0), reason, coalesce(event_ref,0))`,
+every field of which is reconstructible from the report row. Verified against
+all 17 live reports: each resolves to exactly one event, none ambiguous.
+
+⚠️ **One behaviour of `trust_status_on_score_change` worth knowing**, since it
+shaped the design: it tests `NEW.trust_score = 555` *first* and clears
+`trust_warning_acknowledged`, `temporary_banned_at` and `temporary_ban_until`.
+A pet on 475 credited +80 lands exactly there, so an ordinary reversal would
+silently lift a ban earned from unrelated blocks or other reports. **One live
+report is in exactly that position.** We block the credit in that case rather
+than let it happen; confirmed in a rolled-back transaction that 475→555 clears
+the ban window while 400→480 leaves it intact.
+
+Related: the trigger never *clears* a ban when a score rises back above 100, so
+a pet credited out of the ban band keeps a stale `temporary_ban_until`. We
+cannot write those columns (column-scoped grant), which is a second reason we
+keep reversals to a single deduction.
+
+### 3.6d Taxonomy: two schema gaps that broke our settings screen
+
+Both found the hard way when `/settings` could not add a species or a breed.
+Neither blocks us any more — we work around both — but the first will bite the
+next client that inserts, and the second will bite anything that validates ids.
+
+**1. `pets.species.id` and `pets.breeds.id` have no DEFAULT.**
+
+Both are `uuid NOT NULL` with `column_default` empty, so an insert that omits
+`id` fails outright:
+
+```
+null value in column "id" of relation "species" violates not-null constraint
+```
+
+Reproduced as `service_role` in a rolled-back transaction, which is exactly what
+our panel hit. Your Flutter client generates ids itself, so it never noticed.
+One line each would make the column self-sufficient for every caller:
+
+```sql
+alter table pets.species alter column id set default gen_random_uuid();
+alter table pets.breeds  alter column id set default gen_random_uuid();
+```
+
+We now generate a v4 UUID panel-side, so new rows land fine either way.
+
+**2. The existing species ids are not valid UUIDs.**
+
+All six are sequential placeholders — `00000000-0000-0000-0000-000000000001`
+(Dog) through `…0006` (Small Pet) — with the RFC 9562 version nibble and variant
+nibble both `0`. A conforming UUID needs version 1–8 and variant 8/9/a/b.
+
+That is not a problem in Postgres, which stores them happily, but **any strict
+validator rejects your entire taxonomy**. Ours did: zod v4 tightened its
+`.uuid()` to enforce the spec, so our breed form rendered a fully populated
+species dropdown and then refused every option with "Pick a species." We
+switched to zod's lenient `guid` check.
+
+Flagging it rather than asking you to change it — `pets.pets.species_id` points
+at these, so rewriting them is a migration nobody needs. Just know that "it's a
+uuid column" does not mean the values pass a UUID validator, in any language.
+
+**3. Restating two constraint gaps our adapter compensates for**, since they are
+adjacent and still open: `species.name` is UNIQUE but **case-sensitive** (so
+"dog" and "Dog" both insert and render identically), and `breeds` has **no
+uniqueness constraint at all**. The duplicate checks in `lib/taxonomy.ts` are
+therefore load-bearing application logic, not belt-and-braces.
+
+### 3.6c Things that look useful and are not (please confirm)
 
 Found while building `/users` and the dashboard. All of these are readable by
 us and empty for the entire population, so we built around them rather than
@@ -713,7 +837,7 @@ always safe.
 | `matching.pet_reports.status` | update — **column-scoped grant, nothing else on the row is writable** |
 | `pets.pet_certificates` | update of `status`, `reviewed_by`, `reviewed_at`, `remarks` only — **column-scoped**. ⚠️ `status='approved'` fires your trust trigger (+500) |
 | `pets.species`, `pets.breeds` | insert + update (`name`, `description`, `status`). **No delete** — your FKs forbid it anyway. ⚠️ read live by your app (§3.4d) |
-| `pets.pets.trust_score` | update to **555 (restore) or 0 (permanent ban) — those two values only**. Column-scoped: no other column of `pets.pets` is writable. 555 is the exact-equality branch your `trust_status_on_score_change` trigger tests for; 0 is the canonical value in your `<= 0` permanent band. ⚠️ Writing 0 also makes your trigger stamp a meaningless 7-day review window, which we suppress in the UI and cannot clear (§3.4f) |
+| `pets.pets.trust_score` | update to **555 (restore), 0 (permanent ban), or a report-dismissal credit (score + 80 / + 20 — see §3.6b)**. Column-scoped: no other column of `pets.pets` is writable. 555 is the exact-equality branch your `trust_status_on_score_change` trigger tests for; 0 is the canonical value in your `<= 0` permanent band. ⚠️ Writing 0 also makes your trigger stamp a meaningless 7-day review window, which we suppress in the UI and cannot clear (§3.4f) |
 | `public.admin_restrictions` | insert (apply), update (lift) — ours |
 | `public.admin_audit_logs` | insert only — ours, append-only |
 

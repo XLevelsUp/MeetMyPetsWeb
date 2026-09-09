@@ -1,14 +1,17 @@
 "use client";
 
-import { FileWarning } from "lucide-react";
+import { CalendarX2, FileWarning } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
 import { Pagination } from "@/components/shared/pagination";
 import { QueryErrorCard } from "@/components/shared/query-error-card";
+import { SortableHead } from "@/components/shared/sortable-head";
 import { ReviewPane } from "@/components/verifications/review-pane";
 import { VerificationFilters } from "@/components/verifications/verification-filters";
 import {
+  formatDate,
   formatWhen,
+  isExpired,
   statusLabel,
   statusVariant,
   typeLabel,
@@ -24,30 +27,42 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { copy } from "@/config/admin";
+import { useUrlSyncedQuery } from "@/hooks/use-url-query";
 import { useCertificates } from "@/hooks/use-verifications";
-import { DEFAULT_PAGE_SIZE } from "@/lib/contract-shared";
-import type { CertificatesQuery } from "@/lib/verifications-contract";
+import {
+  DEFAULT_CERTIFICATES_QUERY,
+  type CertificatesQuery,
+} from "@/lib/verifications-contract";
 
-const COLUMN_COUNT = 5;
+/** Submitted, Pet, Type, Expires, Document, Status. */
+const COLUMN_COUNT = 6;
 
-export function VerificationsQueue({
-  initialStatus,
-}: {
-  initialStatus?: CertificatesQuery["status"];
-}) {
-  const [query, setQuery] = useState<CertificatesQuery>({
-    page: 1,
-    pageSize: DEFAULT_PAGE_SIZE,
-    q: undefined,
-    status: initialStatus ?? "pending",
-    certificateType: "all",
+export function VerificationsQueue({ initialQuery }: { initialQuery: CertificatesQuery }) {
+  // URL-synced, so a sorted or filtered queue can be linked and survives a
+  // reload. `active` is always true — one writer on this page.
+  const [query, setQuery] = useUrlSyncedQuery(initialQuery, DEFAULT_CERTIFICATES_QUERY, {
+    active: true,
   });
   /** Only an explicit click. The effective selection is derived below. */
   const [pickedId, setPickedId] = useState<string | null>(null);
 
-  const handleFilterChange = useCallback((next: Partial<CertificatesQuery>) => {
-    setQuery((prev) => ({ ...prev, ...next, page: 1 }));
-  }, []);
+  const handleFilterChange = useCallback(
+    (next: Partial<CertificatesQuery>) => {
+      setQuery((prev) => ({ ...prev, ...next, page: 1 }));
+    },
+    [setQuery],
+  );
+
+  /**
+   * Re-sorting returns to page 1. Without it the reader stays on page 3 of a
+   * completely different ordering, looking at rows they never chose to skip.
+   */
+  const handleSort = useCallback(
+    (sort: CertificatesQuery["sort"], dir: CertificatesQuery["dir"]) => {
+      setQuery((prev) => ({ ...prev, sort, dir, page: 1 }));
+    },
+    [setQuery],
+  );
 
   const certificates = useCertificates(query);
   const items = useMemo(() => certificates.data?.items ?? [], [certificates.data]);
@@ -92,11 +107,46 @@ export function VerificationsQueue({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{copy.verifications.columns.submitted}</TableHead>
+                  <SortableHead
+                    column="created_at"
+                    label={copy.verifications.columns.submitted}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    // Oldest-waiting first — the whole point of a review queue.
+                    defaultDirection="asc"
+                    onSort={handleSort}
+                  />
+                  {/* Pet name is merged in from pets.pets through a Map,
+                      because PostgREST cannot join across schemas — so there
+                      is nothing to order by. Left a plain header rather than
+                      given an affordance that would sort the page only. */}
                   <TableHead>{copy.verifications.columns.pet}</TableHead>
-                  <TableHead>{copy.verifications.columns.type}</TableHead>
+                  <SortableHead
+                    column="certificate_type"
+                    label={copy.verifications.columns.type}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    onSort={handleSort}
+                  />
+                  <SortableHead
+                    column="expires_at"
+                    label={copy.verifications.columns.expires}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    // Ascending puts already-expired and soonest-to-lapse first.
+                    defaultDirection="asc"
+                    onSort={handleSort}
+                  />
+                  {/* file_path is set on every row, so ordering by it would
+                      never move anything. */}
                   <TableHead>{copy.verifications.columns.document}</TableHead>
-                  <TableHead>{copy.verifications.columns.status}</TableHead>
+                  <SortableHead
+                    column="status"
+                    label={copy.verifications.columns.status}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    onSort={handleSort}
+                  />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -151,6 +201,29 @@ export function VerificationsQueue({
                       </TableCell>
                       <TableCell className="text-sm">
                         {typeLabel(item.certificateType)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {/* `isExpired` is the same helper the review pane uses,
+                            so the list and the pane can never disagree about
+                            whether a certificate has lapsed. */}
+                        {item.claims.expiresAt ? (
+                          <span
+                            className={
+                              isExpired(item.claims.expiresAt)
+                                ? "flex items-center gap-1 text-destructive"
+                                : "text-muted-foreground"
+                            }
+                          >
+                            {isExpired(item.claims.expiresAt) ? (
+                              <CalendarX2 className="size-3.5 shrink-0" aria-hidden="true" />
+                            ) : null}
+                            {formatDate(item.claims.expiresAt)}
+                          </span>
+                        ) : (
+                          // Null means "no stated expiry", not "expires now" —
+                          // which is also why these sort last.
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {item.hasDocument ? (

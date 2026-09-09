@@ -1,11 +1,17 @@
 import { z } from "zod";
 
-import { listQuerySchema, paginated, reasonSchema } from "@/lib/contract-shared";
+import {
+  listQuerySchema,
+  paginated,
+  reasonSchema,
+  SORT_DIRECTIONS,
+} from "@/lib/contract-shared";
 import {
   REPORT_REASONS,
   REPORT_RESOLUTIONS,
   REPORT_SCOPES,
   REPORT_STATUSES,
+  TRUST_REVERT_OUTCOMES,
 } from "@/lib/report-constants";
 
 /**
@@ -42,6 +48,21 @@ export const trustSignalSchema = z.object({
 });
 export type TrustSignal = z.infer<typeof trustSignalSchema>;
 
+/**
+ * Preview of the trust credit a dismissal would apply.
+ *
+ * `outcome` is what WOULD happen, computed from the same guards the write path
+ * runs; `delta` and `scoreAfter` are only meaningful when it is `reverted`.
+ * The preview is advisory — the write re-checks everything, because the score
+ * can move between rendering a row and submitting the dialog.
+ */
+export const trustRevertPreviewSchema = z.object({
+  outcome: z.enum(TRUST_REVERT_OUTCOMES),
+  delta: z.number().int().nullable(),
+  scoreAfter: z.number().int().nullable(),
+});
+export type TrustRevertPreview = z.infer<typeof trustRevertPreviewSchema>;
+
 export const reportSummarySchema = z.object({
   id: z.string(),
   status: z.enum(REPORT_STATUSES),
@@ -64,6 +85,12 @@ export const reportSummarySchema = z.object({
   trust: trustSignalSchema,
   /** Total reports ever filed against this pet, this one included. */
   reportsAgainstPet: z.number().int().min(0),
+  /**
+   * What dismissing this report would do to the pet's trust score, resolved
+   * ahead of time so the dialog can state the consequence instead of the
+   * moderator discovering it afterwards.
+   */
+  revert: trustRevertPreviewSchema,
 });
 export type ReportSummary = z.infer<typeof reportSummarySchema>;
 
@@ -83,12 +110,41 @@ export const REPORT_STATUS_FILTERS = ["all", ...REPORT_STATUSES] as const;
 export const REPORT_REASON_FILTERS = ["all", ...REPORT_REASONS] as const;
 export const REPORT_SCOPE_FILTERS = ["all", ...REPORT_SCOPES] as const;
 
+/**
+ * Sort keys.
+ *
+ * The first three are real columns on `matching.pet_reports` and become a
+ * PostgREST `.order()`. **`trust` is not a column** — the score is merged in
+ * from `pets.pets`, so the adapter resolves it to an ordered id list before the
+ * page query. Do not add it to an `.order()`; see `listReports`.
+ *
+ * Deliberately absent:
+ *  - **the reported pet's name**, also cross-schema, but alphabetical across a
+ *    handful of pets earns nothing and each pre-resolved sort is another path
+ *    to keep correct across page boundaries;
+ *  - **scope**, because `context_entity_type` is `'post'` or NULL, so with
+ *    nulls pinned last both directions give post-then-profile — a toggle that
+ *    moves almost nothing reads as a bug. The scope FILTER already does it.
+ */
+export const REPORT_SORTS = ["created_at", "reason", "status", "trust"] as const;
+export type ReportSort = (typeof REPORT_SORTS)[number];
+
 export const reportsQuerySchema = listQuerySchema.extend({
   status: z.enum(REPORT_STATUS_FILTERS).catch("pending"),
   reason: z.enum(REPORT_REASON_FILTERS).catch("all"),
   scope: z.enum(REPORT_SCOPE_FILTERS).catch("all"),
+  sort: z.enum(REPORT_SORTS).catch("created_at"),
+  /**
+   * Newest first — the opposite of `/verifications`, which opens ascending
+   * because a certificate queue should surface what has waited longest. Both
+   * defaults are deliberate; neither should be copied to the other.
+   */
+  dir: z.enum(SORT_DIRECTIONS).catch("desc"),
 });
 export type ReportsQuery = z.infer<typeof reportsQuerySchema>;
+
+/** What an empty query string means — the open queue, newest first. */
+export const DEFAULT_REPORTS_QUERY: ReportsQuery = reportsQuerySchema.parse({});
 
 /* -------------------------------------------------------------------------
  * Resolution
@@ -106,5 +162,12 @@ export const resolveReportSchema = z.object({
 });
 export type ResolveReportRequest = z.infer<typeof resolveReportSchema>;
 
-/** `{ ok: true }` — the client refetches rather than trusting a returned row. */
-export const reportActionResponseSchema = z.object({ ok: z.literal(true) });
+/**
+ * The action echoes what happened to the trust score, because "dismissed" alone
+ * would hide whether the credit landed. `null` for non-dismissal resolutions,
+ * which never touch trust.
+ */
+export const reportActionResponseSchema = z.object({
+  ok: z.literal(true),
+  revert: trustRevertPreviewSchema.nullable(),
+});

@@ -28,6 +28,35 @@ export type ReportStatus = (typeof REPORT_STATUSES)[number];
 export const REPORT_RESOLUTIONS = ["reviewed", "actioned", "dismissed"] as const;
 export type ReportResolution = (typeof REPORT_RESOLUTIONS)[number];
 
+/**
+ * What happens to the trust deduction when a report is dismissed.
+ *
+ * Filing a report costs the reported pet points (−80 profile, −20 post), so
+ * "not a legitimate report" should give them back. Every outcome except
+ * `reverted` is a reason we did NOT, and each is shown to the moderator rather
+ * than silently swallowed — a refund that quietly did not happen is worse than
+ * one that never claimed to.
+ *
+ * `would_restore` is the sharp one: the app's trigger treats a score of exactly
+ * 555 as a full restoration and clears the pet's ban window, so a credit that
+ * happens to land there would lift a ban earned from unrelated blocks or other
+ * reports. That is a deliberate decision for `/trust`, not a side effect of
+ * dismissing one report.
+ */
+export const TRUST_REVERT_OUTCOMES = [
+  "reverted",
+  "no_deduction",
+  "already_reverted",
+  "still_earned",
+  "would_restore",
+  "score_moved",
+  "failed",
+] as const;
+export type TrustRevertOutcome = (typeof TRUST_REVERT_OUTCOMES)[number];
+
+/** Only a dismissal credits anything back. */
+export const REVERTS_TRUST: ReportResolution = "dismissed";
+
 export const REPORT_REASONS = [
   "spam",
   "harassment",

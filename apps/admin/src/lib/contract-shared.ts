@@ -45,6 +45,17 @@ export const listQuerySchema = z.object({
 
 export type ListQuery = z.infer<typeof listQuerySchema>;
 
+/**
+ * Sort direction, shared by every sortable list.
+ *
+ * The DEFAULT is per-surface and deliberately not centralised: `/users` and
+ * `/reports` open newest-first, while `/verifications` opens oldest-first
+ * because a review queue should surface what has waited longest. Each schema
+ * states its own `.catch()`.
+ */
+export const SORT_DIRECTIONS = ["asc", "desc"] as const;
+export type SortDirection = (typeof SORT_DIRECTIONS)[number];
+
 /* -------------------------------------------------------------------------
  * URL round-trip
  *

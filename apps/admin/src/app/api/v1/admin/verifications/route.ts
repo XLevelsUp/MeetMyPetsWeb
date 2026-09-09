@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import type { ApiError } from "@/lib/api-contract";
+import { searchParamsToQuery } from "@/lib/contract-shared";
 import { requireRole } from "@/lib/dal";
 import { VERIFICATION_ROLES } from "@/lib/roles";
 import { listCertificates } from "@/lib/verifications";
@@ -18,15 +19,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const params = request.nextUrl.searchParams;
-  const query = certificatesQuerySchema.parse({
-    page: params.get("page") ?? undefined,
-    pageSize: params.get("pageSize") ?? undefined,
-    q: params.get("q") ?? undefined,
-    status: params.get("status") ?? undefined,
-    certificateType: params.get("certificateType") ?? undefined,
-  });
-
+  // Derived from the schema's own keys, so adding a sort or a filter wires it
+  // end to end instead of being silently dropped here. Garbage degrades via
+  // the contract's `.catch()` rather than 400-ing.
+  const query = searchParamsToQuery(certificatesQuerySchema, request.nextUrl.searchParams);
   const result = await listCertificates(query);
   if (!result.ok) {
     return NextResponse.json<ApiError>(
