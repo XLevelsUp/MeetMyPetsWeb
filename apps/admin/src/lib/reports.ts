@@ -142,6 +142,26 @@ async function petsById(ids: string[]): Promise<Map<string, PetRow>> {
   return map;
 }
 
+/**
+ * pet id → trust score, for the `trust` sort only.
+ *
+ * Separate from `petsById` because that one is called with the pets on a single
+ * page, whereas this needs every pet named by every matching report before the
+ * page is chosen.
+ */
+async function trustScoresFor(petIds: string[]): Promise<Map<string, number | null>> {
+  const scores = new Map<string, number | null>();
+  if (petIds.length === 0) return scores;
+
+  const { data, error } = await from(TABLES.pets).select("id,trust_score").in("id", petIds);
+  if (error) throw new Error(`pets.pets: ${error.message}`);
+
+  for (const row of (data ?? []) as { id: string; trust_score: number | null }[]) {
+    scores.set(row.id, row.trust_score);
+  }
+  return scores;
+}
+
 /** account id → email. */
 async function ownerEmails(ids: string[]): Promise<Map<string, string | null>> {
   const map = new Map<string, string | null>();
@@ -476,36 +496,127 @@ export async function listReports(query: ReportsQuery): Promise<ReportsResult<Re
   }
 
   try {
-    const { page, pageSize, q, status, reason, scope } = query;
+    const { page, pageSize, q, status, reason, scope, sort, dir } = query;
     const offset = (page - 1) * pageSize;
+    const ascending = dir === "asc";
 
-    let request = from(TABLES.reports).select(REPORT_COLUMNS, { count: "exact" });
+    /**
+     * Every filter except ordering and paging, in one place so the trust path's
+     * id query and the page query can never disagree about what "matching"
+     * means. Same reason `users.ts` factors this out.
+     */
+    /**
+     * The filter chain, shared by the trust path's id query and the page query
+     * so the two can never disagree about what "matching" means.
+     *
+     * ⚠️ THE TYPING HERE IS DELIBERATE, and two tidier-looking versions do not
+     * work. supabase types its builder per-select, so:
+     *   - `ReturnType<…["select"]>` describes a bare `.select()` whose row type
+     *     is `unknown[]`, which a column-string builder is not assignable to;
+     *   - a self-referential `<T extends Filterable<T>>` makes TS check the
+     *     entire PostgrestFilterBuilder against it and hit TS2589,
+     *     "type instantiation is excessively deep".
+     * The first version compiled under `tsc --noEmit` and then crashed the Next
+     * build worker with a stack overflow — green locally, dead in CI.
+     *
+     * So the chain is applied through a narrow, NON-recursive structural view
+     * and handed back as the caller's own type. Both casts are confined to this
+     * one function; the runtime behaviour is an ordinary builder chain.
+     */
+    type Filterable = {
+      eq(column: string, value: string): Filterable;
+      is(column: string, value: null): Filterable;
+      or(filters: string): Filterable;
+      ilike(column: string, pattern: string): Filterable;
+    };
 
-    if (status !== "all") request = request.eq("status", status);
-    if (reason !== "all") request = request.eq("reason", reason);
+    const applyFilters = <T>(input: T): T => {
+      let out = input as unknown as Filterable;
 
-    // Scope is derived from the context pair, which the backend's
-    // `pet_reports_context_pair` constraint keeps both-null or both-set.
-    if (scope === "profile") request = request.is("context_entity_type", null);
-    else if (scope === "post") request = request.eq("context_entity_type", "post");
+      if (status !== "all") out = out.eq("status", status);
+      if (reason !== "all") out = out.eq("reason", reason);
 
-    if (q) {
-      const term = sanitizeSearch(q);
-      if (term) {
-        request = UUID_RE.test(term)
-          ? request.or(`id.eq.${term},reported_pet_id.eq.${term},reporter_pet_id.eq.${term}`)
-          : request.ilike("details", `%${term}%`);
+      // Scope is derived from the context pair, which the backend's
+      // `pet_reports_context_pair` constraint keeps both-null or both-set.
+      if (scope === "profile") out = out.is("context_entity_type", null);
+      else if (scope === "post") out = out.eq("context_entity_type", "post");
+
+      if (q) {
+        const term = sanitizeSearch(q);
+        if (term) {
+          out = UUID_RE.test(term)
+            ? out.or(`id.eq.${term},reported_pet_id.eq.${term},reporter_pet_id.eq.${term}`)
+            : out.ilike("details", `%${term}%`);
+        }
+      }
+
+      return out as unknown as T;
+    };
+
+    /**
+     * `trust` is NOT a column — the score lives in `pets.pets` and PostgREST
+     * cannot join across schemas. So it gets its own path: resolve every
+     * matching report id, order those by the reported pet's score, and slice
+     * the page in memory.
+     *
+     * Ordering the fetched page instead would sort WITHIN the page and be
+     * wrong the moment there is a second one. That is the bug this avoids, and
+     * it is invisible on page 1 — which is why the test asserts call ordering.
+     *
+     * TODO(scale): resolves every matching id, fine at 20 reports; becomes a
+     * SQL view or an aggregate when it isn't.
+     */
+    let orderedPageIds: string[] | null = null;
+    let computedTotal: number | null = null;
+
+    if (sort === "trust") {
+      const { data: idData, error: idError } = await applyFilters(
+        from(TABLES.reports).select("id,reported_pet_id"),
+      );
+      if (idError) throw new Error(`matching.pet_reports: ${idError.message}`);
+
+      const candidates = (idData ?? []) as { id: string; reported_pet_id: string }[];
+      const scores = await trustScoresFor(unique(candidates.map((r) => r.reported_pet_id)));
+
+      // A null score is UNKNOWN, not "worst" — park it at the end of an
+      // ascending list rather than at the top where a ban-risk sort looks.
+      const rank = (petId: string) => scores.get(petId) ?? Number.POSITIVE_INFINITY;
+
+      const ordered = [...candidates].sort((a, b) => {
+        const delta = rank(a.reported_pet_id) - rank(b.reported_pet_id);
+        // Stable tie-break by id so paging never repeats or drops a row.
+        return (ascending ? delta : -delta) || a.id.localeCompare(b.id);
+      });
+
+      computedTotal = ordered.length;
+      orderedPageIds = ordered.slice(offset, offset + pageSize).map((r) => r.id);
+      if (orderedPageIds.length === 0) {
+        return { ok: true, data: { items: [], page, pageSize, total: computedTotal } };
       }
     }
 
-    const { data, count, error } = await request
-      .order("created_at", { ascending: false })
-      .range(offset, offset + pageSize - 1);
+    let request = orderedPageIds
+      ? from(TABLES.reports).select(REPORT_COLUMNS).in("id", orderedPageIds)
+      : applyFilters(from(TABLES.reports).select(REPORT_COLUMNS, { count: "exact" }));
+
+    if (!orderedPageIds) {
+      request = request
+        .order(sort, { ascending, nullsFirst: false })
+        .range(offset, offset + pageSize - 1);
+    }
+
+    const { data, count, error } = await request;
     if (error) throw new Error(`matching.pet_reports: ${error.message}`);
 
-    const rows = (data ?? []) as ReportRow[];
+    let rows = (data ?? []) as ReportRow[];
+
+    // PostgREST returns `in()` rows in its OWN order, so restore the ranking.
+    if (orderedPageIds) {
+      const position = new Map(orderedPageIds.map((id, i) => [id, i]));
+      rows = [...rows].sort((a, b) => (position.get(a.id) ?? 0) - (position.get(b.id) ?? 0));
+    }
     if (rows.length === 0) {
-      return { ok: true, data: { items: [], page, pageSize, total: count ?? 0 } };
+      return { ok: true, data: { items: [], page, pageSize, total: computedTotal ?? count ?? 0 } };
     }
 
     const petIds = unique(rows.flatMap((r) => [r.reported_pet_id, r.reporter_pet_id]));
@@ -578,7 +689,9 @@ export async function listReports(query: ReportsQuery): Promise<ReportsResult<Re
       };
     });
 
-    return { ok: true, data: { items, page, pageSize, total: count ?? 0 } };
+    // The trust path paginates in memory, so its total comes from the candidate
+    // set rather than a PostgREST count header (the `in()` query has none).
+    return { ok: true, data: { items, page, pageSize, total: computedTotal ?? count ?? 0 } };
   } catch (error) {
     return {
       ok: false,

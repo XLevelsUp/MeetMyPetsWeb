@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 
 import { ReportDetailDialog } from "@/components/reports/report-detail-dialog";
 import { ReportFilters } from "@/components/reports/report-filters";
@@ -16,6 +16,7 @@ import {
 } from "@/components/reports/report-format";
 import { Pagination } from "@/components/shared/pagination";
 import { QueryErrorCard } from "@/components/shared/query-error-card";
+import { SortableHead } from "@/components/shared/sortable-head";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -27,27 +28,34 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { copy } from "@/config/admin";
+import { useUrlSyncedQuery } from "@/hooks/use-url-query";
 import { useReports } from "@/hooks/use-reports";
-import { DEFAULT_PAGE_SIZE } from "@/lib/contract-shared";
-import type { ReportsQuery } from "@/lib/reports-contract";
+import { DEFAULT_REPORTS_QUERY, type ReportsQuery } from "@/lib/reports-contract";
 
 const COLUMN_COUNT = 7;
 
-export function ReportsTable({ initialStatus }: { initialStatus?: ReportsQuery["status"] }) {
-  const [query, setQuery] = useState<ReportsQuery>({
-    page: 1,
-    pageSize: DEFAULT_PAGE_SIZE,
-    q: undefined,
-    // The queue opens on the work: pending unless a deep link says otherwise.
-    status: initialStatus ?? "pending",
-    reason: "all",
-    scope: "all",
+export function ReportsTable({ initialQuery }: { initialQuery: ReportsQuery }) {
+  // URL-synced, so a sorted or filtered queue is linkable and survives a
+  // reload. The queue still opens on the work: `status` defaults to pending.
+  const [query, setQuery] = useUrlSyncedQuery(initialQuery, DEFAULT_REPORTS_QUERY, {
+    active: true,
   });
 
   // Stable identity so the filters' debounce effect doesn't re-run every render.
-  const handleFilterChange = useCallback((next: Partial<ReportsQuery>) => {
-    setQuery((prev) => ({ ...prev, ...next, page: 1 }));
-  }, []);
+  const handleFilterChange = useCallback(
+    (next: Partial<ReportsQuery>) => {
+      setQuery((prev) => ({ ...prev, ...next, page: 1 }));
+    },
+    [setQuery],
+  );
+
+  /** Re-sorting returns to page 1 — page 3 of a new ordering is meaningless. */
+  const handleSort = useCallback(
+    (sort: ReportsQuery["sort"], dir: ReportsQuery["dir"]) => {
+      setQuery((prev) => ({ ...prev, sort, dir, page: 1 }));
+    },
+    [setQuery],
+  );
 
   const reports = useReports(query);
   const isFiltered =
@@ -68,12 +76,45 @@ export function ReportsTable({ initialStatus }: { initialStatus?: ReportsQuery["
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{copy.reports.columns.when}</TableHead>
+                  <SortableHead
+                    column="created_at"
+                    label={copy.reports.columns.when}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    // Newest first — the opposite of /verifications, on purpose.
+                    defaultDirection="desc"
+                    onSort={handleSort}
+                  />
+                  {/* Pet name is merged in from pets.pets through a Map, so
+                      there is nothing to order by. */}
                   <TableHead>{copy.reports.columns.reported}</TableHead>
-                  <TableHead>{copy.reports.columns.reason}</TableHead>
+                  <SortableHead
+                    column="reason"
+                    label={copy.reports.columns.reason}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    onSort={handleSort}
+                  />
+                  {/* context_entity_type is 'post' or NULL, so a sort here
+                      would barely move and read as broken. The scope FILTER
+                      above already separates them. */}
                   <TableHead>{copy.reports.columns.scope}</TableHead>
-                  <TableHead>{copy.reports.columns.trust}</TableHead>
-                  <TableHead>{copy.reports.columns.status}</TableHead>
+                  <SortableHead
+                    column="trust"
+                    label={copy.reports.columns.trust}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    // Lowest first: the pets closest to a ban are the triage.
+                    defaultDirection="asc"
+                    onSort={handleSort}
+                  />
+                  <SortableHead
+                    column="status"
+                    label={copy.reports.columns.status}
+                    activeColumn={query.sort}
+                    direction={query.dir}
+                    onSort={handleSort}
+                  />
                   <TableHead className="sr-only">{copy.reports.details}</TableHead>
                 </TableRow>
               </TableHeader>

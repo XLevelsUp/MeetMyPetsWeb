@@ -1,6 +1,11 @@
 import { z } from "zod";
 
-import { listQuerySchema, paginated, reasonSchema } from "@/lib/contract-shared";
+import {
+  listQuerySchema,
+  paginated,
+  reasonSchema,
+  SORT_DIRECTIONS,
+} from "@/lib/contract-shared";
 import {
   REPORT_REASONS,
   REPORT_RESOLUTIONS,
@@ -105,12 +110,41 @@ export const REPORT_STATUS_FILTERS = ["all", ...REPORT_STATUSES] as const;
 export const REPORT_REASON_FILTERS = ["all", ...REPORT_REASONS] as const;
 export const REPORT_SCOPE_FILTERS = ["all", ...REPORT_SCOPES] as const;
 
+/**
+ * Sort keys.
+ *
+ * The first three are real columns on `matching.pet_reports` and become a
+ * PostgREST `.order()`. **`trust` is not a column** — the score is merged in
+ * from `pets.pets`, so the adapter resolves it to an ordered id list before the
+ * page query. Do not add it to an `.order()`; see `listReports`.
+ *
+ * Deliberately absent:
+ *  - **the reported pet's name**, also cross-schema, but alphabetical across a
+ *    handful of pets earns nothing and each pre-resolved sort is another path
+ *    to keep correct across page boundaries;
+ *  - **scope**, because `context_entity_type` is `'post'` or NULL, so with
+ *    nulls pinned last both directions give post-then-profile — a toggle that
+ *    moves almost nothing reads as a bug. The scope FILTER already does it.
+ */
+export const REPORT_SORTS = ["created_at", "reason", "status", "trust"] as const;
+export type ReportSort = (typeof REPORT_SORTS)[number];
+
 export const reportsQuerySchema = listQuerySchema.extend({
   status: z.enum(REPORT_STATUS_FILTERS).catch("pending"),
   reason: z.enum(REPORT_REASON_FILTERS).catch("all"),
   scope: z.enum(REPORT_SCOPE_FILTERS).catch("all"),
+  sort: z.enum(REPORT_SORTS).catch("created_at"),
+  /**
+   * Newest first — the opposite of `/verifications`, which opens ascending
+   * because a certificate queue should surface what has waited longest. Both
+   * defaults are deliberate; neither should be copied to the other.
+   */
+  dir: z.enum(SORT_DIRECTIONS).catch("desc"),
 });
 export type ReportsQuery = z.infer<typeof reportsQuerySchema>;
+
+/** What an empty query string means — the open queue, newest first. */
+export const DEFAULT_REPORTS_QUERY: ReportsQuery = reportsQuerySchema.parse({});
 
 /* -------------------------------------------------------------------------
  * Resolution

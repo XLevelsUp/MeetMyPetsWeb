@@ -14,7 +14,7 @@ vi.mock("@/lib/supabase/reference", () => ({
 }));
 
 import { listReports, resolveReport, trustStatusFor } from "@/lib/reports";
-import type { ReportsQuery } from "@/lib/reports-contract";
+import { reportsQuerySchema, type ReportsQuery } from "@/lib/reports-contract";
 
 const REPORT_ID = "11111111-1111-1111-1111-111111111111";
 const REPORTED_PET = "22222222-2222-2222-2222-222222222222";
@@ -32,6 +32,8 @@ const baseQuery: ReportsQuery = {
   status: "pending",
   reason: "all",
   scope: "all",
+  sort: "created_at",
+  dir: "desc",
 };
 
 const REPORT_ROW = {
@@ -216,6 +218,113 @@ describe("listReports", () => {
     if (result.ok) return;
     expect(result.reason).toBe("query_failed");
     expect(result.message).toContain("permission denied");
+  });
+
+  /**
+   * These assert the RECORDED CALLS — which order was built, which queries ran
+   * and in what sequence. The mock replays its fixture whatever was chained, so
+   * a row-based assertion would pass just as happily against an adapter that
+   * ignored `sort`, or one that sorted only the fetched page.
+   */
+  describe("sorting", () => {
+    function listable(overrides: Record<string, TableResult> = {}) {
+      return setup({
+        "matching.pet_reports": { rows: [REPORT_ROW], count: 1 },
+        "pets.pets": { rows: PET_ROWS },
+        "identity.accounts": { rows: [{ id: OWNER_ID, email: "owner@example.com" }] },
+        ...overrides,
+      });
+    }
+
+    const orderOf = (mock: SupabaseMock) =>
+      mock.calls
+        .find((c) => c.op === "select" && c.key === "matching.pet_reports")
+        ?.filters?.find((f) => f.method === "order");
+
+    it.each([
+      ["created_at", "desc", false],
+      ["created_at", "asc", true],
+      ["reason", "asc", true],
+      ["status", "desc", false],
+    ] as const)("orders by %s %s", async (sort, dir, ascending) => {
+      const mock = listable();
+      await listReports({ ...baseQuery, sort, dir });
+
+      expect(orderOf(mock)).toEqual({
+        method: "order",
+        args: [sort, { ascending, nullsFirst: false }],
+      });
+    });
+
+    /**
+     * REGRESSION. Unlike /verifications, this queue opens NEWEST first. The two
+     * defaults are deliberate and opposite; copying one to the other would
+     * silently invert a screen and nothing else would fail.
+     */
+    it("still defaults to newest first", async () => {
+      const mock = listable();
+      await listReports(reportsQuerySchema.parse({}));
+
+      expect(orderOf(mock)).toEqual({
+        method: "order",
+        args: ["created_at", { ascending: false, nullsFirst: false }],
+      });
+    });
+
+    /**
+     * `trust` lives in pets.pets, so it cannot be an `.order()`. The adapter
+     * must resolve ids FIRST and hand the page query an explicit id list —
+     * ordering the fetched page instead sorts within the page and is wrong the
+     * moment there is a second one, which page 1 would never reveal.
+     */
+    it("resolves ids before the page query and never orders on trust", async () => {
+      const mock = listable();
+      await listReports({ ...baseQuery, sort: "trust", dir: "asc" });
+
+      const reportSelects = mock.calls.filter(
+        (c) => c.op === "select" && c.key === "matching.pet_reports",
+      );
+      // 1st: the id resolution. 2nd: the page, by explicit id.
+      expect(reportSelects.length).toBeGreaterThanOrEqual(2);
+
+      const idQuery = reportSelects[0];
+      const pageQuery = reportSelects[1];
+      expect(idQuery.filters?.some((f) => f.method === "order")).toBe(false);
+      expect(pageQuery.filters?.some((f) => f.method === "order")).toBe(false);
+      expect(pageQuery.filters).toContainEqual({ method: "in", args: ["id", [REPORT_ID]] });
+
+      // The trust lookup happens between them, before the page is chosen.
+      const petLookup = mock.calls.findIndex((c) => c.key === "pets.pets");
+      expect(petLookup).toBeGreaterThan(mock.calls.indexOf(idQuery));
+      expect(petLookup).toBeLessThan(mock.calls.indexOf(pageQuery));
+    });
+
+    it("carries the filters into the id query, not just the page query", async () => {
+      // Otherwise the two halves disagree about what "matching" means and the
+      // total is computed over a different set than the page.
+      const mock = listable();
+      await listReports({ ...baseQuery, sort: "trust", status: "actioned", reason: "spam" });
+
+      const idQuery = mock.calls.find(
+        (c) => c.op === "select" && c.key === "matching.pet_reports",
+      );
+      expect(idQuery?.filters).toContainEqual({ method: "eq", args: ["status", "actioned"] });
+      expect(idQuery?.filters).toContainEqual({ method: "eq", args: ["reason", "spam"] });
+    });
+
+    it("short-circuits to an empty page when nothing matches the trust sort", async () => {
+      const mock = listable({ "matching.pet_reports": { rows: [], count: 0 } });
+      const result = await listReports({ ...baseQuery, sort: "trust" });
+
+      expect(result).toEqual({ ok: true, data: { items: [], page: 1, pageSize: 25, total: 0 } });
+      // No page query and no hydration fan-out for an empty candidate set.
+      expect(mock.calls.filter((c) => c.key === "pets.pets")).toHaveLength(0);
+    });
+
+    it("degrades a hand-edited sort instead of rejecting it", () => {
+      const parsed = reportsQuerySchema.parse({ sort: "reported_pet", dir: "sideways" });
+      expect(parsed).toMatchObject({ sort: "created_at", dir: "desc" });
+    });
   });
 });
 
