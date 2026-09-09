@@ -7,19 +7,20 @@ const nextConfig: NextConfig = {
   // about it; tracing also needs the real root to resolve hoisted packages.
   outputFileTracingRoot: path.join(__dirname, "../.."),
 
-  // Static export: `next build` emits a fully static site to ./out with no
-  // server runtime. Rules out API routes, Server Actions, redirects/headers
-  // and the default Image Optimizer — see next/dist/docs static-exports guide.
-  output: "export",
+  // NOT a static export any more.
+  //
+  // `output: "export"` forbids Route Handlers, and the Instagram section needs
+  // two of them. Instagram's media_url is a signed CDN link that expires within
+  // hours, so a build-time fetch bakes a URL into the HTML that is dead before
+  // most visitors arrive. The proxy in src/app/api/instagram/ resolves a fresh
+  // one per request instead — see the comments there.
+  //
+  // Consequence: this app now needs a Node runtime. `next start`, not a static
+  // file host.
 
-  // Required under `output: 'export'` — the default image loader needs a
-  // server. Images must therefore be pre-optimised at their final dimensions.
-  images: {
-    unoptimized: true,
-  },
-
-  // Emit /page/index.html instead of /page.html so any static host serves
-  // clean URLs without rewrite rules.
+  // Kept from the static-export era on purpose: the site has been live at
+  // /privacy/ and /terms/ with trailing slashes, and dropping this would change
+  // every URL that has already been shared or indexed.
   trailingSlash: true,
 
   productionBrowserSourceMaps: false,

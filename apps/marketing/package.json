@@ -4,13 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/fetch-reels.mjs && next build",
-    "reels": "node scripts/fetch-reels.mjs",
-    "start": "npx serve out",
-    "reels:seed": "node scripts/fetch-reels.mjs --seed-only",
-    "predev": "node scripts/fetch-reels.mjs --seed-only",
-    "prelint": "node scripts/fetch-reels.mjs --seed-only",
-    "pretypecheck": "node scripts/fetch-reels.mjs --seed-only",
+    "build": "next build",
+    "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit"
   },

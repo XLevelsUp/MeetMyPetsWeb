@@ -49,8 +49,3 @@ next-env.d.ts
 .agents/
 .claude/
 
-# Instagram reels are fetched at build time and must NOT be committed: the
-# script now fails closed, so a stale committed file would be the one thing
-# that could put unverified reels on the live site. The seed below is created
-# by the build; the import in src/lib/reels.ts needs the file to exist.
-apps/marketing/src/data/reels.json

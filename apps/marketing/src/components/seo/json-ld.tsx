@@ -28,7 +28,7 @@ export function OrganizationLd() {
         legalName: site.legalEntity,
         url: site.url,
         description: site.description,
-        logo: `${site.url}/icon.svg`,
+        logo: `${site.url}/brand-mark.png`,
         sameAs: [`https://twitter.com/${site.twitter.replace("@", "")}`],
         address: { "@type": "PostalAddress", addressCountry: "IN" },
       }}
