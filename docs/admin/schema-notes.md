@@ -115,9 +115,12 @@ the deltas alone suggest.
 
 - **`pets.trust_score_delta(text)` is the authority on deltas**, and it holds
   `like 5`, `super_like 150`, `follow 10`, `match 30`, `block −80`,
-  `report −80`, `certificate_verified 500`. Note `super_like` — absent from our
-  constants until now — and note what is **missing**: `post_report` returns
-  **NULL**, which breaks post reporting outright (handoff §3.6a).
+  `report −80`, `post_report −20`, `certificate_verified 500`. Note
+  `super_like`, which was absent from our constants until 2026-08-20.
+  ⚠️ `post_report` was **missing** between roughly 08-18 and 08-20, which
+  returned NULL and broke post reporting outright; the app team restored the
+  arm and it was confirmed working 2026-08-21 (handoff §3.6a). A missing arm
+  anywhere in that CASE takes down the whole originating INSERT.
 - **`pets.adjust_pet_trust_score(pet, reason, actor?, event_ref?)`** is how every
   delta is applied: it inserts the ledger row and updates the score in one
   transaction. EXECUTE is granted to `postgres` only — the panel cannot call it.
@@ -394,10 +397,28 @@ are needed for reads. Residual asks for the backend team:
 | Email | Role | Created | Purpose |
 |-------|------|---------|---------|
 | `xlevelsup.tech@gmail.com` | **`super_admin`** | 2026-08-16 | The real operator account — first and only super_admin |
-| `admin.moderator.test@meetmypets.dev` | `moderator` | 2026-08-05 | Can sign in + call analytics APIs |
-| `admin.support.test@meetmypets.dev` | `support` | 2026-08-05 | Signs in but gets 403 from analytics — proves the role allowlist |
+| `moderator@meetmypets.app` | `moderator` | 2026-08-26 | **Real moderator account** on the production domain |
+| `admin.moderator.test@meetmypets.dev` | `moderator` | 2026-08-05 | Test fixture. The e2e suite signs in as this one (`E2E_MODERATOR_*`) |
+| `admin.support.test@meetmypets.dev` | `support` | 2026-08-05 | Test fixture. Signs in but gets 403 from analytics — proves the role allowlist |
 
-Passwords are delivered in-session and never recorded here.
+Passwords are delivered in-session and never recorded here. ⚠️ They are also
+**not recoverable**: `auth.users.encrypted_password` is a bcrypt hash, and the
+CI copies live in GitHub repo secrets, which are write-only. A lost admin
+password is reset through the GoTrue admin API, not looked up.
+
+**About `moderator@meetmypets.app` (created 2026-08-26):** same method as the
+super_admin below — GoTrue admin API, `email_confirm: true`, role in
+`app_metadata`. Verified end to end rather than assumed: the role is in
+`raw_app_meta_data` and **absent from `raw_user_meta_data`** (which end users
+can edit and is therefore worthless for authorization), password sign-in
+succeeds against the *publishable* key, and the returned ES256 access token
+carries `app_metadata.role = moderator` — which is the claim `proxy.ts`
+`getClaims()` and `dal.ts` actually read. The verification session was revoked
+immediately afterwards.
+
+⚠️ Like every admin, it is **also a regular app account**: `handle_new_user()`
+fired and gave it `identity.accounts` row `328525d4-…` with `display_name`
+"moderator", so it appears in `/users` and in the `totalUsers` metric.
 
 **About the super_admin account (created 2026-08-16):** made through the GoTrue
 admin API with `email_confirm: true`, so it works without an email round-trip —

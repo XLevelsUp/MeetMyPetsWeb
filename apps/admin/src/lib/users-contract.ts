@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { listQuerySchema, paginated, reasonSchema } from "@/lib/contract-shared";
+import { listQuerySchema, paginated, reasonSchema, SORT_DIRECTIONS } from "@/lib/contract-shared";
 
 /**
  * Typed contract for the Users & Pets moderation API.
@@ -181,7 +181,11 @@ export type AccountSort = (typeof ACCOUNT_SORTS)[number];
 export const PET_SORTS = ["created_at", "name", "trust_score"] as const;
 export type PetSort = (typeof PET_SORTS)[number];
 
-export const SORT_DIRECTIONS = ["asc", "desc"] as const;
+/**
+ * Moved to `contract-shared.ts` when the verification queue became the third
+ * sortable surface. Re-exported so existing importers keep working.
+ */
+export { SORT_DIRECTIONS };
 
 /** `all` = every pet; `at_risk` = anything the trust ladder does not call normal. */
 export const PET_TRUST_FILTERS = ["all", "at_risk", "normal"] as const;

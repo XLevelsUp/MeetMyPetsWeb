@@ -476,6 +476,8 @@ export const copy = {
       submitted: "Submitted",
       pet: "Pet",
       type: "Type",
+      /** Claimed expiry. Sorting ascending surfaces lapsed certificates. */
+      expires: "Expires",
       document: "Document",
       status: "Status",
     },

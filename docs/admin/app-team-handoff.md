@@ -26,9 +26,13 @@ break each other.
    refreshing and sign-in starts failing. **Your app must handle that error
    state gracefully** — see §2.1. This is the single most likely source of "the
    app is broken" reports that are actually working as designed.
-2. **We never write your columns.** `identity.accounts.status`,
-   `pets.pets.status` and `pets.pets.trust_score` stay yours. All moderation
-   state lives in our own `public.admin_restrictions` table.
+2. **We write almost none of your columns.** `identity.accounts.status` and
+   `pets.pets.status` stay yours, and all moderation state lives in our own
+   `public.admin_restrictions`. The **one exception is `pets.pets.trust_score`**,
+   which the panel now moves in three cases: a restore (555), a permanent ban
+   (0), and crediting back the deduction from a dismissed report (§3.6b). It
+   was accurate that we never touched it until the trust review queue shipped;
+   it is not any more.
 3. **`anon` access to the `identity` schema was revoked** on 2026-08-06 — it
    was a live PII leak (§2.4). The `authenticated` half is still open and
    **only you can fix it properly** (§3.1). This is the top ask, and as of
@@ -573,7 +577,7 @@ Not blocking us, but worth your queue:
 - Performance: 18 unindexed foreign keys, and ~24 RLS policies calling
   `auth.uid()` per-row instead of `(select auth.uid())`.
 
-### 3.6a 🚨 P1 — post-scoped reporting is broken in production
+### 3.6a ✅ RESOLVED — post-scoped reporting (was P1)
 
 **`pets.trust_score_delta('post_report')` returns NULL.** Its `CASE` has arms for
 `like`, `super_like`, `follow`, `match`, `block`, `report` and
@@ -596,8 +600,11 @@ The `WHEN` clause looks dropped in an edit rather than removed deliberately.
 
 Reproduce (read-only): `select pets.trust_score_delta('post_report');` → NULL.
 
-Verified 2026-08-20. Nothing on our side depends on the fix, but users cannot
-report a post until it lands.
+**Fixed by the app team, confirmed 2026-08-21.** The `WHEN 'post_report' THEN
+-20` arm is back in `pets.trust_score_delta`, and post-scoped reports have
+resumed: 11 at the time of the report, **13 now**. Kept here as a record rather
+than deleted — the failure mode (a NULL delta anywhere in that CASE takes down
+the whole insert path for that reason) is worth remembering.
 
 ### 3.6b Two things we would like, to do trust reversals properly
 
@@ -830,7 +837,7 @@ always safe.
 | `matching.pet_reports.status` | update — **column-scoped grant, nothing else on the row is writable** |
 | `pets.pet_certificates` | update of `status`, `reviewed_by`, `reviewed_at`, `remarks` only — **column-scoped**. ⚠️ `status='approved'` fires your trust trigger (+500) |
 | `pets.species`, `pets.breeds` | insert + update (`name`, `description`, `status`). **No delete** — your FKs forbid it anyway. ⚠️ read live by your app (§3.4d) |
-| `pets.pets.trust_score` | update to **555 (restore) or 0 (permanent ban) — those two values only**. Column-scoped: no other column of `pets.pets` is writable. 555 is the exact-equality branch your `trust_status_on_score_change` trigger tests for; 0 is the canonical value in your `<= 0` permanent band. ⚠️ Writing 0 also makes your trigger stamp a meaningless 7-day review window, which we suppress in the UI and cannot clear (§3.4f) |
+| `pets.pets.trust_score` | update to **555 (restore), 0 (permanent ban), or a report-dismissal credit (score + 80 / + 20 — see §3.6b)**. Column-scoped: no other column of `pets.pets` is writable. 555 is the exact-equality branch your `trust_status_on_score_change` trigger tests for; 0 is the canonical value in your `<= 0` permanent band. ⚠️ Writing 0 also makes your trigger stamp a meaningless 7-day review window, which we suppress in the UI and cannot clear (§3.4f) |
 | `public.admin_restrictions` | insert (apply), update (lift) — ours |
 | `public.admin_audit_logs` | insert only — ours, append-only |
 

@@ -189,7 +189,7 @@ export async function listCertificates(
   }
 
   try {
-    const { page, pageSize, q, status, certificateType } = query;
+    const { page, pageSize, q, status, certificateType, sort, dir } = query;
     const offset = (page - 1) * pageSize;
 
     let request = from(TABLES.certificates).select(CERTIFICATE_COLUMNS, { count: "exact" });
@@ -208,10 +208,22 @@ export async function listCertificates(
       }
     }
 
-    // Oldest first: a review queue should surface what has waited longest,
-    // the opposite of the audit log and the report queue.
+    /**
+     * Every sort key is a real column, so this is a plain `.order()` — no
+     * pre-resolved id list, unlike the pet-count sort in `users.ts`.
+     *
+     * The DEFAULT is still oldest-first (`created_at` ascending, set in the
+     * contract): a review queue should surface what has waited longest, the
+     * opposite of the audit log and the report queue. Sorting makes that
+     * changeable, not different.
+     *
+     * `nullsFirst: false` matters for `expires_at`, which is null on 5 of 17
+     * certificates — a missing expiry means "no stated expiry", not "expires
+     * first", so those belong at the end of an ascending list rather than
+     * crowding out the ones actually about to lapse.
+     */
     const { data, count, error } = await request
-      .order("created_at", { ascending: true })
+      .order(sort, { ascending: dir === "asc", nullsFirst: false })
       .range(offset, offset + pageSize - 1);
     if (error) throw new Error(`pets.pet_certificates: ${error.message}`);
 

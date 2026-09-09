@@ -14,7 +14,10 @@ vi.mock("@/lib/supabase/reference", () => ({
 }));
 
 import { decideCertificate, listCertificates } from "@/lib/verifications";
-import type { CertificatesQuery } from "@/lib/verifications-contract";
+import {
+  certificatesQuerySchema,
+  type CertificatesQuery,
+} from "@/lib/verifications-contract";
 
 const CERT_ID = "11111111-1111-1111-1111-111111111111";
 const PET_ID = "22222222-2222-2222-2222-222222222222";
@@ -29,6 +32,8 @@ const baseQuery: CertificatesQuery = {
   q: undefined,
   status: "pending",
   certificateType: "all",
+  sort: "created_at",
+  dir: "asc",
 };
 
 const CERT_ROW = {
@@ -175,6 +180,60 @@ describe("listCertificates", () => {
     if (result.ok) return;
     expect(result.reason).toBe("query_failed");
     expect(result.message).toContain("permission denied");
+  });
+
+  /**
+   * Sorting asserts the RECORDED `.order()` call, never the returned rows: the
+   * mock replays its fixture whatever was chained, so a row-based assertion
+   * would pass just as happily against an adapter that ignored `sort` entirely.
+   */
+  describe("sorting", () => {
+    function orderCall(mock: ReturnType<typeof setup>) {
+      return mock.calls
+        .find((c) => c.key === "pets.pet_certificates")
+        ?.filters?.find((f) => f.method === "order");
+    }
+
+    it.each([
+      ["created_at", "asc", true],
+      ["created_at", "desc", false],
+      ["certificate_type", "asc", true],
+      ["status", "desc", false],
+      ["expires_at", "asc", true],
+    ] as const)("orders by %s %s", async (sort, dir, ascending) => {
+      const mock = setup({ "pets.pet_certificates": { rows: [CERT_ROW], count: 1 } });
+      await listCertificates({ ...baseQuery, sort, dir });
+
+      // nullsFirst:false keeps the 5-of-17 certificates with no stated expiry
+      // at the END of an ascending list, rather than crowding out the ones
+      // actually about to lapse.
+      expect(orderCall(mock)).toEqual({
+        method: "order",
+        args: [sort, { ascending, nullsFirst: false }],
+      });
+    });
+
+    /**
+     * REGRESSION. This queue is the ONE list in the app that opens ascending —
+     * a review queue surfaces what has waited longest. Copying the `desc`
+     * default from users-contract would silently invert the screen's purpose,
+     * and nothing else would fail.
+     */
+    it("still defaults to oldest-waiting first", async () => {
+      const mock = setup({ "pets.pet_certificates": { rows: [CERT_ROW], count: 1 } });
+      await listCertificates(certificatesQuerySchema.parse({}));
+
+      expect(orderCall(mock)).toEqual({
+        method: "order",
+        args: ["created_at", { ascending: true, nullsFirst: false }],
+      });
+    });
+
+    it("degrades a hand-edited sort instead of rejecting it", () => {
+      const parsed = certificatesQuerySchema.parse({ sort: "pet_name", dir: "sideways" });
+      // `pet_name` is not orderable — it is merged in from another schema.
+      expect(parsed).toMatchObject({ sort: "created_at", dir: "asc" });
+    });
   });
 });
 
