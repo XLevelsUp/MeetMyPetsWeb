@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "motion/react";
+import { m, useMotionValue, useReducedMotion, useSpring, useTransform } from "motion/react";
 import { useRef, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -13,6 +13,10 @@ type ParallaxCardProps = {
   /** Spring config from the brief: stiffness 100, damping 15. */
   float?: boolean;
   floatDelay?: number;
+  /** Lift + scale slightly on hover. Mouse-only, off by default. */
+  hoverLift?: boolean;
+  onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
+  "aria-hidden"?: boolean | "true" | "false";
 };
 
 /**
@@ -28,6 +32,9 @@ export function ParallaxCard({
   tilt = 9,
   float = false,
   floatDelay = 0,
+  hoverLift = false,
+  onClick,
+  "aria-hidden": ariaHidden,
 }: ParallaxCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
@@ -52,23 +59,42 @@ export function ParallaxCard({
   }
 
   return (
-    <motion.div
+    <m.div
       ref={ref}
       onPointerMove={handleMove}
       onPointerLeave={reset}
-      style={
-        reduced
-          ? undefined
-          : { rotateX, rotateY, transformPerspective: 900, transformStyle: "preserve-3d" }
-      }
+      onClick={onClick}
+      aria-hidden={ariaHidden}
+      // Motion adds tabIndex={0} (and Enter/Space handling) automatically
+      // whenever whileTap is set, to keep tap-gesture elements keyboard
+      // operable. These cards are decorative (the wrapper is aria-hidden),
+      // not real interactive UI, so that default is overridden back off —
+      // otherwise a sighted keyboard user could Tab to and focus an element
+      // a screen reader never announces.
+      tabIndex={-1}
       className={cn(
         float && !reduced && "motion-safe:animate-[float_7s_ease-in-out_infinite]",
         className,
       )}
-      // Stagger the idle float so the three hero cards never bob in lockstep.
-      {...(float && !reduced ? { transition: { delay: floatDelay } } : {})}
+      // Stagger the idle float via a plain CSS animation-delay, not Motion's
+      // `transition` prop — `transition` here is reserved for hoverLift's
+      // whileHover/whileTap below, and the two would otherwise collide (only
+      // the last one spread onto the element would apply).
+      style={{
+        ...(reduced
+          ? undefined
+          : { rotateX, rotateY, transformPerspective: 900, transformStyle: "preserve-3d" }),
+        ...(float && !reduced ? { animationDelay: `${floatDelay}s` } : {}),
+      }}
+      {...(hoverLift && !reduced
+        ? {
+            whileHover: { scale: 1.03, y: -4 },
+            whileTap: { scale: 0.99 },
+            transition: { type: "spring", bounce: 0, duration: 0.4 },
+          }
+        : {})}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }

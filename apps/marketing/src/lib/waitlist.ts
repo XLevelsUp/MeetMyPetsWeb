@@ -45,7 +45,7 @@ const ENDPOINT = process.env.NEXT_PUBLIC_WAITLIST_ENDPOINT;
  */
 export const isWaitlistConfigured = Boolean(ENDPOINT);
 
-export type WaitlistSource = "hero" | "waitlist" | "footer";
+export type WaitlistSource = "hero" | "waitlist" | "footer" | "popup";
 
 export type WaitlistFailure = "unconfigured" | "invalid" | "network" | "unknown";
 

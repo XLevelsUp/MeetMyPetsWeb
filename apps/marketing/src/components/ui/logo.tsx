@@ -48,7 +48,7 @@ export function Logo({ className }: { className?: string }) {
       {/* Decorative: the wordmark beside it already names the brand, so an
           alt here would make screen readers announce "MeetMyPets" twice. */}
       <Image
-        src="/brand-mark.png"
+        src="/brand-mark.webp"
         alt=""
         aria-hidden="true"
         width={72}

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
+import { m, useReducedMotion } from "motion/react";
 import { PawPrint, Play, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -10,7 +10,7 @@ import { arrangeReels, captionPreview, videoSrc, type Reel } from "@/lib/reels";
 import { site } from "@/config/site";
 import { cn } from "@/lib/utils";
 
-const PROFILE_URL = `https://www.instagram.com/${site.twitter.replace("@", "")}/`;
+const PROFILE_URL = site.instagram;
 
 /**
  * Three irregular outlines, in objectBoundingBox units (0-1) so one path
@@ -136,7 +136,23 @@ function ReelVideo({
           // video is a dissolve rather than a flash of empty frame.
           ready || !featured ? "opacity-100" : "opacity-0",
         )}
-      />
+      >
+        {/* No <track kind="captions">, deliberately.
+​
+            These are Instagram reels pulled live from Meta's Graph API —
+            user-generated clips we neither author nor host, and Meta does
+            not expose caption files for them. There is no .vtt to point at,
+            and shipping an empty track to satisfy an automated audit would
+            be worse than none: it advertises captions to a screen-reader
+            user and then delivers silence.
+
+            What is provided instead: the card is a link to the reel on
+            Instagram (where Meta's own captions and the full caption text
+            are available), the accessible name carries the post's caption
+            text, and every card plays muted by default — so no information
+            is conveyed by audio alone on this page. If we ever host our own
+            footage, that clip must ship a real caption track. */}
+      </video>
 
       {/* Sound is opt-in, and only on the featured card — a mute button on a
           card that plays for as long as the pointer rests there would be a
@@ -199,7 +215,7 @@ function ReelCard({
   const playsVideo = reel.playable && (featured || hovered);
 
   return (
-    <motion.a
+    <m.a
       href={reel.permalink}
       target="_blank"
       rel="noopener noreferrer"
@@ -307,7 +323,7 @@ function ReelCard({
           Freshest paw print
         </span>
       )}
-    </motion.a>
+    </m.a>
   );
 }
 
@@ -364,7 +380,7 @@ export function Reels() {
   const { reels, featuredIndex } = arrangeReels(all);
 
   return (
-    <section id="reels" className="relative scroll-mt-24 overflow-hidden py-20 sm:py-28">
+    <section id="reels" className="relative scroll-mt-24 overflow-hidden py-10 sm:py-14">
       {/* Clip-path definitions. One hidden svg for the whole section — a
           <clipPath> per card would duplicate three identical paths per reel. */}
       <svg aria-hidden="true" className="pointer-events-none absolute size-0">
@@ -467,7 +483,7 @@ export function Reels() {
             // as horizontally, and the featured badge sits above its card at
             // -top-3. Without headroom inside the scroller the badge is cut
             // off on mobile. mt-12 + pt-4 keeps the visual gap at 16.
-            "mt-12 pt-4 sm:mt-16 sm:pt-0",
+            "mt-8 pt-4 sm:mt-10 sm:pt-0",
             // scroll-pb keeps the snap from fighting the pb-4 scroll padding.
             "scroll-pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
             // From sm up it is a plain grid again; snap/overflow are inert
@@ -485,6 +501,7 @@ export function Reels() {
               <Reveal
                 key={reel.id}
                 delay={index * 0.09}
+                variant="springy"
                 className={cn(
                   // 78% of the viewport leaves the next card peeking, which is
                   // the affordance that tells a user the row scrolls at all.
@@ -507,7 +524,7 @@ export function Reels() {
         {/* Swipe hint. Mobile only — on a grid there is nothing to swipe. */}
         <p className="mt-1 text-center text-xs text-ink-soft sm:hidden">Swipe for more</p>
 
-        <Reveal className="mt-16 flex justify-center">
+        <Reveal className="mt-10 flex justify-center">
           <a
             href={PROFILE_URL}
             target="_blank"

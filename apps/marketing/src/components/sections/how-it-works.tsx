@@ -1,105 +1,128 @@
-"use client";
+import { Compass, MessageCircleHeart, PawPrint, Users } from "lucide-react";
+import Image from "next/image";
 
-import { AnimatePresence, motion, useReducedMotion, useScroll, useSpring } from "motion/react";
-import { useRef, useState } from "react";
-
+import { Reveal } from "@/components/motion/Reveal";
+import { HERO_BLOB_PATH } from "@/components/ui/blob-clip";
+import { PawScatter } from "@/components/ui/paw-scatter";
+import { SectionCta } from "@/components/ui/section-cta";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { howItWorks } from "@/config/site";
+import { WaveDivider } from "@/components/ui/wave-divider";
+import { howItWorks, howItWorksPhotos } from "@/config/site";
 import { cn } from "@/lib/utils";
 
+const STEP_BLOB_CLIP = "url(#step-blob)";
+
+// One icon per step — build profile, discover nearby, match & chat, join
+// community.
+const STEP_ICONS = [PawPrint, Compass, MessageCircleHeart, Users];
+
 /**
- * Pinned scroll sequence, 01 -> 04.
+ * Four steps as a photo-card grid.
  *
- * The pin is `position: sticky`, not a JS scroll-jack. That means the browser
- * owns the scroll — no layout thrash per frame, no fighting the user's
- * momentum, and it degrades to a plain stacked list on narrow screens where
- * there is no room for a two-column pin.
+ * This used to be a sticky-pinned scroll sequence on desktop. That mechanism
+ * needed each step to be ~70vh tall so its viewport trigger could fire
+ * against the pinned panel, which manufactured roughly 2,300px of near-empty
+ * scroll track — one line of copy per step beside a faint numeral, and
+ * nothing else. It was the single largest blank region on the page.
+ *
+ * A grid says the same thing in one screen: every step is a real card with
+ * its own pet photo, icon and copy, and the section is now a Server
+ * Component (no scroll listeners, no motion values) — the only client code
+ * left is the Reveal wrapper's one-shot entrance.
  */
 export function HowItWorks() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [active, setActive] = useState(0);
-  const reduced = useReducedMotion();
-
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start center", "end center"],
-  });
-  const progress = useSpring(scrollYProgress, { stiffness: 90, damping: 24, mass: 0.4 });
-
   return (
-    <section id="how-it-works" className="py-20 sm:py-28">
+    <section id="how-it-works" className="relative py-10 sm:py-14">
+      <svg aria-hidden="true" className="pointer-events-none absolute size-0">
+        <defs>
+          <clipPath id="step-blob" clipPathUnits="objectBoundingBox">
+            <path d={HERO_BLOB_PATH} />
+          </clipPath>
+        </defs>
+      </svg>
+      <PawScatter
+        paws={[
+          { className: "top-[8%] left-[4%] -rotate-[8deg]", size: 52 },
+          { className: "bottom-[6%] right-[5%] rotate-[18deg]", size: 60 },
+        ]}
+      />
+
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10"
+        style={{
+          background:
+            "radial-gradient(44rem 26rem at 12% 85%, var(--trust-soft), transparent 60%), radial-gradient(40rem 22rem at 88% 15%, var(--brand-soft), transparent 65%)",
+        }}
+      />
       <div className="section-shell">
         <SectionHeading
           eyebrow="How it works"
           title="From empty profile to local community in four steps"
         />
 
-        <div ref={containerRef} className="mt-14 grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
-          {/* Pinned panel — hidden on mobile, where stacking reads better. */}
-          <div className="hidden lg:block">
-            <div className="sticky top-28">
-              <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-10 shadow-soft">
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-                  <motion.div
-                    className="h-full origin-left rounded-full bg-brand"
-                    style={reduced ? { scaleX: 1 } : { scaleX: progress }}
-                  />
-                </div>
-
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={active}
-                    initial={reduced ? undefined : { opacity: 0, y: 14 }}
-                    animate={reduced ? undefined : { opacity: 1, y: 0 }}
-                    exit={reduced ? undefined : { opacity: 0, y: -10 }}
-                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                    className="mt-10"
-                  >
-                    <p className="font-heading text-7xl leading-none font-semibold text-brand-soft">
-                      {howItWorks[active].step}
-                    </p>
-                    <h3 className="mt-6 text-3xl leading-snug font-semibold">
-                      {howItWorks[active].title}
-                    </h3>
-                    <p className="mt-4 leading-relaxed text-ink-soft">{howItWorks[active].body}</p>
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-            </div>
-          </div>
-
-          {/* Two-up on tablet. The pinned panel above stays lg-only — a
-              sticky narrative needs a second column to pin against, and 768px
-              does not have one — but the four steps themselves have no reason
-              to run single-file down a 1000px page. */}
-          <ol className="grid gap-5 md:grid-cols-2 lg:grid-cols-1 lg:gap-0">
-            {howItWorks.map((item, index) => (
-              <motion.li
-                key={item.step}
-                onViewportEnter={() => setActive(index)}
-                viewport={{ margin: "-45% 0px -45% 0px" }}
-                className={cn(
-                  "rounded-3xl border border-border bg-card p-6 sm:p-8",
-                  "lg:flex lg:min-h-[70vh] lg:flex-col lg:justify-center lg:rounded-none lg:border-0 lg:border-t lg:bg-transparent lg:p-0 lg:pt-10",
-                )}
-              >
-                <div className="flex items-baseline gap-4">
+        {/* 1 / 2 / 4 columns. xl (not lg) for the 4-up: at 1024px four cards
+            each carrying a photo would drop below ~230px wide and the titles
+            would start wrapping mid-word. */}
+        <ol className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+          {howItWorks.map((item, index) => {
+            const StepIcon = STEP_ICONS[index] ?? PawPrint;
+            const photo = howItWorksPhotos[index];
+            return (
+              <Reveal as="li" key={item.step} delay={index * 0.08} variant="springy" className="min-w-0">
+                <div
+                  className={cn(
+                    "group relative flex h-full flex-col overflow-hidden border border-border bg-card p-6 shadow-soft transition-shadow duration-300 hover:shadow-lift",
+                    index % 2 === 0 ? "card-paw" : "card-paw-alt",
+                  )}
+                >
                   <span
-                    className={cn(
-                      "font-heading text-sm font-semibold transition-colors duration-300",
-                      index === active ? "text-brand-ink" : "text-ink-soft",
-                    )}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -top-5 -right-1 font-heading text-[7rem] leading-none font-bold text-ink/[0.05] select-none"
                   >
-                    {item.step}
+                    {item.step.slice(-1)}
                   </span>
-                  <h3 className="text-xl font-semibold sm:text-2xl">{item.title}</h3>
+
+                  {/* Photo from sm up only. On a phone the four cards stack in
+                      one column, and a 144px photo per step added ~750px of
+                      scroll for illustration the icon + title already carry. */}
+                  {photo && (
+                    <div
+                      className="relative mb-5 hidden h-36 w-full overflow-hidden sm:block"
+                      style={{ clipPath: STEP_BLOB_CLIP }}
+                    >
+                      <Image
+                        src={photo.src}
+                        alt=""
+                        fill
+                        sizes="(min-width: 1280px) 280px, (min-width: 768px) 45vw, 90vw"
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        style={{ objectPosition: photo.objectPosition ?? "top" }}
+                      />
+                    </div>
+                  )}
+
+                  <div className="relative flex items-center gap-3">
+                    <span
+                      className="grid size-9 shrink-0 place-items-center bg-brand-soft text-brand-ink"
+                      style={{ clipPath: STEP_BLOB_CLIP }}
+                    >
+                      <StepIcon className="size-4.5" aria-hidden="true" />
+                    </span>
+                    <span className="font-heading text-sm font-semibold text-brand-ink">{item.step}</span>
+                  </div>
+                  <h3 className="relative mt-3 text-xl font-semibold">{item.title}</h3>
+                  <p className="relative mt-2 text-sm leading-relaxed text-ink-soft">{item.body}</p>
                 </div>
-                <p className="mt-3 leading-relaxed text-ink-soft lg:max-w-md">{item.body}</p>
-              </motion.li>
-            ))}
-          </ol>
-        </div>
+              </Reveal>
+            );
+          })}
+        </ol>
+
+        <SectionCta text="Four steps, one signup away." buttonLabel="Save my spot" />
       </div>
+
+      <WaveDivider color="color-mix(in oklab, var(--secondary) 40%, var(--background))" />
     </section>
   );
 }

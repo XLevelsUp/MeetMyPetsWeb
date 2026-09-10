@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion, useInView, useReducedMotion } from "motion/react";
+import { AnimatePresence, m, useInView, useReducedMotion } from "motion/react";
 import { BadgeCheck, Heart, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -41,6 +41,8 @@ export function SwipeSimulator() {
   const [index, setIndex] = useState(0);
   const [matched, setMatched] = useState<Candidate | null>(null);
   const [userTook, setUserTook] = useState(false);
+  // Counts likes only so the heart's pulse animation can be re-keyed per like.
+  const [likes, setLikes] = useState(0);
 
   const advance = useCallback((liked: boolean) => {
     setIndex((prev) => {
@@ -48,6 +50,7 @@ export function SwipeSimulator() {
       if (liked) setMatched(current);
       return prev + 1;
     });
+    if (liked) setLikes((n) => n + 1);
   }, []);
 
   // Autoplay: only while visible, never under reduced motion, and it yields
@@ -84,7 +87,7 @@ export function SwipeSimulator() {
             .slice()
             .reverse()
             .map(({ card, offset, key }) => (
-              <motion.div
+              <m.div
                 key={key}
                 className="absolute inset-0 flex flex-col justify-between rounded-2xl border border-border bg-card p-4 shadow-soft"
                 initial={{ opacity: 0, scale: 0.94, y: 14 }}
@@ -117,13 +120,13 @@ export function SwipeSimulator() {
                   <p className="text-sm text-ink-soft">{card.species}</p>
                   <p className="mt-1 text-xs text-ink-soft">Within {card.distance}</p>
                 </div>
-              </motion.div>
+              </m.div>
             ))}
         </AnimatePresence>
 
         <AnimatePresence>
           {matched && (
-            <motion.div
+            <m.div
               className="absolute inset-x-0 top-1/2 z-20 mx-auto w-fit -translate-y-1/2 rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white shadow-lift"
               initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.7 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -131,28 +134,46 @@ export function SwipeSimulator() {
               transition={{ type: "spring", stiffness: 320, damping: 18 }}
             >
               Playdate match
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       </div>
 
+      {/* Micro-interactions: both buttons lift a touch on hover and press
+          in on tap; the heart also does a one-shot bounce-pulse on each
+          like (keyed so a rapid second click re-fires it). Springs, not
+          eased tweens, so they settle with weight. */}
       <div className="flex items-center gap-3">
-        <button
+        <m.button
           type="button"
           onClick={() => act(false)}
+          whileHover={reduced ? undefined : { scale: 1.06 }}
+          whileTap={reduced ? undefined : { scale: 0.94 }}
+          transition={{ type: "spring", stiffness: 380, damping: 20 }}
           className="inline-flex size-11 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-ink-soft transition-colors hover:bg-accent"
         >
           <X className="size-5" aria-hidden="true" />
           <span className="sr-only">Skip this pet</span>
-        </button>
-        <button
+        </m.button>
+        <m.button
           type="button"
           onClick={() => act(true)}
+          whileHover={reduced ? undefined : { scale: 1.06 }}
+          whileTap={reduced ? undefined : { scale: 0.94 }}
+          transition={{ type: "spring", stiffness: 380, damping: 20 }}
           className="inline-flex size-11 cursor-pointer items-center justify-center rounded-full bg-brand text-white transition-colors hover:bg-brand-ink"
         >
-          <Heart className="size-5" aria-hidden="true" />
+          <m.span
+            key={likes}
+            className="inline-flex"
+            initial={false}
+            animate={reduced || likes === 0 ? undefined : { scale: [1, 1.4, 0.92, 1] }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <Heart className="size-5" aria-hidden="true" />
+          </m.span>
           <span className="sr-only">Send a playdate request</span>
-        </button>
+        </m.button>
       </div>
     </div>
   );

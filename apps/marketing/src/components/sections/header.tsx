@@ -1,7 +1,7 @@
 "use client";
 
-import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "motion/react";
-import { Menu, X } from "lucide-react";
+import { AnimatePresence, m, useMotionValueEvent, useScroll } from "motion/react";
+import { Menu, PawPrint, X } from "lucide-react";
 import { useState } from "react";
 
 import { MagneticButton } from "@/components/motion/MagneticButton";
@@ -18,23 +18,15 @@ import { cn } from "@/lib/utils";
  */
 export function Header() {
   const { scrollY } = useScroll();
-  const [hidden, setHidden] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useMotionValueEvent(scrollY, "change", (latest) => {
-    const previous = scrollY.getPrevious() ?? 0;
     setScrolled(latest > 12);
-    // Never hide while the mobile menu is open, or the sheet would vanish
-    // under the user's own scroll.
-    if (menuOpen) return;
-    setHidden(latest > previous && latest > 180);
   });
 
   return (
-    <motion.header
-      animate={{ y: hidden ? "-100%" : "0%" }}
-      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+    <header
       className={cn(
         "fixed inset-x-0 top-0 z-50 transition-colors duration-300",
         scrolled ? "glass shadow-soft" : "bg-transparent",
@@ -50,8 +42,12 @@ export function Header() {
             <a
               key={item.href}
               href={item.href}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-accent hover:text-ink"
+              className="group nav-pill flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-accent hover:text-ink"
             >
+              <PawPrint
+                aria-hidden="true"
+                className="size-3 -translate-x-1 scale-75 text-brand-ink opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:scale-100 group-hover:opacity-100"
+              />
               {item.label}
             </a>
           ))}
@@ -77,7 +73,7 @@ export function Header() {
 
       <AnimatePresence>
         {menuOpen && (
-          <motion.div
+          <m.div
             id="mobile-nav"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
@@ -107,9 +103,9 @@ export function Header() {
                 {cta.primary}
               </a>
             </nav>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
-    </motion.header>
+    </header>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useMotionValue, useReducedMotion, useSpring } from "motion/react";
+import { m, useMotionValue, useReducedMotion, useSpring } from "motion/react";
 import { useRef, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -67,22 +67,24 @@ export function MagneticButton({
 
   if (href) {
     return (
-      <motion.a
+      <m.a
         ref={ref as React.Ref<HTMLAnchorElement>}
         href={href}
         className={classes}
         style={style}
         onPointerMove={handleMove}
         onPointerLeave={reset}
-        whileTap={reduced ? undefined : { scale: 0.97 }}
+        whileHover={reduced ? undefined : { scale: 1.04 }}
+        whileTap={reduced ? undefined : { scale: 0.96 }}
+        transition={{ type: "spring", stiffness: 400, damping: 17 }}
       >
         {children}
-      </motion.a>
+      </m.a>
     );
   }
 
   return (
-    <motion.button
+    <m.button
       ref={ref as React.Ref<HTMLButtonElement>}
       type="button"
       onClick={onClick}
@@ -90,9 +92,11 @@ export function MagneticButton({
       style={style}
       onPointerMove={handleMove}
       onPointerLeave={reset}
-      whileTap={reduced ? undefined : { scale: 0.97 }}
+      whileHover={reduced ? undefined : { scale: 1.04 }}
+      whileTap={reduced ? undefined : { scale: 0.96 }}
+      transition={{ type: "spring", stiffness: 400, damping: 17 }}
     >
       {children}
-    </motion.button>
+    </m.button>
   );
 }
