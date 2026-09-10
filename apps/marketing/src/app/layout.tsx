@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Love_Ya_Like_A_Sister, Nunito_Sans } from "next/font/google";
-import Script from "next/script";
 
 import { WaitlistPopup } from "@/components/sections/waitlist-popup";
 import { MotionProvider } from "@/components/motion/MotionProvider";
@@ -12,17 +11,14 @@ import "./globals.css";
 
 
 /**
- * Microsoft Clarity project id.
+ * ⚠️ NO ANALYTICS OR SESSION-RECORDING SCRIPTS ON THIS SITE.
  *
- * NEXT_PUBLIC_* because it is read in the browser — and that is fine: a
- * Clarity id is a public identifier that ships in the HTML of every page
- * either way, not a secret. The env var exists so the id can differ per
- * environment (or be left unset to disable recording entirely on previews).
- *
- * Inlined at BUILD time, so changing it in Vercel requires a redeploy.
- * Unset, the <Script> below is not rendered at all.
+ * Microsoft Clarity used to load here. It was removed because the published
+ * privacy policy (§15, src/config/legal.ts) states that meetmypets.app runs
+ * none — a claim the DPDP Act attaches penalties to. Anything added back here
+ * must be disclosed in privacy §8 (processors), §14 (transfers) and §15 in the
+ * same change, or the policy becomes false the moment it deploys.
  */
-const MS_CLARITY_ID = process.env.NEXT_PUBLIC_MS_CLARITY_ID;
 
 // Self-hosted at build time by next/font — no external request to Google, no
 // render-blocking <link>, and `display: swap` prevents invisible text.
@@ -153,24 +149,6 @@ setTimeout(function(){d.removeAttribute('data-intro')},4500);
           <WhatsAppDog />
           <WaitlistPopup />
         </MotionProvider>
-
-
-        {/* Microsoft Clarity — session recordings and heatmaps.
-            `afterInteractive` loads it once the page is usable so analytics
-            never sits in front of the hero paint.
-
-            Rendered only when the id is set, so an environment without one
-            ships no tag rather than a script that requests /tag/undefined. */}
-        {MS_CLARITY_ID && (
-          <Script id="ms-clarity" strategy="afterInteractive">
-            {`(function(c,l,a,r,i,t,y){
-        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-    })(window, document, "clarity", "script", "${MS_CLARITY_ID}");`}
-          </Script>
-        )}
-
       </body>
     </html>
   );

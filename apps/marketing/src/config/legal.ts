@@ -12,9 +12,13 @@
  * statement of what the business actually does with personal data; the DPDP
  * Act 2023 attaches penalties to inaccurate or incomplete disclosure.
  *
- * Every fact that could not be verified from the codebase is written as
- * `[TO BE CONFIRMED — …]`. Those render with a loud highlight and are listed
- * by `npm run build` verification. Do not publish while any remain.
+ * Any fact that cannot be verified is written as `[TO BE CONFIRMED — …]` and
+ * renders with a loud highlight (see LegalBody.tsx). There is no build-time
+ * check — the gate is a grep of the built export before deploy:
+ *
+ *     npm run build:marketing && grep -ric "TO BE CONFIRMED" apps/marketing/out
+ *
+ * That must return 0. Do not publish while any remain.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -29,12 +33,17 @@ export type LegalSection = {
   body: LegalBlock[];
 };
 
+export type LegalSlug = "privacy" | "terms" | "delete-account";
+
 export type LegalDoc = {
-  slug: "privacy" | "terms";
+  slug: LegalSlug;
   title: string;
   shortTitle: string;
   description: string;
+  /** Display form, `DD Month YYYY`. Shown under the page title. */
   updated: string;
+  /** The same date as ISO 8601. Only schema.org `dateModified` uses it. */
+  updatedIso: string;
   intro: string;
   sections: LegalSection[];
 };
@@ -48,12 +57,21 @@ export const legalEntity = {
   state: "Tamil Nadu",
   country: "India",
   address: "2nd floor, 178, A, Ramachandra Rd, R.S. Puram, Coimbatore, Tamil Nadu, 641002, India",
-  cin: "[TO BE CONFIRMED — CIN]",
-  grievanceOfficer: "[TO BE CONFIRMED — Grievance Officer name]",
-  grievanceEmail: "[TO BE CONFIRMED — grievance officer email]",
+  cin: "U62090TZ2026PTC039365",
+  // Read by BOTH documents (privacy §13, terms §11), which is what keeps the
+  // grievance contact byte-identical across them. Change it in one place only.
+  grievanceOfficer: "Pranesh S",
+  grievanceEmail: "hello@meetmypets.app",
 } as const;
 
-const EFFECTIVE = "[TO BE CONFIRMED — effective date]";
+/**
+ * Effective date, shared by every document so they can never disagree.
+ *
+ * It must equal the date the change actually deploys. If the deploy slips,
+ * bump both constants before shipping.
+ */
+const EFFECTIVE = "10 September 2026";
+const EFFECTIVE_ISO = "2026-09-10";
 
 /* ========================================================================== */
 /* PRIVACY POLICY                                                             */
@@ -66,6 +84,7 @@ export const privacy: LegalDoc = {
   description:
     "How MeetMyPets collects, uses, shares and protects personal data across pet owners, enthusiasts and verified pet businesses — under India's DPDP Act 2023, the GDPR and the CCPA.",
   updated: EFFECTIVE,
+  updatedIso: EFFECTIVE_ISO,
   intro: `This policy explains what personal data ${legalEntity.product} collects, why, who it is shared with, and the rights you have over it. It applies to ${legalEntity.site} and to the ${legalEntity.product} mobile applications.`,
   sections: [
     {
@@ -129,7 +148,7 @@ export const privacy: LegalDoc = {
         {
           type: "ul",
           items: [
-            "Approximate location, derived from device location or IP, used only to place you in a coarse proximity band. See the location section below.",
+            "Location — your device's location, used to calculate which pets, people and businesses fall inside your chosen search radius. Other users are only ever shown a coarse proximity band. See the location section below.",
             "Device and technical data — device model, operating system, app version, language, and crash diagnostics.",
             "Usage data — features used, screens viewed, and interactions such as matches made or events attended.",
             "Log data — IP address, access times and referring pages.",
@@ -203,7 +222,7 @@ export const privacy: LegalDoc = {
         },
         {
           type: "p",
-          text: "[TO BE CONFIRMED — whether precise coordinates are stored on our servers at all, or only processed on-device to derive the band. This sentence must state the truth precisely.]",
+          text: "Your device shares its location with our servers so that we can calculate which pets, people and businesses fall inside the radius you choose. Those coordinates are stored against your profile, encrypted at rest, and used only for proximity calculation and safety enforcement. They are never returned to another user, never shown on a map, and never included in a profile, match or listing. Other users see only a coarse band such as “within 1 km”. Your coordinates are retained while your account is active and are deleted when your account is deleted. You can revoke location permission at any time in your device settings — discovery will stop working, and the rest of the community features continue.",
         },
       ],
     },
@@ -226,11 +245,11 @@ export const privacy: LegalDoc = {
         },
         {
           type: "p",
-          text: "[TO BE CONFIRMED — retention period for identity documents after verification completes, and whether the document image is deleted once the check is done.]",
+          text: "Identity documents are deleted within 30 days of verification completing. The document image itself is not kept. The verification outcome — verified or not — is retained for the life of the account.",
         },
         {
           type: "p",
-          text: "[TO BE CONFIRMED — whether document processing is performed in-house or by a third-party OCR/KYC provider. If a provider is used it must be named here.]",
+          text: "Vaccination document text extraction is performed by Google Document AI (Google LLC). Identity document verification is performed by Digio (Decentro Technologies Private Limited). Both act as processors under contract and may not use the documents for their own purposes.",
         },
       ],
     },
@@ -246,7 +265,7 @@ export const privacy: LegalDoc = {
           type: "ul",
           items: [
             "With other users — your profile, pet profiles, community content and proximity band are visible according to the settings you choose.",
-            "With service providers acting on our instructions, under contract: [TO BE CONFIRMED — full list of processors, e.g. hosting, storage, analytics, email delivery, OCR/KYC].",
+            "With service providers acting on our instructions, under contract: Supabase (database, authentication and real-time messaging), Cloudflare (media storage, CDN and video delivery), Stream (chat infrastructure), Google Document AI (document text extraction), Digio (identity verification), Google Firebase Cloud Messaging and OneSignal (push notifications), Sentry (error monitoring), PostHog (product analytics), Railway (application hosting), Google (Apps Script and Sheets, for waitlist submissions made on meetmypets.app), and Resend (waitlist confirmation email).",
             "For legal reasons — where required by law, court order, or a valid request from a public authority.",
             "To protect people or animals — where we reasonably believe disclosure is necessary to prevent harm, including credible animal welfare concerns.",
             "In a corporate transaction — if the business is acquired or merged, subject to this policy continuing to apply.",
@@ -288,16 +307,20 @@ export const privacy: LegalDoc = {
         {
           type: "ul",
           items: [
-            "Account and profile data — for as long as your account is active. [TO BE CONFIRMED — period retained after account deletion.]",
-            "Verification documents — [TO BE CONFIRMED — retention period].",
-            "Community content — [TO BE CONFIRMED — whether posts persist after account deletion, and in what form.]",
-            "Logs and diagnostics — [TO BE CONFIRMED — retention period].",
+            "Account and profile data is deleted within 30 days of account closure. Certain records may be retained for up to seven years where Indian law requires it, for example financial and tax records.",
+            "Identity documents are deleted within 30 days of verification completing. Vaccination records are retained while the associated pet profile is active, and are deleted within 30 days of that profile or the account being removed.",
+            "Posts, comments, group contributions and event responses are deleted within 30 days of account closure. Messages you sent may remain visible to the recipient in their own conversation history.",
+            "Server logs and diagnostic data are retained for 90 days.",
             "Waitlist submissions — until launch communications conclude, or until you ask us to remove them.",
           ],
         },
         {
           type: "p",
           text: "When a retention period ends we delete the data or irreversibly anonymise it.",
+        },
+        {
+          type: "p",
+          text: "You can delete your account at any time from Settings in the app, or by writing to hello@meetmypets.app. See meetmypets.app/delete-account/ for details.",
         },
       ],
     },
@@ -311,7 +334,7 @@ export const privacy: LegalDoc = {
         },
         {
           type: "p",
-          text: "[TO BE CONFIRMED — specific measures that can be stated accurately: encryption at rest, retention of audit logs, penetration testing cadence, certifications held.]",
+          text: "Data is encrypted in transit using TLS 1.2 or higher, and encrypted at rest by our infrastructure providers. Access to verification documents is restricted to authorised personnel, and every administrative access is logged. We use Sentry for application error monitoring.",
         },
         {
           type: "p",
@@ -373,7 +396,7 @@ export const privacy: LegalDoc = {
             `Grievance Officer: ${legalEntity.grievanceOfficer}`,
             `Email: ${legalEntity.grievanceEmail}`,
             `Address: ${legalEntity.address}`,
-            "[TO BE CONFIRMED — acknowledgement and resolution timelines committed to, e.g. acknowledge within 24 hours, resolve within 15 days.]",
+            "We acknowledge grievances within 48 hours and aim to resolve them within 15 days, as required under the DPDP Act.",
           ],
         },
         {
@@ -392,7 +415,7 @@ export const privacy: LegalDoc = {
         },
         {
           type: "p",
-          text: "[TO BE CONFIRMED — countries where data is stored or processed, and the transfer mechanism relied on for GDPR purposes, such as Standard Contractual Clauses.]",
+          text: "Data may be processed by our service providers in the United States (Google, Cloudflare, Stream, Sentry, PostHog, Firebase, OneSignal, Resend) and in the European Union. Where personal data leaves India we rely on Standard Contractual Clauses or an equivalent safeguard for GDPR purposes, and on the lawful transfer mechanisms notified under the DPDP Act.",
         },
       ],
     },
@@ -406,7 +429,7 @@ export const privacy: LegalDoc = {
         },
         {
           type: "p",
-          text: "[TO BE CONFIRMED — whether any analytics is deployed on the marketing site or in the apps, and if so which provider and whether consent is required.]",
+          text: "meetmypets.app runs no analytics or session-recording scripts. The mobile applications use Sentry for crash reporting and PostHog for product analytics, configured to anonymise IP addresses and not to share data with advertising networks.",
         },
       ],
     },
@@ -444,6 +467,7 @@ export const terms: LegalDoc = {
   description:
     "The agreement governing use of MeetMyPets by pet owners, enthusiasts and verified pet businesses — including verification, breeding matches, offline meetups and content rules.",
   updated: EFFECTIVE,
+  updatedIso: EFFECTIVE_ISO,
   intro: `These terms form a binding agreement between you and ${legalEntity.name} governing your use of ${legalEntity.product}. Please read the sections on verification, breeding and offline meetups carefully — they limit what we promise and describe risks you accept.`,
   sections: [
     {
@@ -629,7 +653,7 @@ export const terms: LegalDoc = {
           items: [
             `Grievance Officer: ${legalEntity.grievanceOfficer}`,
             `Email: ${legalEntity.grievanceEmail}`,
-            "[TO BE CONFIRMED — acknowledgement and resolution timelines, and the appeal route for a moderation decision.]",
+            "We acknowledge complaints within 48 hours and aim to resolve them within 15 days. If your content is removed or your account suspended, you may appeal by writing to the Grievance Officer within 30 days, and we will review the decision and respond with reasons.",
           ],
         },
       ],
@@ -682,7 +706,7 @@ export const terms: LegalDoc = {
         },
         {
           type: "p",
-          text: "[TO BE CONFIRMED — aggregate liability cap, e.g. amounts paid to us in the preceding twelve months, or a fixed sum.]",
+          text: "Our aggregate liability arising out of or relating to the service is limited to the greater of INR 10,000 or the total amount you paid us in the twelve months preceding the claim.",
         },
         {
           type: "p",
@@ -718,10 +742,8 @@ export const terms: LegalDoc = {
           type: "p",
           text: `These terms are governed by the laws of India. The courts at ${legalEntity.city}, ${legalEntity.state} have exclusive jurisdiction, subject to any mandatory rights you have as a consumer to bring proceedings where you live.`,
         },
-        {
-          type: "p",
-          text: "[TO BE CONFIRMED — whether arbitration is required before litigation, and if so the seat and rules.]",
-        },
+        // There is deliberately NO arbitration clause. Disputes go to the
+        // courts named above. Confirmed by the founder, 2026-09-10.
       ],
     },
     {
@@ -747,4 +769,115 @@ export const terms: LegalDoc = {
   ],
 };
 
-export const legalDocs = [privacy, terms] as const;
+/* ========================================================================== */
+/* ACCOUNT DELETION                                                           */
+/* ========================================================================== */
+
+/**
+ * Required by Google Play: the Data Safety form has an account-deletion URL
+ * field, and the page it points at must be reachable WITHOUT signing in. It is
+ * a LegalDoc so it renders through the same shell, appears in the document
+ * switcher, and stays reviewable alongside the policy it summarises.
+ *
+ * Everything here restates privacy §10. If one changes, change both.
+ */
+export const deleteAccount: LegalDoc = {
+  slug: "delete-account",
+  title: "Delete Your Account",
+  shortTitle: "Delete account",
+  description:
+    "How to delete your MeetMyPets account and what happens to your data — from inside the app, or by email. No sign-in required to read this page.",
+  updated: EFFECTIVE,
+  updatedIso: EFFECTIVE_ISO,
+  intro: `You can delete your ${legalEntity.product} account at any time, and you do not need to ask us for permission. This page explains both routes, what gets removed, when, and the few things we are required to keep.`,
+  sections: [
+    {
+      id: "in-app",
+      title: "1. Delete from inside the app",
+      body: [
+        {
+          type: "p",
+          text: "This is the fastest route and it is available to every account.",
+        },
+        {
+          type: "ul",
+          items: [
+            "Open MeetMyPets and go to Settings.",
+            "Choose Account, then Delete account.",
+            "Confirm. Deletion starts immediately — you do not need to contact us afterwards.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "by-email",
+      title: "2. Delete by email",
+      body: [
+        {
+          type: "p",
+          text: `If you cannot sign in, write to ${legalEntity.email} from the email address registered to the account, with "Delete my account" in the subject line. We verify that the request comes from the account holder before acting on it, which is why the request has to come from the registered address.`,
+        },
+      ],
+    },
+    {
+      id: "what-happens",
+      title: "3. What happens, and when",
+      body: [
+        {
+          type: "ul",
+          items: [
+            "Deletion begins as a soft delete: your profile, your pets and your content stop being visible to other users straight away.",
+            "There is a 30-day grace period. Contact us within it and we can restore the account.",
+            "After 30 days the account and profile data are permanently removed and cannot be recovered — by you or by us.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "what-is-deleted",
+      title: "4. What is deleted",
+      body: [
+        {
+          type: "ul",
+          items: [
+            "Your account, profile and profile photo.",
+            "Your pet profiles, their photographs and their vaccination records.",
+            "Your posts, comments, group contributions and event responses. These are deleted, not anonymised — we do not keep your content under a “deleted user” label.",
+            "Your matches and your location data, including the coordinates used for proximity calculation.",
+          ],
+        },
+        {
+          type: "p",
+          text: "One exception is worth stating plainly: messages you sent to another user may remain visible to that person in their own conversation history, because that copy is also their data.",
+        },
+      ],
+    },
+    {
+      id: "what-we-keep",
+      title: "5. What we keep, and why",
+      body: [
+        {
+          type: "ul",
+          items: [
+            "Identity documents are already deleted within 30 days of verification completing, long before any account deletion. The document image is not kept.",
+            "The verification outcome — verified or not — is retained, so that a badge cannot be reset by deleting and recreating an account.",
+            "Records that Indian law requires us to hold, for example financial and tax records, may be retained for up to seven years.",
+            "Server logs and diagnostic data are retained for 90 days.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "questions",
+      title: "6. Questions",
+      body: [
+        {
+          type: "p",
+          text: `Write to ${legalEntity.email}. The full retention detail is in section 10 of the Privacy Policy, and the Grievance Officer's contact details are in section 13 if you are not satisfied with our response.`,
+        },
+      ],
+    },
+  ],
+};
+
+export const legalDocs = [privacy, terms, deleteAccount] as const;
