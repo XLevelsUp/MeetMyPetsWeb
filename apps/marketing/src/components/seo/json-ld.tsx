@@ -28,9 +28,16 @@ export function OrganizationLd() {
         legalName: site.legalEntity,
         url: site.url,
         description: site.description,
-        logo: `${site.url}/brand-mark.png`,
-        sameAs: [`https://twitter.com/${site.twitter.replace("@", "")}`],
+        logo: `${site.url}/brand-mark.webp`,
+        sameAs: [`https://twitter.com/${site.twitter.replace("@", "")}`, site.instagram],
         address: { "@type": "PostalAddress", addressCountry: "IN" },
+        // Structured-data-only location signal — Tamil Nadu is the initial
+        // launch region. Kept out of visible page copy on purpose; this is
+        // the sanctioned place for location relevance, not on-page text.
+        areaServed: [
+          { "@type": "State", name: "Tamil Nadu" },
+          { "@type": "Country", name: "India" },
+        ],
       }}
     />
   );

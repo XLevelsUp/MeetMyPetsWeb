@@ -73,10 +73,13 @@ function redirectToLogin(request: NextRequest, errorCode: string) {
 }
 
 export const config = {
-  // Everything except /login itself, Next internals and static assets.
+  // Everything except /login itself, Next internals, static assets, and
+  // /api/public/* (see that route's own doc comment — it is the one
+  // deliberately unauthenticated surface in this app; every other /api/*
+  // route still requires a session and 401s here exactly as before).
   // CAUTION (proxy docs): excluded paths also skip this check for any Server
   // Actions posted to them — /login's actions do their own auth work.
   matcher: [
-    "/((?!login|_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!login|api/public|_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

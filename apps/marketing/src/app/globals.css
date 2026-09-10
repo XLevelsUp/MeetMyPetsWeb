@@ -81,6 +81,16 @@
 
   --animate-marquee: marquee 46s linear infinite;
   --animate-float: float 7s ease-in-out infinite;
+  --animate-dog-run: dog-run 0.9s ease-in-out infinite;
+  --animate-dog-leg-a: dog-leg-a 0.45s ease-in-out infinite;
+  --animate-dog-leg-b: dog-leg-b 0.45s ease-in-out infinite;
+  --animate-dog-tail: dog-tail 0.3s ease-in-out infinite;
+  --animate-paw-drift: paw-drift 22s ease-in-out infinite;
+  --animate-paw-pulse: paw-pulse 6s ease-in-out infinite;
+  --animate-bone-float: bone-float 14s ease-in-out infinite;
+  --animate-wiggle-tail: wiggle-tail 2.4s ease-in-out infinite;
+  --animate-blob-drift: blob-drift 26s ease-in-out infinite;
+  --animate-nudge: nudge 0.45s ease-in-out 1;
 
   /* ---------------------------------------------------------------------
      Fluid display type.
@@ -196,6 +206,36 @@
     @apply bg-background text-foreground antialiased;
     font-synthesis-weight: none;
     text-rendering: optimizeLegibility;
+
+    /* Global ambient texture — fills every pixel of the page so nothing
+       is ever bare #FAF9F6. Two layers:
+       1. Dot grid at very low opacity (same pattern as the reels section,
+          softer). CSS background-image → compositor, zero JS.
+       2. Two large fixed radial gradient washes — warm terracotta upper-left,
+          cool trust-blue lower-right — so the page reads as one continuous
+          canvas rather than stacked blocks on a flat background. Fixed so
+          they don't shift as you scroll. */
+    /* Layer 1 is a sparse paw-print tile: two prints per 240px tile at
+       different sizes and angles, offset from each other, so it reads as
+       scattered footprints across the page rather than a grid. One inline
+       SVG data URI (the lucide paw, stroked in brand-ink at 7% opacity) —
+       rasterised once, then tiled by the compositor. `scroll` attachment:
+       a repeating tile looks identical either way and `fixed` forces a
+       repaint on every scroll frame in some engines. The two large colour
+       washes underneath stay `fixed` on purpose — they are what keeps
+       colour in the viewport at all times. */
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240' fill='none' stroke='%239c3f14' stroke-opacity='0.07' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cg transform='translate(34 44) rotate(-22) scale(1.7)'%3E%3Ccircle cx='11' cy='4' r='2'/%3E%3Ccircle cx='18' cy='8' r='2'/%3E%3Ccircle cx='20' cy='16' r='2'/%3E%3Cpath d='M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z'/%3E%3C/g%3E%3Cg transform='translate(150 158) rotate(26) scale(1.25)'%3E%3Ccircle cx='11' cy='4' r='2'/%3E%3Ccircle cx='18' cy='8' r='2'/%3E%3Ccircle cx='20' cy='16' r='2'/%3E%3Cpath d='M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z'/%3E%3C/g%3E%3C/svg%3E"),
+      radial-gradient(60rem 50rem at 8% 5%, color-mix(in oklab, var(--brand-soft) 90%, transparent), transparent 60%),
+      radial-gradient(50rem 40rem at 92% 85%, color-mix(in oklab, var(--trust-soft) 85%, transparent), transparent 55%);
+    background-size:
+      240px 240px,
+      100% 100%,
+      100% 100%;
+    background-attachment:
+      scroll,
+      fixed,
+      fixed;
   }
 
   h1,
@@ -280,7 +320,10 @@
      1024px the container is wide but every section was single-column, so
      content ran nearly edge to edge with only 32px of breathing room. */
   .section-shell {
-    @apply mx-auto w-full max-w-6xl px-5 sm:px-8 md:px-10;
+    /* 75rem, up from max-w-6xl (72rem → effectively ~1070px of content at
+       1440). At ≥1280px the old cap left ~185px of bare canvas each side;
+       a wider column fills more of it with content itself. */
+    @apply mx-auto w-full max-w-[75rem] px-5 sm:px-8 md:px-10;
   }
 
   /* Native <details> height animation. `interpolate-size` is what makes
@@ -301,6 +344,22 @@
   }
 
   /* Edge fade for horizontal marquees. */
+  /* PawCursorTrail nodes. Positioned via inline transform from JS; the
+     `.is-on` class (re-applied per step) runs the fade/scale lifecycle. */
+  .paw-step {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 18px;
+    height: 18px;
+    color: var(--brand-ink);
+    opacity: 0;
+    will-change: transform, opacity;
+  }
+  .paw-step.is-on {
+    animation: paw-step 0.9s ease-out forwards;
+  }
+
   .mask-edges {
     mask-image: linear-gradient(
       to right,
@@ -309,6 +368,171 @@
       black 92%,
       transparent
     );
+  }
+
+  /* ---------------------------------------------------------------------
+     Pet-brand card treatment.
+
+     The uniform rounded-3xl bordered box used everywhere (feature-bento,
+     verification-flow, how-it-works, ecosystem) reads as generic SaaS —
+     every card in every section has the identical silhouette. `.card-paw`
+     gives cards an asymmetric corner radius instead (tight on one diagonal,
+     rounded on the other — a paw-pad silhouette, not a rounded rectangle)
+     plus a small hover tilt, so cards feel handmade rather than stamped
+     from one component. Same colours/spacing as before — only the shape
+     and the hover response change.
+  --------------------------------------------------------------------- */
+  .card-paw {
+    border-radius: 2.5rem 1.25rem 2.5rem 1.25rem;
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @media (hover: hover) {
+    .card-paw:hover {
+      transform: rotate(-0.6deg) translateY(-2px);
+    }
+  }
+
+  /* Mirrored variant so adjacent cards in a row don't all lean the same way. */
+  .card-paw-alt {
+    border-radius: 1.25rem 2.5rem 1.25rem 2.5rem;
+  }
+
+  @media (hover: hover) {
+    .card-paw-alt:hover {
+      transform: rotate(0.6deg) translateY(-2px);
+    }
+  }
+
+  /* Small paw badge overlapping a card's top edge — the option-3 accent,
+     used sparingly (not on every card; it competes with content if
+     overused). Position with a wrapper that has `position: relative`. */
+  .card-paw-badge {
+    position: absolute;
+    top: -0.85rem;
+    left: 1.5rem;
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 9999px;
+    background: var(--brand);
+    color: #fff;
+    box-shadow: var(--shadow-lift);
+  }
+
+  /* Header nav-link shape. A plain `hover:bg-accent` rectangle was the last
+     un-shaped clickable surface on the page's most-seen element; this pill
+     gives it the same asymmetric-corner language as `.card-paw` without
+     the hover tilt (chrome should stay quiet, not bounce on every hover). */
+  .nav-pill {
+    border-radius: 1.1rem 0.4rem 1.1rem 0.4rem;
+    transition:
+      background-color 200ms ease,
+      color 200ms ease;
+  }
+
+  /* Collar-stitch top edge — one hairline decorative detail for the waitlist
+     card, the single section that audited with zero pet motif of any kind.
+     Kept to a hairline on purpose: a dashed seam nod, not a new mascot. */
+  .card-stitched::before {
+    content: "";
+    position: absolute;
+    inset: 0.85rem 1.75rem auto;
+    height: 0;
+    border-top: 2px dashed color-mix(in oklab, var(--border) 80%, var(--brand) 20%);
+    pointer-events: none;
+  }
+
+  /* Leash-thread connector for verification-flow's three steps — a dashed
+     line run behind the cards at md+ so the row reads as one progression
+     ("owner check -> vaccination -> badge") rather than three unrelated
+     boxes. Same dashed-seam language as .card-stitched, just horizontal.
+     Mobile stacks the cards (see verification-flow.tsx), where a
+     left-to-right thread has no meaning, so this is md+ only. */
+  .verification-thread {
+    position: absolute;
+    top: 3.4rem;
+    right: 10%;
+    left: 10%;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklab, var(--brand) 55%, transparent) 25%,
+      color-mix(in oklab, var(--trust) 55%, transparent) 75%,
+      transparent
+    );
+    pointer-events: none;
+  }
+
+  /* Intro curtain label (wordmark + progress). Sits below the animals on
+     tall viewports. On a short landscape phone the `cover` crop pushes the
+     animals into the lower half, so the label moves to a compact bar
+     pinned at the very bottom and shrinks, rather than overlapping them. */
+  .intro-label {
+    bottom: 10vh;
+  }
+  @media (max-height: 500px) {
+    .intro-label {
+      bottom: 0.5rem;
+      gap: 0.25rem;
+    }
+    .intro-label .intro-wordmark {
+      font-size: 1rem;
+    }
+    .intro-label .intro-bar {
+      width: 8rem;
+    }
+  }
+
+  /* Pre-paint intro gate. The blocking script in layout.tsx sets
+     `data-intro="pending"` on <html> before first paint when the intro is
+     going to run, so the landing page never flashes in the gap between
+     first paint and React hydrating the curtain. `body` is hidden rather
+     than the whole document so <html>'s cream background still paints,
+     making the wait an intentional-looking ground rather than white. */
+  html[data-intro="pending"] {
+    background: var(--background);
+  }
+  html[data-intro="pending"] body {
+    visibility: hidden;
+  }
+  /* The curtain itself lives in body, so it has to opt back in. */
+  html[data-intro="pending"] body .intro-curtain {
+    visibility: visible;
+  }
+
+  /* While the intro curtain is up, hold the page still underneath it —
+     otherwise a stray scroll during the clip lands the visitor mid-page
+     when it lifts. Removed the moment the curtain unmounts. */
+  :root.intro-locked body {
+    overflow: hidden;
+  }
+
+  /* WhatsAppDog entrance + speech bubble. Both run once with a springy
+     overshoot curve; the outer wrapper handles tuck/hide via transitions
+     so the `forwards` fill here never fights a later state change. */
+  .greeter-rise {
+    transform: translateY(120%);
+    animation: greeter-rise 0.7s cubic-bezier(0.22, 1.4, 0.36, 1) 0.6s forwards;
+  }
+  .greeter-bubble {
+    opacity: 0;
+    transform: scale(0.6);
+    transform-origin: bottom left;
+    animation: greeter-pop 0.4s cubic-bezier(0.22, 1.4, 0.36, 1) 1.4s forwards;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .greeter-rise {
+      animation: none;
+      transform: translateY(8%);
+    }
+    .greeter-bubble {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
   }
 }
 
@@ -328,5 +552,150 @@
   }
   50% {
     transform: translateY(-10px);
+  }
+}
+
+/* DogRunLoader — the whole silhouette bobs once per stride while the leg
+   pairs swap forward/back out of phase with each other, so it reads as a
+   run cycle rather than a single part flickering. */
+@keyframes dog-run {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.5px);
+  }
+}
+
+@keyframes dog-leg-a {
+  0%,
+  100% {
+    transform: translateX(0) scaleY(1);
+  }
+  50% {
+    transform: translateX(1.5px) scaleY(0.85);
+  }
+}
+
+@keyframes dog-leg-b {
+  0%,
+  100% {
+    transform: translateX(1.5px) scaleY(0.85);
+  }
+  50% {
+    transform: translateX(0) scaleY(1);
+  }
+}
+
+@keyframes dog-tail {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-12deg);
+  }
+}
+
+/* Feature-bento section — ambient background paw prints drifting on a slow
+   diagonal path. 22s cycle keeps it barely perceptible, texture not motion. */
+@keyframes paw-drift {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(12px, -8px) rotate(4deg);
+  }
+  50% {
+    transform: translate(-6px, -14px) rotate(-3deg);
+  }
+  75% {
+    transform: translate(-10px, 4px) rotate(2deg);
+  }
+}
+
+/* Breathing opacity on decorative paw prints — keeps them from reading as
+   static wallpaper by gently fading up and down. */
+@keyframes paw-pulse {
+  0%, 100% {
+    opacity: 0.10;
+  }
+  50% {
+    opacity: 0.20;
+  }
+}
+
+/* Tiny bone shapes bobbing vertically with a slight rotation — the same
+   idea as the existing `float` keyframe but smaller amplitude + twist. */
+@keyframes bone-float {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-8px) rotate(6deg);
+  }
+  66% {
+    transform: translateY(4px) rotate(-4deg);
+  }
+}
+
+/* MarginBlobs — large soft colour fields in the desktop side margins.
+   Transform-only so it stays on the compositor; the "blur" is the radial
+   gradient's own falloff, not a filter, which would be far more expensive
+   to move around. */
+@keyframes blob-drift {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(2rem, -3rem) scale(1.05);
+  }
+  66% {
+    transform: translate(-1.5rem, 2rem) scale(0.97);
+  }
+}
+
+/* One-shot "sniff" for small icons on hover/focus — a quick rotate either
+   way and back. Short and single-run on purpose: a nudge, not a wobble. */
+@keyframes nudge {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(-12deg); }
+  65% { transform: rotate(10deg); }
+}
+
+/* PawCursorTrail print lifecycle. Animates `opacity` and the independent
+   `scale` property only — `transform` is owned by the trail's JS for
+   position + heading and must not be touched here. */
+@keyframes paw-step {
+  0% { opacity: 0; scale: 0.6; }
+  25% { opacity: 0.45; scale: 1; }
+  100% { opacity: 0; scale: 1; }
+}
+
+@keyframes greeter-rise {
+  to {
+    transform: translateY(8%);
+  }
+}
+
+@keyframes greeter-pop {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Gentle sway for the ghost decoration animals (rabbit/bird/turtle) in the
+   species card — enough motion to catch the eye, not enough to distract. */
+@keyframes wiggle-tail {
+  0%, 100% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(5deg) scale(1.04);
+  }
+  75% {
+    transform: rotate(-5deg) scale(1.04);
   }
 }

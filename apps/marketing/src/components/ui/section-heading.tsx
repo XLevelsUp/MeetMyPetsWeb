@@ -1,4 +1,5 @@
 import { Reveal } from "@/components/motion/Reveal";
+import { PawWalkIn } from "@/components/ui/paw-walk-in";
 import { cn } from "@/lib/utils";
 
 export function SectionHeading({
@@ -17,11 +18,12 @@ export function SectionHeading({
   return (
     <Reveal
       className={cn(
-        "max-w-2xl",
+        "relative max-w-2xl",
         align === "center" ? "mx-auto text-center" : "text-left",
         className,
       )}
     >
+      <PawWalkIn align={align} />
       <p className="text-xs font-semibold tracking-[0.14em] text-brand-ink uppercase">{eyebrow}</p>
       {/* Fluid clamp — see globals.css. Every section uses this component, so
           the old text-3xl/sm:text-4xl step froze all of them at 36px across

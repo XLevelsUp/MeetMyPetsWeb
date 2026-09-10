@@ -3,37 +3,15 @@ import { validateContact } from "@/lib/validation";
 /**
  * Waitlist submission adapter — Google Sheets via an Apps Script web app.
  *
- * The site is a static export, so there is no server to proxy through: the
- * browser posts straight to the script's /exec URL, which appends a row to the
- * sheet. Swapping backends means changing only this file; no UI code knows
- * what is behind it.
+ * Two mechanics are load-bearing:
+ *  1. Content-Type stays `text/plain` so this is a CORS simple request —
+ *     Apps Script has no doOptions handler, so a preflight would never be
+ *     answered. The body is still JSON.
+ *  2. `mode: "no-cors"`, so the response is opaque. Reading it used to hang
+ *     the form forever on submissions that had actually succeeded.
  *
- * TWO MECHANICS THAT ARE NOT OPTIONAL
- *
- * 1. Content-Type MUST stay `text/plain`. It makes this a CORS "simple
- *    request", which skips the preflight OPTIONS. Apps Script has no doOptions
- *    handler, so a preflight is never answered and doPost never runs — every
- *    submission would fail cross-origin. The body is still JSON; only the
- *    header is a lie, and it is a deliberate one.
- *
- * 2. `mode: "no-cors"`, which means we CANNOT read the response.
- *
- *    This file used to read it: /exec 302-redirects to
- *    script.googleusercontent.com, and that redirect target used to send
- *    Access-Control-Allow-Origin. It no longer does — it answers 405 with no
- *    CORS header at all. The browser then blocks the read and the fetch
- *    promise never settles, so the form span forever on a submission that
- *    had in fact already saved the row and sent the email.
- *
- *    Under no-cors the request still reaches Apps Script and still works; we
- *    just get an opaque response and resolve as soon as it is sent. Read the
- *    consequence in submitWaitlist before changing this back.
- *
- * SECURITY: the endpoint is public and unauthenticated by construction —
- * anyone reading the JS bundle can find it and append rows. The honeypot in
- * the form filters naive bots; it does not stop a determined person. Sheets
- * also has no unique constraint, so de-duplication is best-effort logic inside
- * the Apps Script. See .env.example.
+ * The endpoint is public and unauthenticated by construction; the honeypot
+ * filters naive bots only. See .env.example.
  */
 
 const ENDPOINT = process.env.NEXT_PUBLIC_WAITLIST_ENDPOINT;
@@ -45,7 +23,7 @@ const ENDPOINT = process.env.NEXT_PUBLIC_WAITLIST_ENDPOINT;
  */
 export const isWaitlistConfigured = Boolean(ENDPOINT);
 
-export type WaitlistSource = "hero" | "waitlist" | "footer";
+export type WaitlistSource = "hero" | "waitlist" | "footer" | "popup";
 
 export type WaitlistFailure = "unconfigured" | "invalid" | "network" | "unknown";
 
@@ -54,29 +32,12 @@ export type WaitlistResult =
   | { ok: false; reason: WaitlistFailure; message: string };
 
 /**
- * Records one waitlist signup. Never throws — every failure path returns a
- * result the form can render next to the field.
+ * Records one waitlist signup. Never throws.
  *
- * `honeypot` is the value of the hidden field humans never see. It is passed
- * through untouched; the Apps Script decides what to do with it (and answers
- * "ok" either way, so a bot cannot detect the filter).
- *
- * WHAT { ok: true } MEANS HERE
- *
- * "The request left the browser", not "the row was saved" — see note 2 above.
- * A server-side failure therefore shows the user a success animation.
- *
- * That is the better of the two errors available to a static site. The old
- * behaviour failed the OTHER way, on every single signup: the row saved, the
- * email sent, and the form span forever because it was waiting on a response
- * the browser would not let it read.
- *
- * What survives: invalid input is still caught before any request is made,
- * which is the only error class a user can act on anyway. What is lost:
- * detection of a genuine backend failure. Reconcile the Sheet against
- * Resend's logs periodically — a gap between them means something broke
- * silently. If signups become business-critical, put a real endpoint in front
- * of Sheets; no UI code depends on what this function talks to.
+ * `{ ok: true }` means "the request left the browser", not "the row saved" —
+ * the response is opaque, so a backend failure still shows success. Invalid
+ * input is caught before any request. Reconcile the Sheet against Resend's
+ * logs to catch silent breakage.
  */
 export async function submitWaitlist(
   contact: string,

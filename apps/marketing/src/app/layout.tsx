@@ -2,16 +2,14 @@ import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Love_Ya_Like_A_Sister, Nunito_Sans } from "next/font/google";
 import Script from "next/script";
 
+import { WaitlistPopup } from "@/components/sections/waitlist-popup";
+import { MotionProvider } from "@/components/motion/MotionProvider";
+import { IntroCurtain } from "@/components/ui/intro-curtain";
+import { PawCursorTrail } from "@/components/ui/paw-cursor-trail";
+import { WhatsAppDog } from "@/components/ui/whatsapp-dog";
 import { site } from "@/config/site";
 import "./globals.css";
 
-/**
- * Meta (Facebook) Pixel. Hardcoded rather than read from an env var: it is a
- * public identifier that ships in the HTML of every page either way, and
- * NEXT_PUBLIC_* values are inlined at build time, so an env var would add a
- * deploy-time failure mode (blank pixel on a stale build) and hide nothing.
- */
-const META_PIXEL_ID = "1615323050153590";
 
 /**
  * Microsoft Clarity project id.
@@ -104,6 +102,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html
       lang="en-IN"
       className={`${display.variable} ${body.variable} ${brand.variable} h-full antialiased`}
+      // The head script stamps `data-intro` before hydration, so server and
+      // client differ by that one attribute by design.
+      suppressHydrationWarning
     >
       <head>
         {/* Scroll-reveal elements are prerendered at opacity:0. Without JS they
@@ -116,6 +117,26 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             }}
           />
         </noscript>
+
+        {/* Intro pre-paint gate. IntroCurtain can only mount after
+            hydration, which left the page visible for a beat first. This runs
+            before the first paint and stamps `data-intro="pending"` on
+            <html>; CSS on that attribute hides the page until the curtain is
+            up. The component reads the verdict rather than re-deciding.
+            try/catch — a throw here would hide the page permanently. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{
+var d=document.documentElement;
+if(sessionStorage.getItem('mmp-intro-played')==='1')return;
+if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+var c=navigator.connection;
+if(c&&(c.saveData===true||/^(slow-)?2g$/.test(c.effectiveType||'')))return;
+d.setAttribute('data-intro','pending');
+setTimeout(function(){d.removeAttribute('data-intro')},4500);
+}catch(e){}})();`,
+          }}
+        />
       </head>
       <body className="flex min-h-full flex-col">
         <a
@@ -124,26 +145,19 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         >
           Skip to main content
         </a>
-        {children}
+        <MotionProvider>
+          <IntroCurtain />
+          {children}
 
-        {/* Meta Pixel. `afterInteractive` loads it once the page is usable —
-            the pixel is analytics, and must never delay the hero paint. */}
-        <Script id="meta-pixel" strategy="afterInteractive">
-          {`!function(f,b,e,v,n,t,s)
-{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-n.queue=[];t=b.createElement(e);t.async=!0;
-t.src=v;s=b.getElementsByTagName(e)[0];
-s.parentNode.insertBefore(t,s)}(window, document,'script',
-'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '${META_PIXEL_ID}');
-fbq('track', 'PageView');`}
-        </Script>
+          <PawCursorTrail />
+          <WhatsAppDog />
+          <WaitlistPopup />
+        </MotionProvider>
 
-        {/* Microsoft Clarity — session recordings and heatmaps. Same
-            `afterInteractive` reasoning as the pixel above: analytics must
-            never sit in front of the hero paint.
+
+        {/* Microsoft Clarity — session recordings and heatmaps.
+            `afterInteractive` loads it once the page is usable so analytics
+            never sits in front of the hero paint.
 
             Rendered only when the id is set, so an environment without one
             ships no tag rather than a script that requests /tag/undefined. */}
@@ -157,18 +171,6 @@ fbq('track', 'PageView');`}
           </Script>
         )}
 
-        {/* Fallback for visitors with JavaScript disabled. Plain <img>, not
-            next/image: it is a 1x1 tracking beacon, not content to optimise. */}
-        <noscript>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            height="1"
-            width="1"
-            style={{ display: "none" }}
-            src={`https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1`}
-            alt=""
-          />
-        </noscript>
       </body>
     </html>
   );
