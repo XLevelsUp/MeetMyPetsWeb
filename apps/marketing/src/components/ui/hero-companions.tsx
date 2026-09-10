@@ -112,18 +112,12 @@ function Drifter({
 }
 
 /**
- * "Zero-gravity" companions for the hero: a ball, feather, bone, fish and
- * ball of yarn drifting loosely around the content, each on its own CSS
- * keyframe (compositor-only), plus a light pointer parallax — objects
- * nearer the viewer shift further as the pointer moves, so the whole layer
- * reads as having depth and reacting to your presence.
+ * "Zero-gravity" companions drifting around the hero — a ball, feather, bone,
+ * fish and yarn, each on its own CSS keyframe, plus a light pointer parallax
+ * so the layer reads as having depth.
  *
- * One `pointermove` listener feeds two motion values; springs smooth them
- * and each companion derives its own offset with useTransform. Nothing
- * re-renders per frame. Desktop only: the positions assume the two-column
- * hero, and below lg they would sit over the stacked copy.
- *
- * Reduced motion: objects render in place with no drift and no parallax.
+ * One pointermove listener feeds two motion values; nothing re-renders per
+ * frame. Desktop only — below lg these would sit over the stacked copy.
  */
 export function HeroCompanions() {
   const reduced = useReducedMotion();

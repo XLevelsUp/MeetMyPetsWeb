@@ -8,15 +8,9 @@ import { cn } from "@/lib/utils";
 const STEPS = 3;
 
 /**
- * Three paw prints that step in, one after another, just before a section
- * heading settles — the entrance is branded rather than a generic fade.
- * Alternating left/right offsets read as footsteps; each print lands,
- * brightens briefly, then settles to a faint mark.
- *
- * Absolutely positioned above the heading so it adds no layout height, and
- * `sm:`-only — on a phone the heading already sits close to the previous
- * section and there is no clear space above it. Pure flourish, so reduced
- * motion renders nothing at all.
+ * Three paw prints that step in ahead of a section heading, so the entrance
+ * is branded rather than a generic fade. Absolutely positioned (adds no
+ * layout height) and sm:-only. Pure flourish — nothing under reduced motion.
  */
 export function PawWalkIn({ align = "center" }: { align?: "center" | "left" }) {
   const reduced = useReducedMotion();

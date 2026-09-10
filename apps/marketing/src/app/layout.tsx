@@ -102,10 +102,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html
       lang="en-IN"
       className={`${display.variable} ${body.variable} ${brand.variable} h-full antialiased`}
-      // The intro-gate script in <head> stamps `data-intro` on this element
-      // before React hydrates, so the server HTML and the client DOM differ
-      // by that one attribute by design. Scoped to <html>'s own attributes;
-      // it does not suppress warnings for any descendant.
+      // The head script stamps `data-intro` before hydration, so server and
+      // client differ by that one attribute by design.
       suppressHydrationWarning
     >
       <head>
@@ -120,25 +118,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           />
         </noscript>
 
-        {/* Intro curtain pre-paint gate.
-​
-            IntroCurtain is a client component, so it cannot render until
-            React hydrates — which left the landing page visible for a beat
-            before the curtain appeared. This runs synchronously in <head>,
-            before the browser paints a single pixel, and stamps
-            `data-intro="pending"` on <html> when the intro is going to
-            play. The CSS rule below that attribute hides the page and
-            paints the cream ground, so the first frame a visitor sees is
-            already the curtain.
-
-            The decision has to be duplicated here (it cannot import from
-            the component — this executes before any bundle), so the two
-            must agree; the component reads the same attribute rather than
-            re-deciding. Wrapped in try/catch because a thrown error in a
-            blocking head script would leave the page permanently hidden.
-
-            The class is cleared by IntroCurtain on dismiss, and by the
-            fallback timeout here in case JS fails after this point. */}
+        {/* Intro pre-paint gate. IntroCurtain can only mount after
+            hydration, which left the page visible for a beat first. This runs
+            before the first paint and stamps `data-intro="pending"` on
+            <html>; CSS on that attribute hides the page until the curtain is
+            up. The component reads the verdict rather than re-deciding.
+            try/catch — a throw here would hide the page permanently. */}
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{

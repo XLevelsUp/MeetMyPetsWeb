@@ -19,16 +19,9 @@ const STEP_ICONS = [PawPrint, Compass, MessageCircleHeart, Users];
 /**
  * Four steps as a photo-card grid.
  *
- * This used to be a sticky-pinned scroll sequence on desktop. That mechanism
- * needed each step to be ~70vh tall so its viewport trigger could fire
- * against the pinned panel, which manufactured roughly 2,300px of near-empty
- * scroll track — one line of copy per step beside a faint numeral, and
- * nothing else. It was the single largest blank region on the page.
- *
- * A grid says the same thing in one screen: every step is a real card with
- * its own pet photo, icon and copy, and the section is now a Server
- * Component (no scroll listeners, no motion values) — the only client code
- * left is the Reveal wrapper's one-shot entrance.
+ * This was a sticky-pinned scroll sequence, which needed each step to be
+ * ~70vh tall and manufactured ~2,300px of near-empty scroll track. A grid says
+ * the same thing in one screen, and the section is now a Server Component.
  */
 export function HowItWorks() {
   return (
@@ -83,9 +76,8 @@ export function HowItWorks() {
                     {item.step.slice(-1)}
                   </span>
 
-                  {/* Photo from sm up only. On a phone the four cards stack in
-                      one column, and a 144px photo per step added ~750px of
-                      scroll for illustration the icon + title already carry. */}
+                  {/* sm+ only: on phones these added ~750px of scroll for
+                      illustration the icon and title already carry. */}
                   {photo && (
                     <div
                       className="relative mb-5 hidden h-36 w-full overflow-hidden sm:block"

@@ -1,19 +1,9 @@
 import { cn } from "@/lib/utils";
 
 /**
- * A running-dog loading indicator — replaces the generic spinning-circle
- * icon on the waitlist forms' submit buttons with something on-brand for a
- * pet app. Built as inline SVG with a CSS keyframe animation (not a GIF or
- * Lottie file) so it costs nothing to load and inherits `currentColor`,
- * matching the white-on-brand button text it sits next to.
- *
- * The legs swap front/back on a simple 2-frame cycle rather than a full
- * multi-frame gait — at `size-4`/`size-5` button-icon scale, a subtler cycle
- * reads as "running" without looking like a flickering glitch.
- *
- * Respects reduced motion at the call site, same as every other animation
- * in this app: pass `animate={false}` when `useReducedMotion()` is true and
- * the dog holds a single static running pose instead of cycling legs.
+ * Running-dog loading indicator for the waitlist submit buttons — inline SVG
+ * driven by CSS keyframes, so it costs nothing to load and inherits
+ * `currentColor`. Pass `animate={false}` under reduced motion for a static pose.
  */
 export function DogRunLoader({
   className,

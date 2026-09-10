@@ -1,4 +1,4 @@
-import { Compass, Home, PawPrint, Search } from "lucide-react";
+import { Compass, PawPrint, Search } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -48,27 +48,36 @@ export default function NotFound() {
       </header>
 
       <main id="main" className="section-shell flex flex-1 flex-col items-center justify-center py-16 text-center">
-        <div className="relative">
-          <Image
-            src="/MMP Dog 02.webp"
-            alt="A beagle peeking over the edge, looking for something"
-            width={640}
-            height={480}
-            priority
-            className="h-40 w-auto object-contain drop-shadow-lg sm:h-48"
-          />
-        </div>
-
-        <span className="glass mt-2 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold tracking-wide text-brand-ink uppercase">
+        <span className="glass inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold tracking-wide text-brand-ink uppercase">
           <Search className="size-3.5" aria-hidden="true" />
-          404 — gone walkies
+          404 — the path disappeared
         </span>
 
-        <h1 className="mt-5 text-hero font-semibold">This page slipped its leash.</h1>
+        {/* Animated WebP rather than the source GIF: same clip at 185KB
+            instead of 598KB. `motion-reduce:hidden` swaps it for a static
+            frame, since an endless loop is what that setting exists to stop. */}
+        <Image
+          src="/404-puppy-search.webp"
+          alt="A puppy sniffing along the ground, searching for a lost trail"
+          width={480}
+          height={270}
+          priority
+          unoptimized
+          className="mt-4 h-40 w-auto object-contain mix-blend-multiply sm:h-48 motion-reduce:hidden"
+        />
+        <Image
+          src="/404-puppy-still.webp"
+          alt="A puppy sniffing along the ground, searching for a lost trail"
+          width={480}
+          height={270}
+          className="mt-4 hidden h-40 w-auto object-contain mix-blend-multiply sm:h-48 motion-reduce:block"
+        />
+
+        <h1 className="mt-5 text-hero font-semibold">Looks like we lost the footprints.</h1>
 
         <p className="mt-4 max-w-md text-lg leading-relaxed text-ink-soft">
-          We sniffed around but couldn&apos;t track down that page. It may have
-          moved, been renamed, or wandered off entirely.
+          We followed the paw prints this far, but they suddenly disappeared.
+          This page may have wandered off somewhere else.
         </p>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -76,21 +85,21 @@ export default function NotFound() {
             href="/"
             className="relative inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-brand px-7 text-base font-semibold text-white shadow-soft transition-colors duration-200 hover:bg-brand-ink"
           >
-            <Home className="size-4" aria-hidden="true" />
-            Back to home
+            <PawPrint className="size-4" aria-hidden="true" />
+            Back to Home
           </Link>
           <Link
             href={`/${cta.secondaryHref}`}
             className="relative inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-border bg-card px-7 text-base font-semibold text-ink transition-colors duration-200 hover:bg-accent"
           >
             <Compass className="size-4" aria-hidden="true" />
-            Explore the ecosystem
+            Explore MeetMyPets
           </Link>
         </div>
 
-        <p className="mt-10 flex items-center gap-1.5 text-xs text-ink-soft">
+        <p className="mt-10 flex items-center gap-1.5 text-xs tracking-wide text-ink-soft uppercase">
           <PawPrint className="size-3.5 text-brand-ink" aria-hidden="true" />
-          Error code 404 · Page not found
+          404 — the path disappeared
         </p>
       </main>
     </div>

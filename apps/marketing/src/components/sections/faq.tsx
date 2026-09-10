@@ -11,26 +11,11 @@ import { faq } from "@/config/site";
 const FAQ_BLOB_CLIP = "url(#faq-blob)";
 
 /**
- * FAQ accordion built on native <details>/<summary>.
+ * FAQ accordion on native <details>/<summary>: zero JS, works before
+ * hydration and with scripting off, and found by the browser's own Ctrl+F.
  *
- * Chosen over the Base UI primitive deliberately: this ships zero JavaScript,
- * works before hydration and with scripting off, is found by the browser's
- * own Ctrl+F (which expands the matching panel), and gets correct
- * button/expanded semantics from the platform rather than from ARIA we would
- * have to maintain. Dropping the primitive also removed @base-ui/react from
- * the bundle entirely.
- *
- * The open/close height transition uses `interpolate-size: allow-keywords`
- * plus `::details-content` (see globals.css). Where unsupported it simply
- * snaps open — the content is never hidden or broken.
- *
- * The same `faq` array feeds the FAQPage JSON-LD in page.tsx, so the rich
- * snippet cannot drift from what is rendered.
- *
- * VISUALS: at lg+ a blob-clipped pet photo sits to the left of the heading,
- * the same treatment used by the Trust/verification section. A cat (Maine
- * Coon) reads as a pet owner browsing answers rather than generic stock — it
- * anchors the section visually without competing with the accordion content.
+ * The same `faq` array feeds the FAQPage JSON-LD, so the rich snippet cannot
+ * drift from what renders.
  */
 export function Faq() {
   return (
@@ -63,13 +48,8 @@ export function Faq() {
         }}
       />
       <div className="section-shell">
-        {/* Two-column heading at lg+: pet photo on the left, copy on the right.
-            Same pattern as the Trust section — a friendly animal face makes
-            "Questions" feel warm rather than like a legal disclaimer. Hidden
-            below lg where the stacked layout has no room for the column. */}
-        {/* Photo + heading side by side at every width. On phones the cat
-            shrinks to a 5.5rem portrait beside the heading rather than
-            disappearing — it was lg-only before, so mobile never saw it. */}
+        {/* Photo beside the heading at every width — it was lg-only, so
+            phones never saw the cat at all. */}
         <div className="grid grid-cols-[5.5rem_1fr] items-center gap-4 sm:grid-cols-[8rem_1fr] sm:gap-6 lg:grid-cols-[220px_1fr] lg:gap-10">
           <Reveal>
             <div

@@ -4,18 +4,10 @@ import { domMax, LazyMotion } from "motion/react";
 import type { ReactNode } from "react";
 
 /**
- * Wraps the whole app in one shared LazyMotion provider, `strict` mode on.
- *
- * Every animated component in this app uses the lightweight `m` component
- * (never the eager `motion` one — `strict` throws if any does, catching a
- * regression immediately instead of silently doubling the bundle). `domMax`
- * rather than the smaller `domAnimation` because the Ecosystem section's
- * sliding tab-pill highlight uses `layoutId`, a layout-animation feature
- * `domAnimation` does not include.
- *
- * A dedicated client component, not inlined in layout.tsx: RootLayout is a
- * Server Component (static metadata, next/font), and LazyMotion needs a
- * client boundary. This is that boundary and nothing else.
+ * One shared LazyMotion provider, `strict` mode on — every animated component
+ * uses the lightweight `m` component, and strict throws if any imports the
+ * eager `motion` one. `domMax` rather than `domAnimation` because the
+ * ecosystem tabs use `layoutId`.
  */
 export function MotionProvider({ children }: { children: ReactNode }) {
   return (

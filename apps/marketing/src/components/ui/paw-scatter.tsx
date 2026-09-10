@@ -11,19 +11,11 @@ type Paw = {
 };
 
 /**
- * A handful of low-opacity paw prints scattered behind a section's content —
- * the same decorative pattern hero.tsx and reels.tsx each hand-rolled
- * separately. Centralised here so every section can adopt it with one line
- * instead of another one-off `<PawPrint>` block.
+ * Low-opacity paw prints scattered behind a section's content. Each fades and
+ * rotates into place as its own section enters the viewport, staggered so they
+ * land one after another.
  *
- * Scroll-reactive: each print fades and rotates into place as its own
- * section enters the viewport, staggered so they "land" one after another
- * rather than as one static texture. This ties the animation to the section
- * it decorates instead of living in a page-wide fixed element unrelated to
- * whatever content is on screen.
- *
- * Purely atmospheric texture: aria-hidden, pointer-events-none, and always
- * behind content (-z-10) so it never competes with or blocks anything.
+ * Purely atmospheric: aria-hidden, pointer-events-none, always behind content.
  */
 export function PawScatter({
   paws,

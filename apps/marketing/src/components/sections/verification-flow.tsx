@@ -18,17 +18,9 @@ const TRUST_BLOB_CLIP = "url(#trust-blob)";
  * Server Component — no interactivity here, so no "use client" and no JS
  * shipped for this section beyond the Reveal wrappers.
  *
- * Each step is a two-tone card: a tinted header band carrying the icon (in
- * a raised white chip) and a large ghost step numeral, then a white body
- * with the copy. The final step — the badge actually being issued — gets a
- * warm-to-cool gradient band, a brand ring and the paw badge, so the row
- * builds toward it. Between cards at md+ a gradient thread runs behind the
- * bands with small chevron connectors at the gaps, so the three read as one
- * left-to-right progression rather than three unrelated boxes.
- *
- * At lg+ a blob-clipped pet photo sits to the right of the heading — the
- * most direct visual shorthand for "a real animal, cared for by a real
- * person."
+ * Two-tone step cards: a tinted header band with the icon and a ghost
+ * numeral, then the copy. The final step gets a gradient band and brand ring
+ * so the row builds toward it, with a thread and chevrons linking them at md+.
  */
 export function VerificationFlow() {
   return (
@@ -96,8 +88,7 @@ export function VerificationFlow() {
                     <PawPrint className="size-4.5" />
                   </span>
                 )}
-                {/* Shape + hover-lift live on this inner element, separate
-                    from Reveal's own motion.li above, so Reveal's resting
+                {/* Shape + hover on this inner node so Reveal's resting
                     inline transform never beats the hover rule. */}
                 <div
                   className={cn(

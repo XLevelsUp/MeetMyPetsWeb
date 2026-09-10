@@ -29,23 +29,13 @@ function WhatsAppIcon({ className }: { className?: string }) {
 }
 
 /**
- * WhatsApp launcher, as the waving mascot.
+ * WhatsApp launcher, as the waving mascot — replaces both the generic green
+ * button and the decorative corner greeter. Greets on arrival, tucks to a
+ * peek, and opens WhatsApp on tap.
  *
- * Replaces both the generic green WhatsApp button and the decorative
- * corner greeter — they were two floating things in two corners doing
- * unrelated jobs. This is one: it greets on arrival, then settles into a
- * peek, and tapping it opens WhatsApp.
- *
- * Unlike the old greeter this is a REAL CONTROL, which changes the rules:
- *   - it is an <a> with an href, so it is keyboard reachable, focusable
- *     and works on middle-click / "open in new tab"
- *   - it is NOT aria-hidden; it carries a descriptive label naming both the
- *     destination and the number
- *   - it renders at every width, because a contact route that disappears on
- *     phones is a lost conversation — and WhatsApp matters most on phones
- *
- * The tuck-to-peek is transform-only and the wave is a WebP animation, so
- * nothing here costs main-thread work per frame.
+ * A real control, so unlike the old greeter it is a focusable <a> with a
+ * descriptive label, and it renders at every width — a contact route that
+ * disappears on phones is a lost conversation.
  */
 export function WhatsAppDog() {
   const reduced = useReducedMotion();
@@ -83,36 +73,26 @@ export function WhatsAppDog() {
   const href = `${whatsapp.href}?text=${encodeURIComponent(whatsapp.message)}`;
 
   return (
-    // A landmark, not a bare <div>: this is a fixed launcher that sits
-    // outside <main>, so without one its link belongs to no region and is
-    // hard to find when navigating by landmark. `aria-label` names it so it
-    // is distinguishable from the page's other complementary content.
+    // A landmark: this sits outside <main>, so without one the link
+    // belongs to no region and is hard to find by landmark navigation.
     <aside
       aria-label="Contact us on WhatsApp"
       className={cn(
         "fixed right-2 z-40 sm:right-4 lg:right-5",
-        // The artwork is ~1.8:1, so these widths give a 47/56/66px-tall
-        // image; the link below adds padding to clear the 44px minimum
-        // touch target at every size.
+        // ~1.8:1 artwork; the link below clears the 44px touch minimum.
         "w-[84px] sm:w-[100px] lg:w-[118px]",
         // Sits above the iOS home indicator rather than under it.
         "bottom-[max(0px,env(safe-area-inset-bottom))]",
         "transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)]",
-        // Tucked leaves the head visible. 44% on phones (not 58%) keeps
-        // enough of the dog on screen to stay a legible, tappable target.
+        // Tucked leaves the head visible and still tappable.
         settled ? "translate-y-[44%] sm:translate-y-[52%]" : "translate-y-0",
       )}
       onPointerEnter={(event) => {
         if (event.pointerType === "mouse") wake();
       }}
     >
-      {/* Speech bubble. `absolute` so it is not constrained by the wrapper's
-          narrow dog-sized width — inside it the text wrapped to a 4-line
-          column. Anchored to the wrapper's right edge and allowed to run
-          leftwards to its own width instead.
-
-          Hidden from assistive tech: the link's own label already says what
-          tapping does, so announcing both would be a duplicate. */}
+      {/* `absolute` so the text is not squeezed by the dog-width wrapper.
+          aria-hidden — the link's own label already says what tapping does. */}
       <div
         aria-hidden="true"
         className={cn(

@@ -37,13 +37,10 @@ const BUSINESS_PHOTOS = [
 ];
 
 /**
- * One bento tile. Three layers make a plain white box read as designed
- * without touching its copy: a 4px accent rail across the top edge, a soft
- * colour wash bleeding in from the top-right corner, and an icon chip beside
- * the title. `tone` alternates the two brand hues across the grid so the
- * four tiles read as a set rather than four copies of one card. Hover lifts
- * the tile 4px and brightens the rail — `translate`, not `transform`, so it
- * never fights `.card-paw:hover`'s own rotate.
+ * One bento tile: accent rail, corner colour wash and an icon chip beside
+ * the title. `tone` alternates the brand hues so the four read as a set.
+ * Hover uses `translate`, not `transform`, so it never fights
+ * `.card-paw:hover`'s rotate.
  */
 function BentoCard({
   title,

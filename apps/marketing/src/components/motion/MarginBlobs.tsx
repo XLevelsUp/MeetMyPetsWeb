@@ -1,21 +1,9 @@
 /**
- * Large, soft colour fields that live in the desktop side margins, slowly
- * drifting. They exist because at ≥1280px the content column leaves a wide
- * strip of bare canvas on each side of every section, and a page-level
- * gradient alone was too faint to read as anything.
+ * Soft colour fields drifting in the desktop side margins, where the content
+ * column leaves bare canvas at >=1280px.
  *
- * Positioned along <main> by percentage so they distribute across the whole
- * page length regardless of how many sections it has. Each one is mostly
- * off-canvas — centred a few rem inside the viewport edge — so its bulk
- * sits in the margin and only its feathered edge reaches under content.
- *
- * Performance: no `filter: blur` (the radial gradient's own falloff is the
- * softness) and transform-only animation, so this is six compositor layers
- * that never trigger layout or paint. `motion-safe:` gates the drift for
- * reduced-motion visitors, who still get the static colour.
- *
- * Server Component, `lg:` only, aria-hidden, behind everything (-z-20 sits
- * under each section's own -z-10 wash so those still layer on top).
+ * No `filter: blur` — the radial gradient's own falloff is the softness — and
+ * transform-only animation, so these are compositor layers that never repaint.
  */
 
 type Blob = {

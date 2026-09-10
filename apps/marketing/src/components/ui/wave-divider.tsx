@@ -1,22 +1,9 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Organic wavy SVG divider placed at section boundaries so adjacent
- * sections flow into each other rather than hard-stopping at a straight
- * horizontal edge.
- *
- * The path is a smooth hand-drawn wave — the same organic language as
- * the blob clip-paths used across the hero, ecosystem, and reels cards.
- * Two mirrored variants (`flip`) cover top-of-section and bottom-of-
- * section placements.
- *
- * Performance: a single inline `<svg>` with one `<path>` — no raster
- * image, no JS, no animation. The SVG uses `preserveAspectRatio="none"`
- * so the wave stretches to fill any container width without gaps.
- *
- * Height is responsive — taller on wider screens where the wave has
- * more horizontal space to breathe, shorter on phones where vertical
- * real estate is precious.
+ * Wavy SVG divider for section boundaries, so adjacent sections flow into
+ * each other rather than meeting at a straight edge. One inline path, no JS.
+ * `flip` mirrors it for the top edge of a section.
  */
 export function WaveDivider({
   flip = false,

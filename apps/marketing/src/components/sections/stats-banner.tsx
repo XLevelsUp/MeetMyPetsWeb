@@ -6,17 +6,10 @@ import { WaveDivider } from "@/components/ui/wave-divider";
 import { statsBanner } from "@/config/site";
 
 /**
- * Stats strip. Went through two dark treatments first (near-black
- * `--background`, then the lighter `--secondary` brown) before landing
- * here — a light, brand-tinted panel instead: `--brand-soft`, the same
- * warm terracotta wash the hero's ambient gradient and the waitlist card
- * already use, so this section sits comfortably inside the page's existing
- * light palette rather than being a dark break in it. The numbers still do
- * the emphasis work — large, bold, brand-terracotta — without needing a
- * dark background to read as a distinct "moment."
+ * Stats strip on a brand-soft panel — the same warm wash the hero and waitlist
+ * card use, so it sits inside the light palette rather than breaking it.
  *
- * Server Component — the only client-side piece is CountUp's own
- * IntersectionObserver-driven animation, scoped to that leaf component.
+ * Server Component; only CountUp ships client JS.
  */
 export function StatsBanner() {
   return (

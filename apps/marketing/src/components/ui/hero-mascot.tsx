@@ -14,19 +14,12 @@ export const MASCOT_ASPECT = NATIVE_H / NATIVE_W;
 const NOTICE_PX = 360;
 
 /**
- * The hero mascot — the same happy, paws-up dog cutout that peeks over the
- * Trust card, so it reads as one character across the page. An actual
- * illustration rather than a hand-drawn SVG silhouette: at greeting size
- * the silhouette read as a blob, this reads as a dog from any distance.
+ * The hero mascot — the same dog cutout that peeks over the Trust card, so it
+ * reads as one character across the page.
  *
- * `wave`: a short idle wiggle (rotate ±5°, scale 1.04) — used while the
- * greeting is on screen, not on the docked dog, which would otherwise be a
- * permanently moving element beside the headline.
- *
- * `reactive`: the whole dog tilts and leans toward the pointer, more so the
- * closer it gets — the "notices you" moment. One rAF-throttled pointermove
- * listener writing to two springs; no React render per frame. Fine
- * pointers only; touch has no hover to react to.
+ * `reactive`: tilts and leans toward the pointer, more so the closer it gets.
+ * One rAF-throttled listener writing to springs; no React render per frame.
+ * Fine pointers only — touch has no hover to react to.
  */
 export function HeroMascot({
   width,

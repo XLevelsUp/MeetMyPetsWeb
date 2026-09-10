@@ -83,10 +83,7 @@ export function WaitlistForm() {
 
   return (
     <section id="waitlist" className="relative scroll-mt-24 py-10 sm:py-14">
-      {/* Ambient gradient wash — the card has its own internal gradient,
-          but the page-level background around it was bare. This terracotta
-          wash and trust-blue complement make the card feel grounded in the
-          page rather than floating on empty space. */}
+      {/* Page-level wash so the card is grounded, not floating on bare bg. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10"
@@ -97,13 +94,8 @@ export function WaitlistForm() {
       />
       <div className="section-shell">
         <Reveal>
-          {/* Shape lives here, separate from Reveal's own motion wrapper —
-              Reveal's entrance animation leaves a resting inline
-              `transform: none` once it finishes, which would silently beat
-              a CSS `:hover` rule applied to the same element. This card has
-              no hover-tilt (a full-width CTA card tilting on hover would be
-              disorienting, not charming), but the split keeps the pattern
-              consistent with every other .card-paw usage on the site. */}
+          {/* Shape sits here, not on Reveal — its resting inline
+              `transform: none` would beat a CSS `:hover` on the same node. */}
           <div className="card-paw card-stitched relative overflow-hidden border border-border bg-card px-6 py-10 shadow-lift sm:px-10 sm:py-12 lg:px-14 lg:py-14">
             <div
               aria-hidden="true"
@@ -123,10 +115,7 @@ export function WaitlistForm() {
               </defs>
             </svg>
 
-            {/* Dachshund peeking up from the bottom-left corner — the `overflow-
-                hidden` on the card clips both photos so they frame the content
-                without escaping the card boundary. Semi-transparent so the form
-                stays the clear focal point. */}
+            {/* Corner pets, clipped by the card's own overflow-hidden. */}
             <div
               aria-hidden="true"
               className="pointer-events-none absolute -bottom-4 -left-4 hidden h-40 w-32 overflow-hidden opacity-30 lg:block"
@@ -156,12 +145,8 @@ export function WaitlistForm() {
               />
             </div>
 
-              {/* Two columns from lg: the pitch (eyebrow, title, body, VIP
-                  offer) on the left, the form in its own inset panel on the
-                  right. One centred column stacked everything into a tall
-                  strip with the field an arm's length below the headline;
-                  side by side, the offer and the action sit at the same eye
-                  level and the card is ~40% shorter on desktop. */}
+              {/* Two columns from lg: pitch left, form right — one centred
+                  column made this ~40% taller with the field far from the copy. */}
               <div className="relative grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
                 <div className="text-center lg:text-left">
                   <p className="text-xs font-semibold tracking-[0.14em] text-brand-ink uppercase">

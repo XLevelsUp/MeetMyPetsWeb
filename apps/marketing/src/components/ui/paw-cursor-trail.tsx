@@ -18,20 +18,13 @@ const PAW_SVG =
   '<path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/></svg>';
 
 /**
- * Paw prints left behind the pointer as it moves — a companion to the
- * native cursor, not a replacement for it. Replacing the cursor hides the
- * affordances people rely on (text I-beam, link hand, resize arrows) and
- * does nothing on touch, where most of a pet app's visitors are.
+ * Paw prints left behind the pointer — a companion to the native cursor, not
+ * a replacement: replacing it hides the affordances people rely on (text
+ * I-beam, link hand) and does nothing on touch.
  *
- * Built as a fixed pool of DOM nodes recycled in order, positioned and
- * re-triggered directly from the pointer handler. No React state changes
- * after mount, so moving the mouse never renders anything. Each print is
- * rotated to face the direction of travel and offset alternately left and
- * right of the path, which is what makes it read as walking rather than a
- * dotted line.
- *
- * Fine pointers only (`pointer: fine`), desktop widths only, and nothing at
- * all under reduced motion.
+ * A fixed pool of DOM nodes recycled in order, positioned straight from the
+ * pointer handler, so moving the mouse never triggers a React render. Fine
+ * pointers and desktop widths only; nothing under reduced motion.
  */
 export function PawCursorTrail() {
   const reduced = useReducedMotion();
