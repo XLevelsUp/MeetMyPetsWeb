@@ -79,12 +79,17 @@ export function LegalPageLd({
   slug,
   title,
   description,
-  updated,
+  updatedIso,
 }: {
   slug: string;
   title: string;
   description: string;
-  updated: string;
+  /**
+   * ISO 8601, NOT the human date shown on the page. `dateModified` is a
+   * schema.org Date field — "10 September 2026" is not one, and Google drops
+   * the whole property rather than telling you.
+   */
+  updatedIso: string;
 }) {
   const url = `${site.url}/${slug}/`;
   return (
@@ -99,9 +104,7 @@ export function LegalPageLd({
           inLanguage: "en-IN",
           isPartOf: { "@type": "WebSite", name: site.name, url: site.url },
           publisher: { "@type": "Organization", name: site.legalEntity, url: site.url },
-          // Only emitted once a real date replaces the placeholder — a
-          // schema.org date field must not carry "[TO BE CONFIRMED …]".
-          ...(updated.startsWith("[") ? {} : { dateModified: updated }),
+          dateModified: updatedIso,
         }}
       />
       <Ld

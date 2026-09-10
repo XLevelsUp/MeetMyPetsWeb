@@ -15,7 +15,7 @@ export function LegalPage({ doc }: { doc: LegalDoc }) {
         slug={doc.slug}
         title={doc.title}
         description={doc.description}
-        updated={doc.updated}
+        updatedIso={doc.updatedIso}
       />
 
       <div className="section-shell py-12 sm:py-16">

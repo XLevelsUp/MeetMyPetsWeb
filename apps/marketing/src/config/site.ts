@@ -415,6 +415,9 @@ export const footerColumns = [
     links: [
       { label: "Privacy policy", href: "/privacy/" },
       { label: "Terms of service", href: "/terms/" },
+      // Required by Google Play's Data Safety form, which expects the deletion
+      // instructions to be findable from the site without signing in.
+      { label: "Delete your account", href: "/delete-account/" },
       { label: "Data protection", href: "/privacy/" },
       { label: "Contact", href: "mailto:hello@meetmypets.app" },
     ],

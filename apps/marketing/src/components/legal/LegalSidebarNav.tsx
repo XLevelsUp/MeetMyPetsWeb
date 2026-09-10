@@ -1,4 +1,4 @@
-import { legalDocs } from "@/config/legal";
+import { legalDocs, type LegalSlug } from "@/config/legal";
 import { cn } from "@/lib/utils";
 
 /**
@@ -10,7 +10,7 @@ export function LegalSidebarNav({
   current,
   className,
 }: {
-  current: "privacy" | "terms";
+  current: LegalSlug;
   className?: string;
 }) {
   return (
