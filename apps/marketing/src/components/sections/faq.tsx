@@ -10,13 +10,7 @@ import { faq } from "@/config/site";
 
 const FAQ_BLOB_CLIP = "url(#faq-blob)";
 
-/**
- * FAQ accordion on native <details>/<summary>: zero JS, works before
- * hydration and with scripting off, and found by the browser's own Ctrl+F.
- *
- * The same `faq` array feeds the FAQPage JSON-LD, so the rich snippet cannot
- * drift from what renders.
- */
+/** FAQ accordion on native <details> — zero JS, works before hydration. */
 export function Faq() {
   return (
     <section id="faq" className="relative py-10 sm:py-14">

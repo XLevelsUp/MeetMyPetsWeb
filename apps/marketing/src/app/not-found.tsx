@@ -12,15 +12,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 };
 
-/**
- * App-wide 404. Placed at the app root (not inside a route group), so it
- * catches every unmatched path across the marketing site and legal pages
- * alike — Next.js only allows one `not-found.tsx` per root layout.
- *
- * Server Component: nothing here needs interactivity, so it ships zero
- * client JS — appropriate for a page whose only job is "get the visitor
- * back on track," not entertain them at the cost of extra hydration.
- */
+/** App-wide 404 — must live at the app root; Next allows only one. */
 export default function NotFound() {
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden">
@@ -53,24 +45,22 @@ export default function NotFound() {
           404 — the path disappeared
         </span>
 
-        {/* Animated WebP rather than the source GIF: same clip at 185KB
-            instead of 598KB. `motion-reduce:hidden` swaps it for a static
-            frame, since an endless loop is what that setting exists to stop. */}
+        {/* Trimmed to the walk cycle's repeat point so the loop is seamless. */}
         <Image
           src="/404-puppy-search.webp"
           alt="A puppy sniffing along the ground, searching for a lost trail"
-          width={480}
-          height={270}
+          width={340}
+          height={272}
           priority
           unoptimized
-          className="mt-4 h-40 w-auto object-contain mix-blend-multiply sm:h-48 motion-reduce:hidden"
+          className="mt-4 h-40 w-auto object-contain sm:h-48 motion-reduce:hidden"
         />
         <Image
           src="/404-puppy-still.webp"
           alt="A puppy sniffing along the ground, searching for a lost trail"
-          width={480}
-          height={270}
-          className="mt-4 hidden h-40 w-auto object-contain mix-blend-multiply sm:h-48 motion-reduce:block"
+          width={340}
+          height={272}
+          className="mt-4 hidden h-40 w-auto object-contain sm:h-48 motion-reduce:block"
         />
 
         <h1 className="mt-5 text-hero font-semibold">Looks like we lost the footprints.</h1>

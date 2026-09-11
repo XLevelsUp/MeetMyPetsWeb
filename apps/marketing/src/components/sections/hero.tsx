@@ -34,12 +34,7 @@ function MaskedLine({ text, index, reduced }: { text: string; index: number; red
   );
 }
 
-/**
- * A single paw print that fades, scales up and drifts away — spawned once
- * per click on a hero mockup card, then removed from state on animation end.
- * Purely decorative (the cards themselves stay aria-hidden), so this never
- * renders when reduced motion is on: there is nothing to skip to.
- */
+/** One paw print per click on a hero card; skipped entirely under reduced motion. */
 function PawBurst({ id, x, onDone }: { id: number; x: number; onDone: (id: number) => void }) {
   return (
     <m.span
@@ -73,13 +68,7 @@ function usePawBursts(reduced: boolean) {
   return { bursts, spawn, remove };
 }
 
-/**
- * The hero's centre card: photo on the front, Mochi's profile on the back.
- * Hover flips it on desktop; tap toggles it on touch/keyboard, since there
- * is no hover state to rely on there. Takes the same position/size in the
- * composition that the plain photo card used to occupy — the verification
- * and meetup cards around it are unaffected and never flip.
- */
+/** Hero centre card — hover flips on desktop, tap/keyboard toggles elsewhere. */
 function PhotoProfileFlipCard({
   onBurst,
   bursts,
@@ -92,29 +81,12 @@ function PhotoProfileFlipCard({
   const reduced = useReducedMotion();
   const [flipped, setFlipped] = useState(false);
 
-  /**
-   * `onMouseEnter`/`onMouseLeave` fire on touch devices too (a tap on
-   * Chromium synthesises several `mouseenter` events before its `click`) —
-   * without this guard they forced `flipped(true)` on every tap regardless
-   * of `handleActivate`'s own toggle, so a touch tap looked like a no-op
-   * (mouseenter set it true, then the click toggled it straight back to
-   * false). Checked live, not cached: a hybrid laptop can switch pointer
-   * types mid-session.
-   */
+  // Guarded: touch devices synthesise mouseenter, which would force the flip on tap.
   function hoverCapable(): boolean {
     return typeof window !== "undefined" && Boolean(window.matchMedia?.("(hover: hover)").matches);
   }
 
-  /**
-   * A real mouse click on this card fires `mouseenter` (which — on a
-   * hover-capable device — already sets `flipped(true)` above) BEFORE
-   * `click`, so a naive toggle here immediately flipped it straight back to
-   * `false` and a desktop click did nothing. Only touch/keyboard activation
-   * toggles; on a hover-capable pointer, hover is already driving the flip
-   * and a click is redundant (the front face's "Tap to flip" caption is
-   * aimed at touch anyway). Keyboard (Enter/Space) always toggles: a
-   * hover-capable user tabbing to the card has no hover state to rely on.
-   */
+  // Hover already drives the flip on mouse, so only touch/keyboard toggle here.
   function handleActivate() {
     if (hoverCapable()) {
       onBurst();

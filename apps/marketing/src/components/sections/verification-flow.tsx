@@ -14,14 +14,7 @@ const ICONS = [IdCard, Syringe, BadgeCheck];
 
 const TRUST_BLOB_CLIP = "url(#trust-blob)";
 
-/**
- * Server Component — no interactivity here, so no "use client" and no JS
- * shipped for this section beyond the Reveal wrappers.
- *
- * Two-tone step cards: a tinted header band with the icon and a ghost
- * numeral, then the copy. The final step gets a gradient band and brand ring
- * so the row builds toward it, with a thread and chevrons linking them at md+.
- */
+/** Two-tone verification step cards, linked by a thread at md+. */
 export function VerificationFlow() {
   return (
     <section id="verification" className="relative scroll-mt-24 bg-secondary/40 py-10 sm:py-14">

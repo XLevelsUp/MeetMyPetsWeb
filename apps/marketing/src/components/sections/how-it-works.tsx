@@ -16,13 +16,7 @@ const STEP_BLOB_CLIP = "url(#step-blob)";
 // community.
 const STEP_ICONS = [PawPrint, Compass, MessageCircleHeart, Users];
 
-/**
- * Four steps as a photo-card grid.
- *
- * This was a sticky-pinned scroll sequence, which needed each step to be
- * ~70vh tall and manufactured ~2,300px of near-empty scroll track. A grid says
- * the same thing in one screen, and the section is now a Server Component.
- */
+/** Four steps as a photo-card grid — replaced a sticky scroll track. */
 export function HowItWorks() {
   return (
     <section id="how-it-works" className="relative py-10 sm:py-14">

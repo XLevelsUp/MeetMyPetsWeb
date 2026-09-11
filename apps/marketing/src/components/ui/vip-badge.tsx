@@ -11,33 +11,9 @@ import { cn } from "@/lib/utils";
 type State =
   | { status: "loading" }
   | { status: "static" }
-  | { status: "live"; remaining: number };
+  | { status: "live"; claimed: number; remaining: number };
 
-/**
- * "First 10,000 get VIP access" promo pill — three variants:
- *
- * - `compact`: small solid pill, used inline near other badges (hero top row).
- * - `full`: larger pill with breathing room (waitlist section, above the form).
- * - `spotlight`: a bold, multi-line feature block that makes the offer
- *   unmissable — crown icon, animated shimmer, remaining-spots counter,
- *   and a sub-line with the benefit text. Used as its own hero element
- *   or in the waitlist card.
- *
- * SOLID FILL, NOT GLASS: this used to be the same translucent-outline style
- * as every other small label on the page (the "Built for every whisker…"
- * pill, nav chips), so it read as one more quiet tag rather than an offer —
- * easy to miss entirely. Solid terracotta + white text matches the weight
- * of the primary CTA buttons instead, plus a soft pulsing halo behind it so
- * it draws the eye on load without looping forever (the halo's own
- * animation runs a fixed few cycles via `repeat`, not `Infinity` — a
- * "highlight this" cue should fade once it's made its point, not become
- * permanent motion competing with the rest of the page. Reduced-motion
- * visitors get the badge with no halo and no entrance animation.
- *
- * Two sizes: `compact` for the hero (sits inline near the existing "Built
- * for every whisker…" pill) and `full` for the waitlist section (its own
- * line, slightly larger, room for the crown + remaining count to breathe).
- */
+/** VIP promo pill — compact (inline), full (own line), spotlight (feature block). */
 export function VipBadge({
   variant = "compact",
   className,
@@ -52,16 +28,17 @@ export function VipBadge({
     let active = true;
     fetchVipCount().then((result) => {
       if (!active || !result) return;
-      setState({ status: "live", remaining: result.remaining });
+      setState({ status: "live", claimed: result.claimed, remaining: result.remaining });
     });
     return () => {
       active = false;
     };
   }, []);
 
+  // Social proof first, scarcity second — but only once enough people have joined to be worth saying.
   const text =
-    state.status === "live"
-      ? `Only ${state.remaining.toLocaleString()} of ${vipOffer.cap.toLocaleString()} VIP spots left`
+    state.status === "live" && state.claimed >= 25
+      ? `${state.claimed.toLocaleString()} users already joined — ${state.remaining.toLocaleString()} VIP spots left`
       : vipOffer.badge;
 
   /* ── Spotlight variant ── */

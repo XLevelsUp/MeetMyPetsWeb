@@ -1,10 +1,6 @@
 import { cn } from "@/lib/utils";
 
-/**
- * Running-dog loading indicator for the waitlist submit buttons — inline SVG
- * driven by CSS keyframes, so it costs nothing to load and inherits
- * `currentColor`. Pass `animate={false}` under reduced motion for a static pose.
- */
+/** Running-dog loading indicator — inline SVG on CSS keyframes. */
 export function DogRunLoader({
   className,
   animate = true,

@@ -36,12 +36,7 @@ const BUSINESS_PHOTOS = [
   { src: "/pet-corgi-puppy.webp",        alt: "A trained Corgi" },
 ];
 
-/**
- * One bento tile: accent rail, corner colour wash and an icon chip beside
- * the title. `tone` alternates the brand hues so the four read as a set.
- * Hover uses `translate`, not `transform`, so it never fights
- * `.card-paw:hover`'s rotate.
- */
+/** One bento tile: accent rail, corner wash and an icon chip. */
 function BentoCard({
   title,
   body,
@@ -62,10 +57,7 @@ function BentoCard({
   paw?: "card-paw" | "card-paw-alt";
   tone?: "brand" | "trust";
   icon?: React.ElementType;
-  /** When true the children div does NOT get `mt-auto` — the content
-   *  flows naturally right after the body text. Use for list-style cards
-   *  (businesses) where `mt-auto` pushes the list to the card's bottom
-   *  edge and creates a gap when the card is stretched tall. */
+  /** Skip `mt-auto` — for list cards where it would strand the list at the bottom. */
   flush?: boolean;
   decoration?: React.ReactNode;
 }) {
@@ -118,19 +110,7 @@ function BentoCard({
   );
 }
 
-/**
- * Verified / unverified comparison.
- *
- * Was a single toggle switching between one card's two states — content-
- * light next to this bento's other cards (a 3-card swipe stack, a 3-row
- * business list), which left this card mostly empty above the toggle. The
- * section's own copy is literally "never look the same": showing both
- * states side by side makes that claim visible at a glance instead of
- * making a visitor click to compare, and fills the card with real content
- * rather than decoration. The toggle switch controls which side gets the
- * shimmer + emphasis, so it stays interactive rather than becoming a static
- * before/after graphic.
- */
+/** Verified vs unverified side by side — the section's claim made visible. */
 function ProfileCard({ isVerified, reduced }: { isVerified: boolean; reduced: boolean }) {
   return (
     <div
@@ -354,12 +334,7 @@ export function FeatureBento() {
             tone="brand"
             icon={PawPrint}
             decoration={
-              // The copy names exactly these three species (rabbits,
-              // parrots, reptiles) as the ones other apps treat as an
-              // afterthought — scattering their glyphs low-opacity behind
-              // the empty middle of the card both fills the dead space
-              // this row's taller sibling created and echoes the claim
-              // rather than being generic paw-print filler.
+              // Ghost glyphs of the three species the copy names, filling the card's dead middle.
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-x-0 top-1/2 -z-0 flex -translate-y-1/2 items-center justify-center gap-10 opacity-[0.08]"
@@ -380,11 +355,7 @@ export function FeatureBento() {
                   key={pet.name}
                   className="flex w-44 shrink-0 items-center gap-3 rounded-2xl border border-border bg-background p-3"
                 >
-                  {/* photo when the entry has a stand-in image (see site.ts's
-                      PetPhoto note); species without one (currently
-                      bird/rabbit/reptile — no photos exist for those species
-                      yet) fall back to the existing icon swatch, never a
-                      broken or missing image. */}
+                  {/* Photo when the species has one, icon swatch otherwise. */}
                   <span className="relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-brand-soft text-brand-ink">
                     {"photo" in pet && pet.photo ? (
                       <Image src={pet.photo.src} alt={pet.photo.alt} fill sizes="40px" className="object-cover" loading="eager" />
@@ -415,10 +386,7 @@ export function FeatureBento() {
             icon={Building2}
             flush
           >
-            {/* Each business row staggers in from the right via Reveal —
-                fires once on scroll, no ongoing JS cost after the springs
-                settle. The index-based delay creates a cascading entrance
-                that draws the eye down the list. */}
+            {/* Rows stagger in via Reveal; no ongoing JS once settled. */}
             <ul className="flex flex-col gap-2.5 w-full min-w-0">
               {nearbyBusinesses.map((business, index) => {
                 const Icon = BUSINESS_ICONS[index] ?? BadgeCheck;

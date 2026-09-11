@@ -8,25 +8,7 @@ import { cn } from "@/lib/utils";
 // Same address as the footer's Contact link (footerColumns in site.ts).
 const CONTACT_HREF = "mailto:hello@meetmypets.app";
 
-/**
- * Small "keep going" nudge for the end of a mid-page section — Ecosystem,
- * FeatureBento, HowItWorks and VerificationFlow each used to just stop once
- * their content ran out, leaving a visitor with nothing to click until they
- * happened to scroll as far as the waitlist section itself. This closes that
- * gap without competing with WaitlistForm: no card, no border, just a line
- * of copy and the same pill button used everywhere else on the page.
- *
- * A tilted paw print stands in for an arrow/chevron — every other
- * "look here" affordance on the site (nav-pill hover, card-paw-badge) is a
- * paw, not a generic icon, and this is the one purely decorative spot where
- * a wag-able tilt reads as an invitation rather than noise.
- *
- * `withEmail`: the FAQ section's own close-out. "Still have questions" reads
- * oddly if the only next step offered is a waitlist signup, so that one adds
- * a second, outline-styled button to hello@meetmypets.app — the same address
- * already used in the footer's Contact link, read from there rather than
- * hardcoded a second time.
- */
+/** End-of-section nudge; `withEmail` adds a contact button for the FAQ close-out. */
 export function SectionCta({
   text,
   buttonLabel = cta.primary,

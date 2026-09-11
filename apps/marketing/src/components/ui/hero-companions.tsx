@@ -60,9 +60,7 @@ type Companion = {
   tone: "brand" | "trust";
 };
 
-// Placed in the gaps of the two-column desktop hero: above/left of the badge,
-// between the headline and the photo, under the CTA row, and around the
-// photo card — never over the copy.
+// Placed in the hero's gaps — never over the copy.
 const COMPANIONS: Companion[] = [
   { Icon: Ball, position: "top-[13%] left-[3%]", size: 34, rotate: -12, depth: 22, drift: "paw-drift", duration: 19, delay: 0, tone: "brand" },
   { Icon: Feather, position: "top-[26%] left-[47%]", size: 40, rotate: 28, depth: 34, drift: "bone-float", duration: 13, delay: 2, tone: "trust" },
@@ -111,14 +109,7 @@ function Drifter({
   );
 }
 
-/**
- * "Zero-gravity" companions drifting around the hero — a ball, feather, bone,
- * fish and yarn, each on its own CSS keyframe, plus a light pointer parallax
- * so the layer reads as having depth.
- *
- * One pointermove listener feeds two motion values; nothing re-renders per
- * frame. Desktop only — below lg these would sit over the stacked copy.
- */
+/** Drifting hero companions with pointer parallax; desktop only. */
 export function HeroCompanions() {
   const reduced = useReducedMotion();
   const nx = useMotionValue(0);

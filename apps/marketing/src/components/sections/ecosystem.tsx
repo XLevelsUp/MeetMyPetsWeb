@@ -15,14 +15,7 @@ import { cn } from "@/lib/utils";
 
 const ECOSYSTEM_BLOB_CLIP = "url(#ecosystem-blob)";
 
-/**
- * Three-paradigm switcher.
- *
- * Built on native buttons with the tablist/tab/tabpanel roles wired by hand
- * rather than a library, because the panels are plain content and this keeps
- * the JS cost near zero. Arrow-key roving focus is included — a tablist that
- * only responds to Tab is a common and avoidable accessibility miss.
- */
+/** Three-audience tab switcher with roving arrow-key focus. */
 export function Ecosystem() {
   const [active, setActive] = useState(0);
   const reduced = useReducedMotion();

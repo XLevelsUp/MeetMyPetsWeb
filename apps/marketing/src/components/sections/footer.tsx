@@ -12,6 +12,7 @@ import {
   Shield,
   Smartphone,
   Star,
+  Trash2,
   Users,
   Zap,
 } from "lucide-react";
@@ -32,13 +33,7 @@ function InstagramIcon({ className }: { className?: string }) {
 }
 
 
-/**
- * Community snapshot — a row of overlapping circular pet photos that appear
- * above the link columns. These are the same public-folder pet images used
- * across the marketing site; appearing here in the footer as a "community
- * wall" reinforces the idea that real animals (and their owners) are waiting
- * inside the app.
- */
+/** Overlapping pet photos above the footer links. */
 const COMMUNITY_PHOTOS = [
   { src: "/pet-yorkshire-terrier.webp", alt: "Yorkshire Terrier" },
   { src: "/pet-corgi-puppy.webp", alt: "Corgi Puppy" },
@@ -49,11 +44,7 @@ const COMMUNITY_PHOTOS = [
   { src: "/pet-dachshund-bows.webp", alt: "Dachshund" },
 ];
 
-/**
- * One lucide icon per footer link — keyed by link label. Keeps the icon
- * selection co-located with the link it annotates rather than scattering
- * icon arrays across the file.
- */
+/** One lucide icon per footer link, keyed by label. */
 const LINK_ICONS: Record<string, React.ElementType> = {
   Features: Layers,
   Ecosystem: Globe,
@@ -65,6 +56,7 @@ const LINK_ICONS: Record<string, React.ElementType> = {
   "Join the waitlist": Mail,
   "Privacy policy": Shield,
   "Terms of service": FileText,
+  "Delete your account": Trash2,
   "Data protection": Lock,
   Contact: Mail,
 };
@@ -122,35 +114,40 @@ export function Footer() {
                 than generic stock photography. The strip scrolls on very small
                 screens (< 375px) rather than wrapping, which would break the
                 overlap rhythm. At md+ it sits comfortably in its column. */}
-            <div className="flex items-center" aria-label="Community pets preview">
-              <div className="flex -space-x-3">
+            {/* Stacks until xl, where the column is finally wide enough for both. */}
+            <div
+              className="flex flex-col items-start gap-4 xl:flex-row xl:items-center xl:gap-5"
+              aria-label="Community pets preview"
+            >
+              {/* `shrink-0` so the strip keeps its full width and the text is
+                  pushed alongside rather than sliding under the circles. */}
+              <div className="flex shrink-0 -space-x-3">
                 {COMMUNITY_PHOTOS.map((photo, i) => (
                   <div
                     key={photo.src}
-                    className="relative size-12 shrink-0 overflow-hidden rounded-full border-2 border-card shadow-soft sm:size-14"
+                    className="relative size-11 shrink-0 overflow-hidden rounded-full border-2 border-card shadow-soft sm:size-12"
                     style={{ zIndex: COMMUNITY_PHOTOS.length - i }}
                   >
                     <Image
                       src={photo.src}
                       alt={photo.alt}
                       fill
-                      sizes="56px"
+                      sizes="48px"
                       className="object-cover"
                     />
                   </div>
                 ))}
                 {/* "+more" badge after the photo strip */}
                 <div
-                  className="relative flex size-12 shrink-0 items-center justify-center rounded-full border-2 border-card bg-brand text-xs font-bold text-white shadow-soft sm:size-14"
+                  className="relative flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-card bg-brand text-[10px] font-bold text-white shadow-soft sm:size-12 sm:text-xs"
                   style={{ zIndex: 0 }}
                   aria-hidden="true"
                 >
                   +more
                 </div>
               </div>
-              <p className="ml-4 text-sm leading-snug text-ink-soft">
-                <span className="font-semibold text-ink">Hundreds of pet owners</span>
-                <br />
+              <p className="text-sm leading-snug text-balance text-ink-soft">
+                <span className="font-semibold text-ink">Hundreds of pet owners</span>{" "}
                 already on the list
               </p>
             </div>

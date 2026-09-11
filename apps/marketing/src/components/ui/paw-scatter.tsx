@@ -10,13 +10,7 @@ type Paw = {
   size?: number;
 };
 
-/**
- * Low-opacity paw prints scattered behind a section's content. Each fades and
- * rotates into place as its own section enters the viewport, staggered so they
- * land one after another.
- *
- * Purely atmospheric: aria-hidden, pointer-events-none, always behind content.
- */
+/** Low-opacity paw prints that fade in as their section enters view. */
 export function PawScatter({
   paws,
   opacity = 0.14,
@@ -35,10 +29,7 @@ export function PawScatter({
       className={cn("pointer-events-none absolute inset-0 -z-10 overflow-hidden", className)}
     >
       {paws.map((paw, i) => {
-        // Tailwind's leading "-" on `-rotate-[16deg]` negates the whole
-        // utility (rotate by -16deg) — it sits before "rotate", not inside
-        // the brackets, so both signs have to be captured to get the true
-        // landed angle instead of always reading a positive degree value.
+        // Tailwind's leading "-" negates the whole utility, so capture both signs.
         const fromRotation = paw.className.match(/(-?)rotate-\[(\d+)deg\]/);
         const landedRotate = fromRotation
           ? Number(`${fromRotation[1]}${fromRotation[2]}`)
