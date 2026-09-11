@@ -24,7 +24,7 @@ async function celebrate() {
     startVelocity: 32,
     scalar: 0.9,
     origin: { y: 0.7 },
-    colors: ["#c2531f", "#2563eb", "#15803d", "#f6e7de"],
+    colors: ["#ff1744", "#2563eb", "#15803d", "#ffe4e8"],
     disableForReducedMotion: true,
   });
 }
