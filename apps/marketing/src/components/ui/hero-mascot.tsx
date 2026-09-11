@@ -13,14 +13,7 @@ export const MASCOT_ASPECT = NATIVE_H / NATIVE_W;
 /** Pointer distance (px) beyond which the dog stops paying attention. */
 const NOTICE_PX = 360;
 
-/**
- * The hero mascot — the same dog cutout that peeks over the Trust card, so it
- * reads as one character across the page.
- *
- * `reactive`: tilts and leans toward the pointer, more so the closer it gets.
- * One rAF-throttled listener writing to springs; no React render per frame.
- * Fine pointers only — touch has no hover to react to.
- */
+/** Hero mascot — tilts toward the pointer on fine-pointer devices. */
 export function HeroMascot({
   width,
   className,

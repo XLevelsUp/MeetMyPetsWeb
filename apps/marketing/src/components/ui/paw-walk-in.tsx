@@ -7,11 +7,7 @@ import { cn } from "@/lib/utils";
 
 const STEPS = 3;
 
-/**
- * Three paw prints that step in ahead of a section heading, so the entrance
- * is branded rather than a generic fade. Absolutely positioned (adds no
- * layout height) and sm:-only. Pure flourish — nothing under reduced motion.
- */
+/** Three paw prints stepping in ahead of a section heading; sm+ only. */
 export function PawWalkIn({ align = "center" }: { align?: "center" | "left" }) {
   const reduced = useReducedMotion();
   if (reduced) return null;

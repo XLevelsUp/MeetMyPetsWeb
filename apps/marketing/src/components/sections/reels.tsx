@@ -12,25 +12,14 @@ import { cn } from "@/lib/utils";
 
 const PROFILE_URL = site.instagram;
 
-/**
- * Three irregular outlines, in objectBoundingBox units (0-1) so one path
- * scales to any card size without re-authoring per breakpoint.
- *
- * Each card gets a different one — three identical blobs read as a deliberate
- * UI shape, which is the opposite of the organic feel they exist to create.
- * The paths stay close to a rounded rectangle: pets are photographed centred
- * and upright, and a wilder outline crops ears and faces.
- */
+/** Three blob outlines in objectBoundingBox units so one path scales to any card. */
 const BLOB_PATHS = [
   "M0.5,0.005 C0.78,0.005 0.97,0.06 0.99,0.28 C1.01,0.5 0.99,0.72 0.97,0.85 C0.94,0.97 0.78,0.998 0.5,0.998 C0.22,0.998 0.06,0.96 0.03,0.83 C0.01,0.7 -0.01,0.48 0.01,0.27 C0.03,0.06 0.22,0.005 0.5,0.005 Z",
   "M0.5,0.002 C0.8,0.002 0.99,0.08 0.995,0.3 C1,0.52 0.96,0.7 0.98,0.86 C0.99,0.97 0.75,1 0.48,1 C0.2,1 0.04,0.95 0.02,0.8 C0,0.64 0.02,0.44 0.005,0.25 C-0.005,0.07 0.2,0.002 0.5,0.002 Z",
   "M0.52,0.004 C0.82,0.004 0.98,0.07 0.985,0.26 C0.99,0.46 0.95,0.68 0.975,0.84 C0.995,0.97 0.76,0.997 0.47,0.997 C0.19,0.997 0.02,0.94 0.015,0.78 C0.01,0.62 0.04,0.42 0.02,0.26 C0.005,0.08 0.22,0.004 0.52,0.004 Z",
 ];
 
-/**
- * Inline glyph: lucide-react v1 dropped its brand icons, so there is no
- * `Instagram` export to import. Traced from the official mark.
- */
+/** Inline Instagram glyph — lucide v1 ships no brand icons. */
 function InstagramGlyph({ className }: { className?: string }) {
   return (
     <svg
@@ -50,21 +39,7 @@ function InstagramGlyph({ className }: { className?: string }) {
   );
 }
 
-/**
- * A reel's video, in one of two modes.
- *
- * `featured` (the centre card) autoplays whenever it is on screen and offers a
- * mute toggle. The side cards play only while hovered or keyboard-focused.
- *
- * WHY THE SIDE CARDS DIFFER
- * Three simultaneous autoplaying mp4s means three concurrent downloads of
- * user-generated video on a page whose job is a waitlist signup. Hover-to-play
- * keeps that cost on demand: `preload="none"` means a side card fetches
- * nothing at all until the pointer arrives, so the page still costs one video.
- *
- * Playback is gated on visibility either way. Autoplaying off-screen video
- * burns bandwidth and battery for something nobody can see.
- */
+/** Featured card autoplays on screen; side cards play on hover to save bandwidth. */
 function ReelVideo({
   src,
   poster,
@@ -100,18 +75,15 @@ function ReelVideo({
     const element = videoRef.current;
     if (!element) return;
 
-    // Reduced motion: hold the poster frame unless the user actively hovers,
-    // which is a deliberate request rather than unrequested ambient motion.
+    // Reduced motion: play only on deliberate hover, never ambient autoplay.
     const wanted = visible && (hovered || (featured && !reduced));
 
     if (wanted) {
-      // play() rejects when autoplay is blocked; the poster stays visible,
-      // which is a correct fallback rather than an error worth surfacing.
+      // play() can reject when autoplay is blocked; the poster is a fine fallback.
       void element.play().catch(() => {});
     } else {
       element.pause();
-      // Side cards restart from the top, so each hover shows the reel's
-      // opening frames rather than resuming mid-scene from last time.
+      // Restart side cards so each hover opens on the reel's first frames.
       if (!featured) element.currentTime = 0;
     }
   }, [visible, hovered, featured, reduced]);
@@ -125,39 +97,20 @@ function ReelVideo({
         muted={muted}
         loop
         playsInline
-        // The featured card is going to play regardless, so its metadata is
-        // worth fetching up front. A side card may never be hovered at all.
+        // Featured card will play, so prefetch metadata; side cards may never be hovered.
         preload={featured ? "metadata" : "none"}
         aria-label={label}
         onLoadedData={() => setReady(true)}
         className={cn(
           "size-full object-cover transition-opacity duration-700",
-          // Side cards cross-fade from their poster image, so the swap to
-          // video is a dissolve rather than a flash of empty frame.
+          // Cross-fade from the poster so the swap to video is a dissolve.
           ready || !featured ? "opacity-100" : "opacity-0",
         )}
       >
-        {/* No <track kind="captions">, deliberately.
-​
-            These are Instagram reels pulled live from Meta's Graph API —
-            user-generated clips we neither author nor host, and Meta does
-            not expose caption files for them. There is no .vtt to point at,
-            and shipping an empty track to satisfy an automated audit would
-            be worse than none: it advertises captions to a screen-reader
-            user and then delivers silence.
-
-            What is provided instead: the card is a link to the reel on
-            Instagram (where Meta's own captions and the full caption text
-            are available), the accessible name carries the post's caption
-            text, and every card plays muted by default — so no information
-            is conveyed by audio alone on this page. If we ever host our own
-            footage, that clip must ship a real caption track. */}
+        {/* No captions track: Meta exposes none for reels, and an empty one would promise captions it cannot deliver. */}
       </video>
 
-      {/* Sound is opt-in, and only on the featured card — a mute button on a
-          card that plays for as long as the pointer rests there would be a
-          control the user cannot reliably click. Autoplaying audio is also
-          blocked by browsers, which would prevent playback entirely. */}
+      {/* Mute toggle only on the featured card — side cards play only while hovered. */}
       {featured && (
         <button
           type="button"
@@ -186,16 +139,7 @@ function ReelVideo({
   );
 }
 
-/**
- * One reel card.
- *
- * A component rather than inline JSX because each card owns its own hover
- * state, and hooks cannot live inside the .map() callback.
- *
- * Hover is tracked in React state, not CSS, because it has to reach the
- * <video> element's play()/pause() calls — :hover cannot drive an imperative
- * media API. Focus counts as hover so the video is reachable by keyboard.
- */
+/** One reel card — hover state lives in React because it drives play()/pause(). */
 function ReelCard({
   reel,
   featured,
@@ -209,9 +153,7 @@ function ReelCard({
 }) {
   const [hovered, setHovered] = useState(false);
 
-  // Side cards swap their poster <img> for a <video> on hover; the featured
-  // card is video from the start. `playable` is false when Meta withheld
-  // media_url for this reel — those stay a poster that opens the permalink.
+  // `playable` is false when Meta withheld media_url — those stay a poster.
   const playsVideo = reel.playable && (featured || hovered);
 
   return (
@@ -223,17 +165,13 @@ function ReelCard({
       onHoverEnd={() => setHovered(false)}
       onFocus={() => setHovered(true)}
       onBlur={() => setHovered(false)}
-      // Spring, not a duration curve: the card can be grabbed mid-motion and
-      // follows the pointer without a seam. Critically damped — a hover lift
-      // is not a momentum gesture, so overshoot would read as wobble.
+      // Spring so the card can be grabbed mid-motion without a seam.
       whileHover={{ y: -10 }}
       whileTap={{ scale: 0.985 }}
       transition={{ type: "spring", bounce: 0, duration: 0.4 }}
       className={cn(
         "group relative mx-auto block w-full rounded-[2rem]",
-        // No max-width below sm: the card must fill the swipe strip's 78vw
-        // slot, and a 19rem cap would leave dead space between cards on any
-        // phone wider than ~390px.
+        // No max-width below sm: the card must fill the swipe strip's 78vw slot.
         "sm:max-w-[19rem]",
         "focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-4 focus-visible:outline-none",
         featured ? "lg:-mt-12 lg:max-w-[21rem]" : "lg:mt-0",
@@ -327,27 +265,7 @@ function ReelCard({
   );
 }
 
-/**
- * Latest Instagram reels — three blob-clipped cards, newest featured centre.
- *
- * LAYOUT
- * Each reel is clipped to an irregular organic outline, with a second blob
- * offset behind it in a flat brand tone. That layered, hand-cut look is the
- * pet-template shape language; a rectangle grid would read as a stock embed.
- *
- * The centre card is larger and lifted, so the row has a focal point rather
- * than three equal tiles.
- *
- * WHY clip-path AND NOT border-radius
- * An irregular outline has no radius form. The paths are declared once in a
- * single hidden <svg> and referenced by id, with clipPathUnits set to
- * objectBoundingBox so one path scales to every card at every breakpoint.
- * clip-path also reliably clips <video>, which overflow-hidden on a rounded
- * parent does not in Safari.
- *
- * Thumbnails are plain <img>: Instagram CDN URLs are signed and short-lived,
- * so there is nothing for next/image to pre-optimise.
- */
+/** Latest Instagram reels — blob-clipped cards; clip-path, not radius, because it also clips <video> in Safari. */
 export function Reels() {
   const [all, setAll] = useState<Reel[] | null>(null);
 
@@ -372,9 +290,7 @@ export function Reels() {
     };
   }, []);
 
-  // null = still loading. Render nothing rather than a skeleton: this sits
-  // above the footer, and a placeholder that resolves to nothing would shift
-  // the page under anyone already scrolled there.
+  // null = still loading; render nothing rather than a skeleton that would shift the page.
   if (all === null || all.length === 0) return null;
 
   const { reels, featuredIndex } = arrangeReels(all);
@@ -479,10 +395,7 @@ export function Reels() {
         <div
           className={cn(
             "-mx-5 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-4",
-            // pt-4 is load-bearing: overflow-x-auto clips vertically as well
-            // as horizontally, and the featured badge sits above its card at
-            // -top-3. Without headroom inside the scroller the badge is cut
-            // off on mobile. mt-12 + pt-4 keeps the visual gap at 16.
+            // pt-4 is load-bearing: the scroller clips vertically, and the badge sits at -top-3.
             "mt-8 pt-4 sm:mt-10 sm:pt-0",
             // scroll-pb keeps the snap from fighting the pb-4 scroll padding.
             "scroll-pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
@@ -529,10 +442,7 @@ export function Reels() {
             href={PROFILE_URL}
             target="_blank"
             rel="noopener noreferrer"
-            // Hover fills with brand, matching the primary CTA treatment in
-            // MagneticButton. White sits on --brand at 4.61:1 in light mode;
-            // dark mode's lighter --brand would only reach 3.09:1, so the
-            // border darkens to brand-ink there to keep the edge defined.
+            // Border darkens to brand-ink in dark mode, where --brand would only reach 3.09:1.
             className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-card px-6 py-3 text-sm font-semibold shadow-soft transition-colors hover:border-brand-ink hover:bg-brand hover:text-white focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none"
           >
             <InstagramGlyph className="size-4.5" />

@@ -32,17 +32,7 @@ function markPlayed(): void {
   }
 }
 
-/**
- * Full-screen intro that fades to reveal the landing page.
- *
- * A preloader is pure added latency, so every escape hatch is wired: once
- * per tab session, skipped under reduced-motion / Save-Data / 2g, dismissed
- * by MAX_MS even if autoplay is denied, and skippable by click or keypress.
- *
- * Overlays the page rather than replacing it, so the hero still paints
- * underneath and the video never becomes LCP. `mix-blend-multiply` hides
- * the seam between the clip's white background and the site's cream.
- */
+/** Full-screen intro; skipped per session, under reduced motion, and on slow links. */
 export function IntroCurtain() {
   const [show, setShow] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -129,8 +119,7 @@ export function IntroCurtain() {
         leaving ? "pointer-events-none opacity-0" : "opacity-100",
       )}
     >
-      {/* `cover` everywhere except portrait phones, where it would crop the
-          animals out of frame — the entrance from both edges is the point. */}
+      {/* `cover` except portrait phones, where it would crop the animals out. */}
       <video
         ref={videoRef}
         muted
@@ -138,8 +127,7 @@ export function IntroCurtain() {
         playsInline
         preload="auto"
         disablePictureInPicture
-        // playbackRate is a DOM property React does not manage, and loading
-        // resets it to 1 — re-assert on each event to keep it applied.
+        // playbackRate is a DOM property React does not manage; loading resets it.
         onLoadedMetadata={(event) => {
           event.currentTarget.playbackRate = PLAYBACK_RATE;
         }}

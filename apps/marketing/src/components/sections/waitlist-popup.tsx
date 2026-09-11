@@ -2,6 +2,7 @@
 
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { Check, PawPrint, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { DogRunLoader } from "@/components/ui/dog-run-loader";
@@ -33,18 +34,10 @@ function markSeen(): void {
   }
 }
 
-/**
- * Timed waitlist nudge — appears once, ~20s after a visitor lands, and never
- * again (gated by localStorage, not sessionStorage: the point is to ask once
- * per person, not once per tab). Closing it (backdrop click, Escape, the ×,
- * or a successful signup) all mark it seen; only a first-ever visit within
- * the storage lifetime ever triggers it.
- *
- * Mounted once in the root layout alongside WhatsAppDog, so it fires
- * from any entry page, not just "/".
- */
+/** Timed waitlist nudge — landing page only, once per person (localStorage). */
 export function WaitlistPopup() {
   const reduced = useReducedMotion();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const [honeypot, setHoneypot] = useState("");
@@ -54,10 +47,12 @@ export function WaitlistPopup() {
   const disabled = !isWaitlistConfigured;
 
   useEffect(() => {
+    // Landing page only — never over the legal pages, which people reach deliberately.
+    if (pathname !== "/") return;
     if (hasBeenSeen()) return;
     const timer = setTimeout(() => setOpen(true), DELAY_MS);
     return () => clearTimeout(timer);
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     if (!open) return;
@@ -71,15 +66,7 @@ export function WaitlistPopup() {
     setOpen(false);
   }
 
-  /**
-   * React's synthetic onKeyDown, not a document-level listener registered in
-   * an effect. The effect-registered version raced the very keypress that
-   * opens the popup: `setOpen(true)` fires from a setTimeout callback, and
-   * the browser can dispatch Escape before React commits the DOM and the
-   * effect's addEventListener call actually runs, silently dropping the
-   * first Escape press. A synthetic handler on the wrapper is wired up in
-   * the same commit as the element itself, so there is no gap to race.
-   */
+  // Synthetic handler, not a document listener — the effect version raced the opening keypress.
   function handleDialogKeyDown(event: React.KeyboardEvent) {
     if (event.key === "Escape") close();
   }

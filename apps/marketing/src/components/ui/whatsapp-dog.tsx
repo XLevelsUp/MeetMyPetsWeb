@@ -28,15 +28,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
   );
 }
 
-/**
- * WhatsApp launcher, as the waving mascot — replaces both the generic green
- * button and the decorative corner greeter. Greets on arrival, tucks to a
- * peek, and opens WhatsApp on tap.
- *
- * A real control, so unlike the old greeter it is a focusable <a> with a
- * descriptive label, and it renders at every width — a contact route that
- * disappears on phones is a lost conversation.
- */
+/** WhatsApp launcher as the waving mascot — a real link, shown at every width. */
 export function WhatsAppDog() {
   const reduced = useReducedMotion();
   const [rich, setRich] = useState(false);
@@ -73,8 +65,7 @@ export function WhatsAppDog() {
   const href = `${whatsapp.href}?text=${encodeURIComponent(whatsapp.message)}`;
 
   return (
-    // A landmark: this sits outside <main>, so without one the link
-    // belongs to no region and is hard to find by landmark navigation.
+    // A landmark: sits outside <main>, so without one the link has no region.
     <aside
       aria-label="Contact us on WhatsApp"
       className={cn(
@@ -91,8 +82,7 @@ export function WhatsAppDog() {
         if (event.pointerType === "mouse") wake();
       }}
     >
-      {/* `absolute` so the text is not squeezed by the dog-width wrapper.
-          aria-hidden — the link's own label already says what tapping does. */}
+      {/* `absolute` so the bubble is not squeezed by the dog-width wrapper. */}
       <div
         aria-hidden="true"
         className={cn(

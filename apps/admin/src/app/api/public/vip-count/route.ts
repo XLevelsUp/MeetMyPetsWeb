@@ -18,13 +18,15 @@ import { fetchVipCount } from "@/lib/public-stats";
  */
 export const dynamic = "force-dynamic";
 
+/** www is what the site actually serves — the apex 308-redirects to it. */
 const ALLOWED_ORIGINS = new Set([
+  "https://www.meetmypets.app",
   "https://meetmypets.app",
-  "http://localhost:3000", // apps/marketing dev server
+  ...(process.env.NODE_ENV === "production" ? [] : ["http://localhost:3000"]),
 ]);
 
 function corsHeaders(origin: string | null): HeadersInit {
-  const allowed = origin && ALLOWED_ORIGINS.has(origin) ? origin : "https://meetmypets.app";
+  const allowed = origin && ALLOWED_ORIGINS.has(origin) ? origin : "https://www.meetmypets.app";
   return {
     "Access-Control-Allow-Origin": allowed,
     "Access-Control-Allow-Methods": "GET, OPTIONS",

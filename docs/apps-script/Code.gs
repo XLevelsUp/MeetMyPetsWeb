@@ -131,6 +131,16 @@ function sendWelcomeEmail(to) {
 }
 
 /**
+ * ⚠️ THESE SIX IMAGES MUST STAY .png IN apps/marketing/public.
+ *
+ * The site's own images were converted to WebP, and these were deleted with
+ * them — which silently broke every image in this email until they were
+ * restored. Outlook on Windows (Word rendering engine) and several older
+ * webmail clients do not support WebP, so the email needs PNG even though
+ * the website no longer does. Keep both formats; only the site uses .webp.
+ */
+
+/**
  * Logo mark shown in the email header. Hosted, not embedded: Outlook/Gmail
  * strip <style> blocks and gradients on live text, so the dog mark icon
  * from Figma is shipped as a static asset instead of markup.

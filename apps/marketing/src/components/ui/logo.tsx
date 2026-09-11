@@ -3,13 +3,7 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { site } from "@/config/site";
 
-/**
- * Original placeholder brand mark — an inline SVG paw, drawn rather than
- * imported. Superseded by the real asset in <Logo> below, but kept because it
- * is the only mark that inherits currentColor: use it anywhere the glyph has
- * to take the colour of its surroundings (a single-colour print context, a
- * monochrome favicon fallback, an icon inside a filled button).
- */
+/** Inline paw glyph — the only mark that inherits currentColor. */
 export function PawMark({ className }: { className?: string }) {
   return (
     <svg
@@ -29,19 +23,7 @@ export function PawMark({ className }: { className?: string }) {
   );
 }
 
-/**
- * The brand lockup used in the header and footer.
- *
- * next/image, not a plain <img>: the source is an 87KB 512px PNG and this
- * renders at 36px. The optimiser serves a correctly-sized WebP instead, which
- * matters because the mark sits in the header of every page. (This was a plain
- * <img> while the app was a static export and had no optimiser; dropping
- * `output: "export"` for the Instagram proxy made next/image work here.)
- *
- * No coloured tile behind it. The old placeholder was a white paw that needed
- * a brand-orange plate to read at all; this mark supplies its own gradient,
- * and a plate would clash with it.
- */
+/** Brand lockup — next/image because the source is an 87KB PNG rendered at 36px. */
 export function Logo({ className }: { className?: string }) {
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>

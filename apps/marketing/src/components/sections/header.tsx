@@ -9,13 +9,7 @@ import { Logo } from "@/components/ui/logo";
 import { cta, nav } from "@/config/site";
 import { cn } from "@/lib/utils";
 
-/**
- * Sticky header that hides on scroll-down and returns on scroll-up.
- *
- * The mobile sheet is a plain conditional render rather than a portal so focus
- * stays inside the document order — Escape and the close button both dismiss,
- * and every nav item is a real anchor so it works before hydration.
- */
+/** Sticky header that hides on scroll-down and returns on scroll-up. */
 export function Header() {
   const { scrollY } = useScroll();
   const [scrolled, setScrolled] = useState(false);

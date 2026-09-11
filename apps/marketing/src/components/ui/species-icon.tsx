@@ -12,13 +12,7 @@ const GLYPHS = {
   reptile: Turtle,
 } as const;
 
-/**
- * Species glyph, always vector.
- *
- * Emoji are deliberately not used as structural icons — they render
- * differently per platform, cannot be themed with design tokens, and are
- * announced verbosely by screen readers.
- */
+/** Species glyph, always vector — emoji are not themeable and read verbosely. */
 export function SpeciesIcon({
   species,
   className,

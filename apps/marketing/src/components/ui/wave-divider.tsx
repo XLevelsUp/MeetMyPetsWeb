@@ -1,10 +1,6 @@
 import { cn } from "@/lib/utils";
 
-/**
- * Wavy SVG divider for section boundaries, so adjacent sections flow into
- * each other rather than meeting at a straight edge. One inline path, no JS.
- * `flip` mirrors it for the top edge of a section.
- */
+/** Wavy SVG divider so sections flow rather than meeting at a straight edge. */
 export function WaveDivider({
   flip = false,
   color = "var(--background)",

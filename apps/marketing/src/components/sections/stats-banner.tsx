@@ -5,12 +5,7 @@ import { Reveal } from "@/components/motion/Reveal";
 import { WaveDivider } from "@/components/ui/wave-divider";
 import { statsBanner } from "@/config/site";
 
-/**
- * Stats strip on a brand-soft panel — the same warm wash the hero and waitlist
- * card use, so it sits inside the light palette rather than breaking it.
- *
- * Server Component; only CountUp ships client JS.
- */
+/** Stats strip on a brand-soft panel; only CountUp ships client JS. */
 export function StatsBanner() {
   return (
     <section className="relative overflow-hidden bg-brand-soft py-8 sm:py-10">
