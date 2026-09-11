@@ -18,14 +18,16 @@
    Contrast ratios below are computed against --background (#FAF9F6), not
    estimated. The one that constrains implementation:
 
-     #C2531F on #FAF9F6 = 4.38:1  x fails WCAG AA for body text
-     #FFFFFF on #C2531F = 4.61:1  ok — terracotta is a FILL colour
-     #9C3F14 on #FAF9F6 = 6.36:1  ok — use for terracotta TEXT
+     #FF1744 on #FAF9F6 = 3.65:1  x fails WCAG AA — never use as text
+     #FFFFFF on #FF1744 = 3.85:1  x below the AA 4.5 floor; accepted as a
+                                    deliberate brand decision, not an oversight
+     #C4001F on #FAF9F6 = 5.92:1  ok — use for red TEXT
      #1F1A17 on #FAF9F6 = 16.4:1  ok — body ink
      #2563EB on #FAF9F6 = 4.91:1  ok — trust blue reads either direction
      #FFFFFF on #2563EB = 5.17:1  ok
 
    Hence the brand/brand-ink split. Never colour text with --color-brand.
+   White on --color-brand is below AA: a known, accepted exception.
 --------------------------------------------------------------------------- */
 
 @theme inline {
@@ -129,10 +131,10 @@
   --popover: #ffffff;
   --popover-foreground: #1f1a17;
 
-  /* Terracotta — fills only. See contrast note above. */
-  --brand: #c2531f;
-  --brand-ink: #9c3f14;
-  --brand-soft: #f6e7de;
+  /* Brand red — fills only. See contrast note above. */
+  --brand: #ff1744;
+  --brand-ink: #c4001f;
+  --brand-soft: #ffe4e8;
 
   /* Trust blue — reserved for verification + primary CTA affordances. */
   --trust: #2563eb;
@@ -140,7 +142,7 @@
 
   --verified: #15803d;
 
-  --primary: #c2531f;
+  --primary: #ff1744;
   --primary-foreground: #ffffff;
   --secondary: #efeae3;
   --secondary-foreground: #1f1a17;
@@ -152,7 +154,7 @@
 
   --border: #e3dad0;
   --input: #ded4c8;
-  --ring: #c2531f;
+  --ring: #ff1744;
 }
 
 /* The site ships light-only (no toggle). This block exists so shadcn
@@ -164,13 +166,13 @@
   --card-foreground: #f4efe9;
   --popover: #201a16;
   --popover-foreground: #f4efe9;
-  --brand: #e2743d;
-  --brand-ink: #f0a077;
-  --brand-soft: #33211a;
+  --brand: #ff4d6a;
+  --brand-ink: #ff8095;
+  --brand-soft: #3a1620;
   --trust: #7aa2f7;
   --trust-soft: #1b2436;
   --verified: #4ade80;
-  --primary: #e2743d;
+  --primary: #ff4d6a;
   --primary-foreground: #16120f;
   --secondary: #2a221d;
   --secondary-foreground: #f4efe9;
@@ -181,7 +183,7 @@
   --destructive: #f97066;
   --border: #33291f;
   --input: #3a2f26;
-  --ring: #e2743d;
+  --ring: #ff4d6a;
 }
 
 @layer base {

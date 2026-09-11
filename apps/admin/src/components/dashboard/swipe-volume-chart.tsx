@@ -20,7 +20,7 @@ import type { TimeseriesPoint } from "@/lib/api-contract";
  * total it did before the split.
  *
  * Colours are the first two categorical slots, VALIDATED rather than eyeballed:
- * #c2531f ↔ #2563eb separate at ΔE 30.4 under protanopia in light mode, well
+ * #ff1744 ↔ #2563eb separate at ΔE 98.1 under protanopia in light mode, well
  * clear of the ΔE 8 threshold. They carry identity (which direction), not
  * status — a pass is not a failure, so the good/bad tokens would be wrong here.
  */

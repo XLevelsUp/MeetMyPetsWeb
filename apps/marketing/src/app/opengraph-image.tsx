@@ -36,7 +36,7 @@ export default function OpengraphImage() {
               width: 64,
               height: 64,
               borderRadius: 18,
-              background: "#C2531F",
+              background: "#FF1744",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -64,7 +64,7 @@ export default function OpengraphImage() {
           }}
         >
           <div>Where every pet finds their tribe</div>
-          <div style={{ color: "#9C3F14" }}>&amp; every owner finds trust.</div>
+          <div style={{ color: "#C4001F" }}>&amp; every owner finds trust.</div>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "14px", fontSize: 26, color: "#5C5149" }}>
