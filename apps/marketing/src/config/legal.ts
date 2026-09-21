@@ -141,7 +141,7 @@ export const privacy: LegalDoc = {
             "Identity documents — a government-issued identity document, submitted only for owner verification.",
             "Business credentials — registration details, professional qualifications, service categories and operating address, for Pet Business accounts.",
             "Community content — posts, images, comments, group memberships, event responses, and messages exchanged after a match.",
-            "Waitlist submissions — an email address or mobile number, and which part of the site you submitted it from.",
+            "Waitlist submissions — an email address, and which part of the site you submitted it from.",
           ],
         },
         { type: "h3", text: "Information collected automatically" },

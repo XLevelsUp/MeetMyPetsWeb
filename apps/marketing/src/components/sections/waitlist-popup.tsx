@@ -210,13 +210,13 @@ export function WaitlistPopup() {
                   </div>
 
                   <label htmlFor="waitlist-popup-contact" className="sr-only">
-                    Email address or mobile number
+                    Email address
                   </label>
                   <input
                     ref={inputRef}
                     id="waitlist-popup-contact"
                     name="contact"
-                    type="text"
+                    type="email"
                     inputMode="email"
                     autoComplete="email"
                     disabled={disabled || status === "submitting"}
@@ -225,7 +225,7 @@ export function WaitlistPopup() {
                     onBlur={handleBlur}
                     aria-invalid={status === "error"}
                     aria-describedby="waitlist-popup-error"
-                    placeholder="you@example.com or +91 98765 43210"
+                    placeholder="you@example.com"
                     className={cn(
                       "mt-5 h-12 w-full min-w-0 rounded-full border bg-background px-5 text-base",
                       "placeholder:text-ink-soft/70 disabled:cursor-not-allowed disabled:opacity-60",
