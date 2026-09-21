@@ -65,8 +65,9 @@ export async function submitWaitlist(
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       redirect: "follow",
       body: JSON.stringify({
-        email: parsed.kind === "email" ? parsed.normalized : "",
-        phone: parsed.kind === "phone" ? parsed.normalized : "",
+        email: parsed.normalized,
+        // Always empty — the form is email-only, but the Sheet keeps its Phone column so old rows stay aligned.
+        phone: "",
         source,
         website: honeypot,
       }),

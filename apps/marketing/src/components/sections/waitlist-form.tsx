@@ -221,7 +221,7 @@ export function WaitlistForm() {
                       </div>
 
                       <label htmlFor="waitlist-contact" className="block text-sm font-semibold">
-                        Email address or mobile number
+                        Email address
                       </label>
 
                       <div className="mt-2 flex flex-col gap-3 sm:flex-row">
@@ -229,7 +229,7 @@ export function WaitlistForm() {
                           ref={inputRef}
                           id="waitlist-contact"
                           name="contact"
-                          type="text"
+                          type="email"
                           inputMode="email"
                           autoComplete="email"
                           disabled={disabled || status === "submitting"}
@@ -238,7 +238,7 @@ export function WaitlistForm() {
                           onBlur={handleBlur}
                           aria-invalid={status === "error"}
                           aria-describedby="waitlist-help waitlist-error"
-                          placeholder="you@example.com or +91 98765 43210"
+                          placeholder="you@example.com"
                           className={cn(
                             "h-12 min-w-0 flex-1 rounded-full border bg-card px-5 text-base shadow-soft transition-[box-shadow,border-color] duration-200",
                             "placeholder:text-ink-soft/70 disabled:cursor-not-allowed disabled:opacity-60",

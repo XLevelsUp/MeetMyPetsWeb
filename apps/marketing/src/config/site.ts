@@ -347,7 +347,7 @@ export const faq = [
 export const waitlist = {
   eyebrow: "Early access",
   title: "Be there when the doors open",
-  body: "Join the waitlist with an email address or a mobile number. We will contact you once, when the app is ready to install.",
+  body: "Join the waitlist with your email address. We will contact you once, when the app is ready to install.",
   successTitle: "You are on the list",
   successBody: "We will reach out the moment MeetMyPets is ready. Nothing else, we promise.",
   consent:
