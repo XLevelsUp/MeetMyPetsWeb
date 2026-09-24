@@ -36,8 +36,8 @@ export function VerificationFlow() {
         <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1fr_220px]">
           <SectionHeading
             eyebrow="Trust"
-            title="How verification actually works"
-            body="A badge is only worth something if it can be taken away. Ours expires with the vaccination it represents."
+            title="Trust You Can See"
+            body="Each pet profile has a trust badge, boosting your confidence in finding the right pets."
             align="left"
           />
 

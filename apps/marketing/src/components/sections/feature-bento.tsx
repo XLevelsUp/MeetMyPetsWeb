@@ -239,11 +239,11 @@ export function FeatureBento() {
         <Reveal className="mx-auto max-w-2xl text-center">
           <p className="flex items-center justify-center gap-2 text-xs font-semibold tracking-[0.14em] text-brand-ink uppercase">
             <PawPrint className="size-3.5 motion-safe:animate-paw-pulse" style={{ opacity: 0.7 }} aria-hidden="true" />
-            What you get
+            What your pet gets
             <PawPrint className="size-3.5 motion-safe:animate-paw-pulse" style={{ opacity: 0.7, animationDelay: "3s" }} aria-hidden="true" />
           </p>
-          <h2 className="mt-3 text-section font-semibold">Built around how pet owners actually meet</h2>
-          <p className="mt-4 text-lg leading-relaxed text-ink-soft">Discovery, trust, species coverage and local professionals — the four things every other pet app makes you leave to find.</p>
+          <h2 className="mt-3 text-section font-semibold">A Better Social Life, Built Around Your Pet.</h2>
+          <p className="mt-4 text-lg leading-relaxed text-ink-soft">Find trusted pet friends, nearby services, and trusted pet professionals — all in one place.</p>
         </Reveal>
 
         {/* One column on phones, an even 2x2 on tablets, the 6-col bento at lg.

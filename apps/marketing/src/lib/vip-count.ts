@@ -7,7 +7,7 @@
  *
  * This module never throws and never fabricates a number: an unset or
  * unreachable endpoint resolves to `null`, and callers must render the
- * static "First 10,000 get VIP access" copy with no live figure in that
+ * static "First 1,000 get VIP access" copy with no live figure in that
  * case — inventing a count would violate the PRE-LAUNCH COPY RULE in
  * config/site.ts just as surely as hardcoding one.
  */

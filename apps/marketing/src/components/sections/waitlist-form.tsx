@@ -259,7 +259,7 @@ export function WaitlistForm() {
                           {status === "submitting" && (
                             <DogRunLoader className="size-4 text-white" animate={!reduced} />
                           )}
-                          {status === "submitting" ? "Joining" : "Join the waitlist"}
+                          {status === "submitting" ? "Joining" : "Save Your Pet's Spot"}
                         </button>
                       </div>
 

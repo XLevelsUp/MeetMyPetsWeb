@@ -1,34 +1,15 @@
-/**
- * Single source of truth for every user-facing string on meetmypets.app.
- * Nothing is hardcoded in components — change copy here.
- *
- * PRE-LAUNCH COPY RULE
- * --------------------
- * MeetMyPets has not shipped. Nothing in this file may state a user count,
- * rating, download figure or event total as fact. Every `statsBanner` entry
- * describes how the product is *built* or research already done, both
- * verifiable today. If the app launches and you have audited numbers,
- * replace them here and flip `isLaunched` — that switch controls the CTA
- * wording and store badges.
- */
+// Every user-facing string. PRE-LAUNCH COPY RULE: no user count, rating or download figure stated as fact until `isLaunched` flips.
 
 export const isLaunched = false;
 
-/**
- * Real photo for an illustrative entry. Absent means icon-only display.
- * The pictured animal may not exactly match the entry's stated breed (the
- * available photo set doesn't cover every species/breed named below) — the
- * photo is a stand-in, same illustrative status as the entry itself, not a
- * claim about a real pet. See PRE-LAUNCH COPY RULE above.
- */
+// Stand-in photo for an illustrative entry — the animal may not match the stated breed, and is never a claim about a real pet.
 type PetPhoto = { src: string; alt: string };
 
 export const site = {
   name: "MeetMyPets",
   domain: "meetmypets.app",
   url: "https://meetmypets.app",
-  // Full registered name — legal pages and Organization JSON-LD must use the
-  // name on the incorporation record, not an abbreviation.
+  // Legal pages and Organization JSON-LD need the name on the incorporation record, not an abbreviation.
   legalEntity: "XLU Technologies Private Limited",
   tagline: "Find friends, playmates and perfect matches for your pets.",
   description:
@@ -42,7 +23,7 @@ export const site = {
     "vaccination verified pets",
     "pet business directory",
     "multi-species pet app",
-    // SEO-researched search terms, India/global tier — kept placeless per
+    // SEO-researched search terms, India/global tier — kept placeless.
     "pet social app",
     "pet playdate app",
     "dog playdate app",
@@ -66,8 +47,7 @@ export const site = {
     "puppy play date app",
     "meet my pets",
     "meetmypets app",
-    // Place-tier terms — metadata/structured-data only, never on-page copy
-    // (see areaServed in OrganizationLd / json-ld.tsx).
+    // Place-tier terms — metadata/structured-data only, never on-page copy (see areaServed in json-ld.tsx).
     "pet social app Tamil Nadu",
     "dog playdate Chennai",
     "cat meetup Coimbatore",
@@ -77,19 +57,11 @@ export const site = {
   ],
   locale: "en_IN",
   twitter: "@meetmypetsapp",
-  // Real handle, confirmed by the team — NOT derived from `twitter` above.
-  // Both used to build this URL from the Twitter handle
-  // (meetmypetsapp, no dot) via string replacement, which happened to be
-  // wrong: the real Instagram handle is meetmypets.app (with a dot) — a
-  // different string, not a transformation of the Twitter one.
+  // Real handle (meetmypets.app, with a dot) — NOT derived from the Twitter handle, which has no dot.
   instagram: "https://www.instagram.com/meetmypets.app/",
 } as const;
 
-/**
- * WhatsApp floater target. `wa.me` requires the number in international
- * format with no leading `+`, spaces or punctuation — `display` keeps the
- * human-readable version for anything shown on screen (aria-label, tooltip).
- */
+// wa.me needs the number with no +, spaces or punctuation; `display` keeps the human-readable version for on-screen use.
 export const whatsapp = {
   display: "+91 90470 55888",
   href: "https://wa.me/919047055888",
@@ -111,25 +83,25 @@ export const cta = {
   waitlistHref: "#waitlist",
 } as const;
 
-export const hero = {
-  badge: "Built for every whisker, wing & wag",
-  // Split for the kinetic mask reveal — each entry animates as one line.
-  // Kept short (2-4 words) on purpose: MaskedLine's mask-reveal reads best
-  // on short lines, and long lines wrap awkwardly inside the overflow mask
-  // at the 375px anchor of --text-hero.
-  headlineLines: ["Your pet's", "next best friend", "is closer", "than you think."],
-  headlinePlain: "Your pet's next best friend is closer than you think.",
-  subhead:
-    "Playdates, breeding matches, local meetups and pet pros your neighbours already trust — all in one app, for every species you love, from the dog next door to the gecko three streets over.",
+// Hero-only wording. Separate from `cta` above, which the header and every SectionCta still share.
+export const heroCta = {
+  primary: isLaunched ? "Download for iOS & Android" : "Save Your Pet's Spot",
+  primaryHref: "#waitlist",
+  secondary: "Find Their Friends",
+  secondaryHref: "#ecosystem",
 } as const;
 
-/**
- * Illustrative hero persona — the same "Mochi" mascot used in the
- * verification toggle and species marquee (feature-bento.tsx), given a
- * richer, more specific bio for the hero mockup card. Not a real profile;
- * see PRE-LAUNCH COPY RULE above — no claims about real users. `photo` is a
- * stand-in image (not an actual Shiba Inu — see the PetPhoto note above).
- */
+export const hero = {
+  // Non-breaking spaces so a wrap never strands an arrow at the end of a line.
+  badge: "Create → Discover → Match → Connect",
+  // Split for the kinetic mask reveal — keep entries short, long lines wrap awkwardly inside the overflow mask at 375px.
+  headlineLines: ["Your Pet's Social Life", "Starts Here."],
+  headlinePlain: "Your Pet's Social Life Starts Here.",
+  subhead:
+    "Create your pet's profile, find a friend they might love, connect with their parents, and turn a simple match into a real-life friendship.",
+} as const;
+
+// Illustrative hero persona, not a real profile — same "Mochi" mascot as the verification toggle and species marquee.
 export const heroPersona = {
   name: "Mochi",
   species: "Shiba Inu",
@@ -140,26 +112,7 @@ export const heroPersona = {
   photo: { src: "/pet-yorkshire-terrier.webp", alt: "Mochi" } satisfies PetPhoto,
 } as const;
 
-/**
- * Dark stats banner, right after the hero. The hero itself used to carry
- * its own small proof-points row (All / 3 / 0) directly beneath the CTA
- * buttons — removed in favour of this single banner once both existed on
- * the page at once and visibly duplicated the same "here are some numbers"
- * moment back to back. This is now the one stats moment on the page.
- *
- * PRE-LAUNCH COPY RULE still applies: none of these are user/download
- * counts. Each is either research already done or a structural fact about
- * the product, both true today regardless of `isLaunched`:
- *
- * - surveyed: real pre-launch research count (confirmed by the team).
- * - species / breeds: verified against the production database's
- *   `pets.species` (6 rows) / `pets.breeds` (34 rows) — see
- *   docs/admin/schema-notes.md "Taxonomy management" — not the marketing
- *   site's own smaller illustrative `speciesMarquee` grouping.
- * - ecosystemPillars: matches `ecosystem.length` above (parents /
- *   enthusiasts / businesses) — update together if that array's shape ever
- *   changes.
- */
+// The one stats moment on the page. None are user/download counts: surveyed is real research, species/breeds are verified against the production DB (see docs/admin/schema-notes.md).
 export const statsBanner = [
   { value: 100, suffix: "+", label: "Pet Owners Surveyed" },
   { value: 6, suffix: "", label: "Species Supported" },
@@ -167,8 +120,7 @@ export const statsBanner = [
   { value: 3, suffix: "", label: "Products, One Ecosystem" },
 ] as const;
 
-/** `photo` is a stand-in illustrative image for the panel, not tied to any
- * specific pet mentioned in its copy — see the PetPhoto note above. */
+/** `photo` is a stand-in image for the panel, not tied to any pet named in its copy. */
 export const ecosystem = [
   {
     id: "parents",
@@ -213,30 +165,24 @@ export const ecosystem = [
 
 export const bentoFeatures = {
   discovery: {
-    title: "Smart discovery",
-    body: "Swipe right for a playdate, left to skip. Intent is set upfront so a breeding match never lands in a friendship queue.",
+    title: "Find Their Match",
+    body: "Find nearby pets that share their personality, interests, and social vibe.",
   },
   verification: {
     title: "Trust you can see",
-    body: "An unverified profile and a verified one never look the same. The badge is earned, and it expires when a vaccination lapses.",
+    body: "Every badge tells a story. Look for signs that help you feel more confident about who your pet will meet.",
   },
   species: {
-    title: "Every companion species",
-    body: "Rabbits, parrots and reptiles get first-class profiles — not a dropdown labelled 'Other'.",
+    title: "Every Pet Has a Place",
+    body: "Playful pups, friendly cats, happy rabbits, chirpy birds, and more — every pet gets a place to be themselves, make friends, and belong.",
   },
   businesses: {
-    title: "Professionals nearby",
-    body: "Verified vets, groomers and trainers surfaced by proximity band, never by exact address.",
+    title: "Everything Your Pet Needs, Nearby",
+    body: "From grooming and healthcare to everyday pet needs, find trusted services, professionals, and places near you — all in one place.",
   },
 } as const;
 
-/**
- * Sample profiles for the multi-species marquee. Illustrative, not real
- * users. `photo` is present only where a stand-in photo exists — entries
- * without one (currently the bird/rabbit/reptile entries, since the
- * available photo set has no shots of those species) fall back to the
- * existing species icon rather than showing a mismatched or missing image.
- */
+// Sample profiles for the multi-species marquee — illustrative, not real users. Entries without `photo` (bird/rabbit/reptile) fall back to the species icon.
 export const speciesMarquee = [
   { name: "Mochi", species: "Shiba Inu", emojiless: "dog",
     photo: { src: "/pet-yorkshire-terrier.webp", alt: "Mochi" } satisfies PetPhoto },
@@ -259,61 +205,102 @@ export const nearbyBusinesses = [
   { name: "Good Dog Training Co.", type: "Behaviour training", distance: "3.1 km" },
 ] as const;
 
-/**
- * One illustrative pet photo per "How it works" step. Shown blob-clipped in
- * the desktop sticky panel and as a small thumbnail on mobile step cards.
- * Order mirrors `howItWorks` below — update together.
- */
-/**
- * `objectPosition` overrides the default `object-top` used for all step photos.
- * Pet photos vary: some dogs face top-center, others are centered in the frame.
- * Tune per entry so the face is always in the blob-clipped viewport.
- */
+// One photo per "How it works" step, order mirroring `howItWorks` below; `objectPosition` overrides `object-top` so the face stays inside the blob clip.
 export const howItWorksPhotos: (PetPhoto & { objectPosition?: string })[] = [
   { src: "/pet-yorkshire-terrier.webp", alt: "A Yorkshire Terrier ready to be added to a profile" },
   { src: "/pet-corgi-puppy.webp",        alt: "A Corgi puppy discovered nearby" },
   { src: "/pet-cat-grey-shorthair.webp", alt: "A grey shorthair cat ready to meet", objectPosition: "top" },
-  { src: "/pet-samoyed-puppy.webp",      alt: "A Samoyed joining the local community" },
+  { src: "/pet-samoyed-puppy.webp",      alt: "A Samoyed heading out to a real-life meetup" },
 ];
 
 export const howItWorks = [
   {
     step: "01",
-    title: "Build a profile",
-    body: "Add your pet — any species. Upload vaccination records once and they carry across every match, group and booking.",
+    title: "Create Their Profile",
+    body: "Create a profile for your pet with their photos, personality, interests, and more.",
   },
   {
     step: "02",
-    title: "Discover nearby",
-    body: "Swipe through pets and businesses in your proximity band. Set intent first so you only see relevant matches.",
+    title: "Find Their Match",
+    body: "Find pets nearby that could be a great match for your pet and send a match request.",
   },
   {
     step: "03",
-    title: "Match and chat",
-    body: "Both sides opt in before a conversation opens. Chat, agree on a place, and meet when you are both ready.",
+    title: "Match & Chat",
+    body: "Once the other pet parent accepts, start chatting in the app and get to know each other.",
   },
   {
     step: "04",
-    title: "Join the community",
-    body: "Follow the feed, join breed groups, and turn up to local events with people whose pets you already know.",
+    title: "Plan the Meetup",
+    body: "Agree on a comfortable place and time, then turn the match into a real-life meetup.",
   },
 ] as const;
+
+/** Sits above "What you get" — names the pain before the product answers it. */
+export const problem = {
+  eyebrow: "The problem",
+  title: "Your pet wants friends. Finding them shouldn't be so hard.",
+  body: "Finding the right pet nearby, connecting with their parents, and planning a meetup can be harder than it should be.",
+  closing: "Your pet deserves an easier way to make friends.",
+  cards: [
+    {
+      step: "01",
+      title: "Hard to Find the Right Match",
+      body: "Your pet needs more than a nearby pet. Finding one they may actually get along with is difficult.",
+    },
+    {
+      step: "02",
+      title: "Too Many Places to Search",
+      body: "Pet parents rely on WhatsApp groups, social media, and word of mouth to find other pets.",
+    },
+    {
+      step: "03",
+      title: "Hard to Connect & Meet",
+      body: "Even after finding a potential match, chatting with the pet parent and planning a local meetup takes extra effort.",
+    },
+  ],
+} as const;
+
+/** Answers `problem` directly below it — same three frictions, resolved. */
+export const solution = {
+  eyebrow: "The solution",
+  title: "A simpler way for your pet to find their people.",
+  body: "Meet pets nearby, find the right match, chat with their parents, and turn a connection into a real meetup.",
+  closing: "From finding a match to making a new friend — it starts with your pet.",
+  cards: [
+    {
+      step: "01",
+      title: "Discover the Right Match",
+      body: "Create your pet's profile and discover pets nearby who may be a good match for them.",
+    },
+    {
+      step: "02",
+      title: "Everything in One Place",
+      body: "No more searching through groups and social apps. Find pet profiles, matches, and local connections in one place.",
+    },
+    {
+      step: "03",
+      title: "Chat First. Meet When Ready.",
+      body: "Connect with the pet parent, chat in the app, and plan a local meetup when you're both comfortable.",
+    },
+  ],
+} as const;
 
 export const verificationSteps = [
   {
     step: "01",
-    title: "Owner identity check",
-    body: "A government-issued ID confirms a real person stands behind the profile. Documents are checked, not published.",
+    title: "Verified Pet Parent",
+    body: "A verified profile helps you know there's a real pet parent behind the pet.",
   },
   {
     step: "02",
-    title: "Vaccination document review",
-    body: "Vaccination records are read automatically and matched against the pet on the profile.",
+    title: "Vaccination Verified",
+    body: "Vaccination details help verify your pet's profile and build greater trust when connecting with others.",
   },
   {
     step: "03",
-    title: "Verified badge issued",
-    body: "The profile carries a visible badge. It lapses when a vaccination expires, so the badge always means something current.",
+    title: "Trust Badge",
+    body: "A visible badge shows the profile's trust level, helping you feel more confident about who you connect with.",
   },
 ] as const;
 
@@ -346,45 +333,22 @@ export const faq = [
 
 export const waitlist = {
   eyebrow: "Early access",
-  title: "Be there when the doors open",
-  body: "Join the waitlist with your email address. We will contact you once, when the app is ready to install.",
+  title: "Your Pet's Social Life Starts Here.",
+  body: "Create your pet's profile, find pets they might click with, connect with their parents, and turn a simple match into a real-life friendship.",
   successTitle: "You are on the list",
   successBody: "We will reach out the moment MeetMyPets is ready. Nothing else, we promise.",
   consent:
     "By joining you agree we may contact you about the MeetMyPets launch. We do not sell or share your details.",
 } as const;
 
-/**
- * A future-facing promise ("the first 10,000 to join get VIP access"), not a
- * claim about how many people have already joined as USERS OF THE APP —
- * that distinction matters per the PRE-LAUNCH COPY RULE at the top of this
- * file. The count itself is real (see below), but it is a cap on an offer
- * the company is committing to, not a claim like "10,000 people already use
- * MeetMyPets" — the app has not launched.
- *
- * `remaining` IS live: VipBadge (components/ui/vip-badge.tsx) fetches
- * `lib/vip-count.ts`, which reads `identity.accounts` — registered
- * accounts, i.e. the admin panel's own database — via the one
- * unauthenticated route in apps/admin
- * (`apps/admin/src/app/api/public/vip-count`). If that fetch fails or the
- * endpoint is unconfigured, VipBadge falls back to `badge` below with no
- * number at all — it must never show a stale, guessed, or hardcoded count.
- * `perk` stays intentionally generic — the exact VIP benefit is still
- * undecided; update it here once it's finalised, without touching either
- * placement.
- */
+// A cap on an offer, not a claim that 1,000 people already use the app. `remaining` is live from identity.accounts via apps/admin's one public route; on failure VipBadge shows `badge` with no number rather than a guessed one.
 export const vipOffer = {
-  badge: "First 10,000 get VIP access",
-  perk: "Join now and lock in founding-member perks before the doors even open.",
-  cap: 10_000,
+  badge: "First 1,000 get VIP access",
+  perk: "Get in early, unlock founding-member perks, and give your pet a head start on their social life.",
+  cap: 1_000,
 } as const;
 
-/**
- * Timed pop-up shown once per visitor (localStorage-gated — see
- * WaitlistPopup) a short while after they land. Copy is shorter than the
- * full `waitlist` section on purpose: a modal competes for a much smaller
- * attention budget than a scrolled-to section does.
- */
+// Timed pop-up, once per visitor (localStorage-gated). Copy is shorter than the `waitlist` section on purpose — a modal has a much smaller attention budget.
 export const waitlistPopup = {
   eyebrow: "Before you go",
   title: "Don't miss the first tail wag",
@@ -415,8 +379,7 @@ export const footerColumns = [
     links: [
       { label: "Privacy policy", href: "/privacy/" },
       { label: "Terms of service", href: "/terms/" },
-      // Required by Google Play's Data Safety form, which expects the deletion
-      // instructions to be findable from the site without signing in.
+      // Google Play's Data Safety form expects deletion instructions findable without signing in.
       { label: "Delete your account", href: "/delete-account/" },
       { label: "Data protection", href: "/privacy/" },
       { label: "Contact", href: "mailto:hello@meetmypets.app" },
