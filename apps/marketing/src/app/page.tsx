@@ -6,7 +6,9 @@ import { Footer } from "@/components/sections/footer";
 import { Header } from "@/components/sections/header";
 import { Hero } from "@/components/sections/hero";
 import { HowItWorks } from "@/components/sections/how-it-works";
+import { Problem } from "@/components/sections/problem";
 import { Reels } from "@/components/sections/reels";
+import { Solution } from "@/components/sections/solution";
 import { StatsBanner } from "@/components/sections/stats-banner";
 import { VerificationFlow } from "@/components/sections/verification-flow";
 import { WaitlistForm } from "@/components/sections/waitlist-form";
@@ -25,6 +27,8 @@ export default function Home() {
         <Hero />
         <StatsBanner />
         <Ecosystem />
+        <Problem />
+        <Solution />
         <FeatureBento />
         <HowItWorks />
         <VerificationFlow />

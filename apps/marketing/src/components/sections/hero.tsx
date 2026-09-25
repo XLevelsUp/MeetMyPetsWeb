@@ -12,7 +12,7 @@ import { HeroCompanions } from "@/components/ui/hero-companions";
 import { HeroMascot } from "@/components/ui/hero-mascot";
 import { SpeciesIcon } from "@/components/ui/species-icon";
 import { VipBadge } from "@/components/ui/vip-badge";
-import { cta, hero, heroPersona } from "@/config/site";
+import { hero, heroCta, heroPersona } from "@/config/site";
 import { WaveDivider } from "@/components/ui/wave-divider";
 
 const HERO_BLOB_CLIP = "url(#hero-blob)";
@@ -283,9 +283,9 @@ export function Hero() {
                   ? undefined
                   : { scale: 1.04, transition: { type: "spring", stiffness: 300, damping: 20 } }
               }
-              className="glass inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold tracking-wide text-brand-ink uppercase"
+              className="glass inline-flex min-w-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[0.625rem] font-semibold tracking-wide text-brand-ink uppercase sm:gap-2 sm:px-3.5 sm:text-xs"
             >
-              <PawPrint className="size-3.5" aria-hidden="true" />
+              <PawPrint className="size-3 shrink-0 sm:size-3.5" aria-hidden="true" />
               {hero.badge}
             </m.span>
           </m.div>
@@ -314,11 +314,15 @@ export function Hero() {
             transition={{ duration: 0.55, delay: 0.54 }}
             className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center"
           >
-            <MagneticButton href={cta.waitlistHref} className="h-12 px-7 text-base">
-              {cta.primary}
+            <MagneticButton href={heroCta.primaryHref} className="h-12 px-7 text-base">
+              {heroCta.primary}
             </MagneticButton>
-            <MagneticButton href={cta.secondaryHref} variant="outline" className="h-12 px-7 text-base">
-              {cta.secondary}
+            <MagneticButton
+              href={heroCta.secondaryHref}
+              variant="outline"
+              className="h-12 px-7 text-base"
+            >
+              {heroCta.secondary}
             </MagneticButton>
           </m.div>
 

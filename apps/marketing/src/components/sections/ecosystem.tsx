@@ -64,9 +64,9 @@ export function Ecosystem() {
       <WaveDivider color="var(--background)" />
       <div className="section-shell">
         <SectionHeading
-          eyebrow="The ecosystem"
-          title="Three products, one place your pet already lives"
-          body="Community, discovery and professional services stop being three separate apps that never talk to each other."
+          eyebrow="The pet ecosystem"
+          title="Everything Your Pet Needs to Find Friends, Explore & Connect."
+          body="One place for pets, pet parents, pet lovers, and trusted pet businesses to connect around the pets they love."
         />
 
         <div
@@ -164,7 +164,7 @@ export function Ecosystem() {
           </m.div>
         </AnimatePresence>
 
-        <SectionCta text="Whichever one is you, get in early." buttonLabel="Claim your spot" />
+        <SectionCta text="Whichever one is you, get in early." buttonLabel="Get Early Access" />
       </div>
     </section>
   );

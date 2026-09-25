@@ -44,8 +44,8 @@ export function HowItWorks() {
       />
       <div className="section-shell">
         <SectionHeading
-          eyebrow="How it works"
-          title="From empty profile to local community in four steps"
+          eyebrow="How your pet connects"
+          title={"From “Meet” to “Let’s Meet!” in Four Steps"}
         />
 
         {/* 1 / 2 / 4 columns. xl (not lg) for the 4-up: at 1024px four cards

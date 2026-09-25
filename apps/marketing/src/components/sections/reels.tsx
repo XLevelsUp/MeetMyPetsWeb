@@ -396,7 +396,8 @@ export function Reels() {
           className={cn(
             "-mx-5 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-4",
             // pt-4 is load-bearing: the scroller clips vertically, and the badge sits at -top-3.
-            "mt-8 pt-4 sm:mt-10 sm:pt-0",
+            // From lg the featured card sits directly under the heading, so the badge needs clearance there too.
+            "mt-8 pt-4 sm:mt-10 sm:pt-0 lg:mt-14 lg:pt-6",
             // scroll-pb keeps the snap from fighting the pb-4 scroll padding.
             "scroll-pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
             // From sm up it is a plain grid again; snap/overflow are inert

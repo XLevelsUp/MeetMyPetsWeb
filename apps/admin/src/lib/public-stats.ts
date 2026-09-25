@@ -34,7 +34,7 @@ export type VipCountPayload = {
   cap: number;
 };
 
-const VIP_CAP = 10_000;
+const VIP_CAP = 1_000;
 
 export async function fetchVipCount(): Promise<PublicStatsResult<VipCountPayload>> {
   if (!isSupabaseConfigured()) {

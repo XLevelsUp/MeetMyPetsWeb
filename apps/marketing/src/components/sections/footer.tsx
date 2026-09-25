@@ -92,11 +92,10 @@ export function Footer() {
                 Early access
               </p>
               <h2 className="mt-3 text-2xl font-semibold leading-snug sm:text-3xl">
-                Be first through the door when MeetMyPets opens.
+                Who Will Your Pet Meet First?
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-ink-soft">
-                iOS and Android apps are in development. Join the waitlist and we&rsquo;ll reach out
-                the moment they&rsquo;re ready — nothing else, ever.
+                Join early and be part of the first 1,000 pets getting access to MeetMyPets.
               </p>
               <a
                 href="#waitlist"
@@ -104,7 +103,7 @@ export function Footer() {
                 className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-brand px-6 py-2.5 text-sm font-semibold text-white shadow-lift transition-all duration-200 hover:bg-brand-ink hover:shadow-float focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
               >
                 <PawPrint className="size-4" aria-hidden="true" />
-                Join the Waitlist
+                Get Your Pet In
               </a>
             </div>
 

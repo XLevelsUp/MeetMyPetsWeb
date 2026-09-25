@@ -35,10 +35,10 @@ export function VipBadge({
     };
   }, []);
 
-  // Social proof first, scarcity second — but only once enough people have joined to be worth saying.
+  // Social proof first, scarcity second. Falls back to static copy only when the count is unavailable, never fabricated.
   const text =
-    state.status === "live" && state.claimed >= 25
-      ? `${state.claimed.toLocaleString()} users already joined — ${state.remaining.toLocaleString()} VIP spots left`
+    state.status === "live"
+      ? `${state.claimed.toLocaleString()} pets are already in — ${state.remaining.toLocaleString()} VIP spots left`
       : vipOffer.badge;
 
   /* ── Spotlight variant ── */
