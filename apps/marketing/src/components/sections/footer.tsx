@@ -1,5 +1,6 @@
 import {
   BadgeCheck,
+  BookOpen,
   Building2,
   FileText,
   Globe,
@@ -7,7 +8,6 @@ import {
   Layers,
   Lock,
   Mail,
-  MessageCircle,
   PawPrint,
   Shield,
   Smartphone,
@@ -19,18 +19,8 @@ import {
 import Image from "next/image";
 
 import { Logo } from "@/components/ui/logo";
-import { footer, footerColumns, site, whatsapp } from "@/config/site";
-
-/** Instagram glyph — lucide-react (this version) doesn't ship brand icons. */
-function InstagramIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-      <circle cx="12" cy="12" r="4" />
-      <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
+import { SocialLinks } from "@/components/ui/social-links";
+import { footer, footerColumns, site } from "@/config/site";
 
 
 /** Overlapping pet photos above the footer links. */
@@ -50,6 +40,7 @@ const LINK_ICONS: Record<string, React.ElementType> = {
   Ecosystem: Globe,
   Verification: BadgeCheck,
   "How it works": Zap,
+  Blog: BookOpen,
   "For pet parents": Heart,
   "For pet lovers": Star,
   "For businesses": Building2,
@@ -233,38 +224,7 @@ export function Footer() {
               <PawPrint className="inline size-3 text-brand" aria-label="paw" /> in India
             </p>
 
-            <div className="flex items-center gap-2" aria-label="Social links">
-              <a
-                href={site.instagram}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="MeetMyPets on Instagram"
-                id="footer-social-instagram"
-                className="grid size-9 place-items-center rounded-xl border border-border bg-card text-ink-soft shadow-soft transition-colors hover:border-brand/40 hover:bg-brand-soft hover:text-brand-ink"
-              >
-                <InstagramIcon className="size-4" />
-              </a>
-
-              <a
-                href={whatsapp.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Chat on WhatsApp — ${whatsapp.display}`}
-                id="footer-social-whatsapp"
-                className="grid size-9 place-items-center rounded-xl border border-border bg-card text-ink-soft shadow-soft transition-colors hover:border-[#25D366]/40 hover:bg-[#25D366]/10 hover:text-[#25D366]"
-              >
-                <MessageCircle className="size-4" aria-hidden="true" />
-              </a>
-
-              <a
-                href={`mailto:hello@${site.domain}`}
-                aria-label="Email MeetMyPets"
-                id="footer-social-email"
-                className="grid size-9 place-items-center rounded-xl border border-border bg-card text-ink-soft shadow-soft transition-colors hover:border-trust/40 hover:bg-trust-soft hover:text-trust"
-              >
-                <Mail className="size-4" aria-hidden="true" />
-              </a>
-            </div>
+            <SocialLinks idPrefix="footer" />
           </div>
         </div>
       </div>

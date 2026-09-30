@@ -124,6 +124,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           dangerouslySetInnerHTML={{
             __html: `(function(){try{
 var d=document.documentElement;
+if(location.pathname!=='/')return;
 if(sessionStorage.getItem('mmp-intro-played')==='1')return;
 if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
 var c=navigator.connection;
