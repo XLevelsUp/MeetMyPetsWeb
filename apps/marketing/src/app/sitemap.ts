@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 
+import { blogPosts } from "@/config/blog";
 import { site } from "@/config/site";
 
 /**
@@ -38,5 +39,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "yearly",
       priority: 0.4,
     },
+    {
+      url: `${site.url}/blog/`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    // Tag-filtered URLs are deliberately absent: same posts, thin duplicate pages.
+    ...blogPosts.map((post) => ({
+      url: `${site.url}/blog/${post.slug}/`,
+      lastModified: post.published ? new Date(post.published) : new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
+    })),
   ];
 }

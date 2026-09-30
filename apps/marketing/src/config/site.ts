@@ -363,6 +363,8 @@ export const footerColumns = [
       { label: "Ecosystem", href: "#ecosystem" },
       { label: "Verification", href: "#verification" },
       { label: "How it works", href: "#how-it-works" },
+      // Absolute, not an anchor — this one has to work from the blog pages too.
+      { label: "Blog", href: "/blog/" },
     ],
   },
   {
