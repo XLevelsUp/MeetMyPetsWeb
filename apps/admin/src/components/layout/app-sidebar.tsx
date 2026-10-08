@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   Flag,
   LayoutDashboard,
+  Newspaper,
   ScrollText,
   Settings,
   ShieldAlert,
@@ -41,6 +42,7 @@ const icons: Record<(typeof adminNav)[number]["icon"], LucideIcon> = {
   flag: Flag,
   "shield-alert": ShieldAlert,
   store: Store,
+  newspaper: Newspaper,
   "scroll-text": ScrollText,
   settings: Settings,
 };
@@ -97,7 +99,12 @@ export function AppSidebar({ role }: { role: AdminRole }) {
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
-                      isActive={pathname === item.href}
+                      // Prefix match so /blogs/<id> keeps "Blogs" lit; "/" is
+                      // exact or it would match every page.
+                      isActive={
+                        pathname === item.href ||
+                        (item.href !== "/" && pathname.startsWith(`${item.href}/`))
+                      }
                       tooltip={item.label}
                       render={<Link href={item.href} />}
                     >

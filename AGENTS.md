@@ -6,9 +6,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Repo layout
 
-npm-workspaces monorepo. `apps/marketing` is the static-export marketing site
-(`output: "export"` — no middleware/proxy, cookies, Route Handlers, or Server
-Actions there). `apps/admin` is the server-rendered admin panel. Run scripts
+npm-workspaces monorepo. `apps/marketing` is the marketing site — server-rendered
+on a Node runtime since the Instagram proxy (NOT a static export any more; see
+`next.config.ts`). Its pages are still prerendered/ISR wherever possible; the
+blog is ISR fed by the CMS and invalidated on demand (`src/lib/blog.ts`).
+`apps/admin` is the server-rendered admin panel. Run scripts
 from the root: `npm run dev:marketing` / `dev:admin` / `build:marketing` /
 `build:admin` / `typecheck` / `lint`. `node_modules` is hoisted to the root,
 so the Next.js docs path above is unchanged.

@@ -6,7 +6,7 @@
  * logic without a database.
  *
  * Results are keyed by `schema.table`, optionally narrowed per operation with
- * a `#select` / `#insert` / `#update` suffix — needed when one table is both
+ * a `#select` / `#insert` / `#update` / `#delete` suffix — needed when one table is both
  * read and written in a single action (e.g. admin_restrictions).
  *
  * `client.calls` records every operation in order, so tests can assert
@@ -26,7 +26,7 @@ export type TableResult = {
 export type MockFilter = { method: string; args: unknown[] };
 
 export type MockCall = {
-  op: "select" | "insert" | "update" | "rpc" | "auth.updateUserById";
+  op: "select" | "insert" | "update" | "delete" | "rpc" | "auth.updateUserById";
   key: string;
   values?: unknown;
   /**
@@ -73,13 +73,13 @@ export function makeSupabaseMock(
 ) {
   const calls: MockCall[] = [];
 
-  function lookup(key: string, mode: "select" | "insert" | "update"): TableResult {
+  function lookup(key: string, mode: "select" | "insert" | "update" | "delete"): TableResult {
     return tables[`${key}#${mode}`] ?? tables[key] ?? {};
   }
 
   function builderFor(key: string) {
     let head = false;
-    let mode: "select" | "insert" | "update" = "select";
+    let mode: "select" | "insert" | "update" | "delete" = "select";
     /** Shared by reference with whichever call record this chain produces. */
     const filters: MockFilter[] = [];
 
@@ -107,6 +107,12 @@ export function makeSupabaseMock(
     builder.update = (values: unknown) => {
       mode = "update";
       calls.push({ op: "update", key, values, filters });
+      return builder;
+    };
+
+    builder.delete = () => {
+      mode = "delete";
+      calls.push({ op: "delete", key, filters });
       return builder;
     };
 

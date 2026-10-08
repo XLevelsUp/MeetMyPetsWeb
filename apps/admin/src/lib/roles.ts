@@ -46,6 +46,16 @@ export const VERIFICATION_ROLES: readonly AdminRole[] = ["super_admin", "moderat
  */
 export const TRUST_ROLES: readonly AdminRole[] = ["super_admin", "moderator"];
 
+/**
+ * Create, edit, publish, unpublish and delete blog articles on meetmypets.app.
+ *
+ * Deliberately excludes `support`, and deliberately its own constant: editorial
+ * access and moderation access are different questions. There is no separate
+ * marketing role (decided 2026-10-08) — marketing staff who publish need a
+ * moderator account until one exists.
+ */
+export const BLOG_ROLES: readonly AdminRole[] = ["super_admin", "moderator"];
+
 /** Settings and admin-role management. */
 export const SETTINGS_ROLES: readonly AdminRole[] = ["super_admin"];
 

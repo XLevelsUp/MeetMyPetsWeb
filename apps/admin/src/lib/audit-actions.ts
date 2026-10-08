@@ -26,6 +26,12 @@ export const AUDIT_ACTIONS = [
   "breed.update",
   "trust.restore",
   "trust.ban",
+  "blog.create",
+  "blog.update",
+  "blog.publish",
+  "blog.unpublish",
+  "blog.delete",
+  "blog_category.create",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

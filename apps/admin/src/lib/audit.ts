@@ -4,7 +4,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/reference";
 import type { AdminRole } from "@/lib/roles";
 import type { AuditAction } from "@/lib/audit-actions";
-import type { AuditEntry, AuditQuery, AuditResponse } from "@/lib/audit-contract";
+import type {
+  AuditEntry,
+  AuditQuery,
+  AuditResponse,
+  AUDIT_TARGET_TYPES,
+} from "@/lib/audit-contract";
+
+type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 
 /**
  * Audit trail adapter — public.admin_audit_logs.
@@ -23,7 +30,7 @@ export type AuditEntryInput = {
   actorEmail: string;
   actorRole: AdminRole;
   action: AuditAction;
-  targetType: "account" | "pet" | "report" | "certificate" | "species" | "breed";
+  targetType: AuditTargetType;
   targetId: string;
   reason: string;
   /** Action-specific context: durations, before/after state, etc. */

@@ -864,3 +864,32 @@ dynamic-schema feature is blocked on a Flutter change, not a panel one).
 - Rotate the secret key if it was ever exposed outside `.env.local`.
 - Remaining advisor cleanup (unindexed FKs, `auth_rls_initplan`,
   leaked-password protection) — non-blocking, backend-owned.
+
+## Blog CMS tables (written 2026-10-08 — ⚠️ NOT YET APPLIED to production)
+
+Migration `20261008000000_blog_cms.sql` (+ seed `20261008000001_blog_seed.sql`).
+The apply was declined at the permission prompt on 2026-10-08; the schema was
+instead **dry-run in a rolled-back transaction** against the live project, with
+these results under each role:
+
+| Probe | Result |
+|---|---|
+| anon `select` on posts (published, draft, unpublished, soft-deleted, reused-slug draft) | only the published row |
+| anon reads `preview_token` / inserts a post | `insufficient_privilege` |
+| anon `blog_post_preview(valid token)` / `(random uuid)` | draft row / null |
+| `authenticated` select / call preview fn | denied / denied |
+| service_role hard-DELETE a post | denied (soft delete only) |
+| duplicate live slug / bad slug / published without date | rejected by index / CHECK / CHECK |
+
+| Table | service_role | anon |
+|---|---|---|
+| `public.blog_posts` | SELECT, INSERT, UPDATE | column-scoped SELECT, RLS: `status='published' and deleted_at is null and published_at <= now()` |
+| `public.blog_categories` | SELECT, INSERT, UPDATE | SELECT (id, name, slug, sort_order) |
+| `public.blog_slug_redirects` | SELECT, INSERT, DELETE | SELECT |
+| `blog_post_preview(uuid)` (SECURITY DEFINER) | — | EXECUTE |
+| bucket `blog-images` (public, 5 MB, jpeg/png/webp/avif/gif) | writes | public read |
+
+Same default-privileges trap as the moderation tables, extended: Supabase
+also auto-grants new **functions** to anon/authenticated, so the migration
+revokes those too. Expect the security advisor to flag the SECURITY DEFINER
+preview function as anon-executable — that is the design (token-gated).

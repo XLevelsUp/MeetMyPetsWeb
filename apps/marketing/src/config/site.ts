@@ -363,6 +363,8 @@ export const footerColumns = [
       { label: "Ecosystem", href: "#ecosystem" },
       { label: "Verification", href: "#verification" },
       { label: "How it works", href: "#how-it-works" },
+      // Absolute, not an anchor — this one has to work from the blog pages too.
+      { label: "Blog", href: "/blog/" },
     ],
   },
   {
@@ -386,6 +388,18 @@ export const footerColumns = [
     ],
   },
 ] as const;
+
+/**
+ * Blog index copy. The articles themselves are CMS content (public.blog_posts),
+ * written at admin.meetmypets.app/blogs and read by src/lib/blog.ts.
+ */
+export const blogMeta = {
+  title: "Pet Care & Community Blog",
+  description:
+    "Guides on pet socialisation, playdates, profiles and local pet communities — from the team building MeetMyPets.",
+  /** The default byline. Published as the organisation in JSON-LD, any other name as a person. */
+  author: "MeetMyPets Team",
+} as const;
 
 export const footer = {
   blurb:
