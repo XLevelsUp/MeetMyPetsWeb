@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { adminNav, navForRole } from "@/config/admin";
 import {
+  BLOG_ROLES,
   ADMIN_ROLES,
   USER_ACTION_ROLES,
   canAct,
@@ -58,6 +59,11 @@ describe("navForRole", () => {
     expect(labels("support")).toEqual(["Users & Pets"]);
   });
 
+  it("keeps support out of the blog CMS", () => {
+    expect(BLOG_ROLES).not.toContain("support");
+    expect(labels("support")).not.toContain("Blogs");
+  });
+
   it("shows a moderator everything except Settings", () => {
     expect(labels("moderator")).toEqual([
       "Dashboard",
@@ -65,6 +71,7 @@ describe("navForRole", () => {
       "Verifications",
       "Content Reports",
       "Trust Review",
+      "Blogs",
       "Audit Logs",
     ]);
     expect(labels("moderator")).not.toContain("Settings");

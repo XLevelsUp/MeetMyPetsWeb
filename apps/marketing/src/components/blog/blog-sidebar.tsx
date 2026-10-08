@@ -5,8 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { SocialLinks } from "@/components/ui/social-links";
-import { blogMeta, type BlogPost } from "@/config/blog";
-import { headingId } from "@/lib/blog-utils";
+import { formatPostDate } from "@/lib/blog-utils";
 import { cn } from "@/lib/utils";
 
 /** Highlights whichever H2 is currently in view. */
@@ -36,10 +35,20 @@ function useActiveHeading(ids: string[]) {
   return active;
 }
 
-export function BlogSidebar({ post, minutes }: { post: BlogPost; minutes: number }) {
-  const headings = post.body
-    .filter((b): b is { type: "h2"; text: string } => b.type === "h2")
-    .map((b) => ({ text: b.text, id: headingId(b.text) }));
+export function BlogSidebar({
+  authorName,
+  publishedAt,
+  minutes,
+  headings: allHeadings,
+}: {
+  authorName: string;
+  /** Null only in a draft preview. */
+  publishedAt: string | null;
+  minutes: number;
+  /** From `docHeadings` — the same ids the body renderer assigns. */
+  headings: { text: string; id: string }[];
+}) {
+  const headings = allHeadings.filter((h) => h.text);
   const active = useActiveHeading(headings.map((h) => h.id));
 
   return (
@@ -48,14 +57,10 @@ export function BlogSidebar({ post, minutes }: { post: BlogPost; minutes: number
     <aside className="space-y-6 lg:sticky lg:top-24 lg:max-h-[calc(100dvh-7rem)] lg:self-start lg:overflow-y-auto lg:pr-1 lg:[scrollbar-width:thin]">
       <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-soft">
         <p className="text-xs text-ink-soft">Written by</p>
-        <p className="mt-0.5 font-semibold text-ink">{blogMeta.author}</p>
-        {post.published && (
+        <p className="mt-0.5 font-semibold text-ink">{authorName}</p>
+        {publishedAt && (
           <p className="mt-3 text-sm text-ink-soft">
-            {new Date(post.published).toLocaleDateString("en-IN", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
+            <time dateTime={publishedAt}>{formatPostDate(publishedAt)}</time>
           </p>
         )}
         <p className="mt-2 flex items-center gap-2 text-sm text-ink-soft">

@@ -2,13 +2,14 @@ import type { MetadataRoute } from "next";
 
 import { site } from "@/config/site";
 
-// Required under `output: 'export'` — Next.js 16 will not infer that a
-// metadata route is static and errors out during page-data collection.
+// No data dependency — emitted once at build.
 export const dynamic = "force-static";
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: { userAgent: "*", allow: "/" },
+    // Draft previews are also noindex and token-gated; this keeps crawlers
+    // from spending budget on the path at all.
+    rules: { userAgent: "*", allow: "/", disallow: ["/blog-preview/"] },
     sitemap: `${site.url}/sitemap.xml`,
     host: site.url,
   };

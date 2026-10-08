@@ -27,7 +27,7 @@ deliberately narrow, service-key-granted surface (see schema-notes).
 
 ```
 ┌─────────────────────── this repo (npm workspaces) ──────────────────────┐
-│ apps/marketing → meetmypets.app        static export, NO server runtime │
+│ apps/marketing → meetmypets.app        Node runtime, pages ISR/static   │
 │ apps/admin     → admin.meetmypets.app  Next 16 server-rendered, :3001   │
 └─────────────────────────────────────────────────────────────────────────┘
                      │ @supabase/ssr (cookies)  │ service-key (server-only)
@@ -66,9 +66,10 @@ Key decisions (made in the approved Phase 1 plan; do not silently reverse):
   `apps/marketing/src/app/globals.css` and `apps/admin/src/app/globals.css`
   (no shared package yet; cross-referenced header comments). Token edits must
   be mirrored by hand.
-- **Never add server-only features to `apps/marketing`** — it is
-  `output: "export"` (no middleware/proxy, cookies, Route Handlers, Server
-  Actions). That constraint is why the admin panel is a separate app.
+- **Keep `apps/marketing` crawl-first.** It is no longer a static export (the
+  Instagram proxy and the blog revalidation endpoint are Route Handlers), but
+  public pages stay prerendered/ISR — no cookies, no per-request rendering of
+  indexable pages. Admin features still belong in `apps/admin`.
 
 Stack: Next 16.2 (Turbopack, `proxy.ts` not `middleware.ts`, async
 `cookies()`/`params`, `unstable_retry` in error.tsx), React 19, Tailwind v4
@@ -210,6 +211,14 @@ Verified end-to-end: anonymous → redirect/401, `support` → 403,
   see `attribute-schema-proposal.md`.
 - Deferred: CSV bulk breed import (no upload/parsing precedent in the panel,
   and 34 breeds don't warrant it yet).
+
+### Blog CMS ✅ BUILT (2026-10-08, migration pending apply)
+
+`/blogs` — create, edit (TipTap rich text stored as sanitised JSON), draft,
+publish, unpublish, soft-delete, image upload to `blog-images`, SEO fields,
+one-hour preview links. Writes revalidate the marketing site's ISR cache and
+sitemap; a failed refresh is reported, never hidden. Gated by `BLOG_ROLES`
+(super_admin, moderator). Runbook: `docs/deployment.md` → Blog CMS.
 
 ### Phase 4 — Business Directory & Monetization
 

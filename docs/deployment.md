@@ -23,7 +23,9 @@ Two apps, two Vercel projects. Only the marketing site is deployed today.
 
 ## `meetmypets.app` ← `apps/marketing`
 
-Static export. No server runtime, no API routes, no Server Actions.
+Node runtime (`next start` / Vercel functions) — not a static export since the
+Instagram proxy. Public pages are prerendered or ISR; the Route Handlers are
+`/api/instagram/*` and the blog's `/api/revalidate/`.
 
 ### Settings → Build & Deployment
 
@@ -34,7 +36,7 @@ Static export. No server runtime, no API routes, no Server Actions.
 | **Framework Preset** | Next.js | |
 | **Build Command** | *Override off* | Runs `build` from `apps/marketing/package.json` = `next build`. ⚠️ This field once held `npm run vercel-build`, a script that has never existed in this repo — if you see it again, clear it |
 | **Install Command** | *Override off* | Vercel detects the npm workspace root and installs from there |
-| **Output Directory** | *Override off* | Vercel's Next.js builder handles `output: "export"` natively and finds `out/`. Hard-coding `out` while the preset is Next.js fights the builder |
+| **Output Directory** | *Override off* | Vercel's Next.js builder finds `.next/` itself. Hard-coding a directory while the preset is Next.js fights the builder |
 | **Node.js Version** | 22.x | Matches `.github/workflows/ci.yml` |
 
 ### Environment variables
@@ -58,6 +60,41 @@ itself is [`docs/apps-script/Code.gs`](./apps-script/Code.gs).
 
 Redeploy with **"Use existing Build Cache" off** — the cache was built against a
 different project root.
+
+---
+
+## Blog CMS (both projects)
+
+Articles are written at `admin.meetmypets.app/blogs` and served by
+`meetmypets.app/blog/` as ISR. Full design: the header comments of
+`apps/marketing/src/lib/blog.ts` and `apps/admin/src/lib/blogs.ts`.
+
+**Before the first deploy:**
+
+1. Apply `supabase/migrations/20261008000000_blog_cms.sql`, then
+   `20261008000001_blog_seed.sql` (the five launch posts; safe to re-run).
+2. Generate one secret and set it in BOTH projects as `BLOG_REVALIDATE_SECRET`.
+3. Marketing: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (publishable, never the
+   secret key). Redeploy after setting them — `next.config.ts` reads the URL at
+   build time for the image allowlist.
+4. Admin: `MARKETING_SITE_URL=https://www.meetmypets.app` — the host that does
+   not redirect (apex currently 308s to www, which would drop the secret).
+
+**After deploy, verify:**
+
+```bash
+curl -s https://www.meetmypets.app/sitemap.xml | grep -c '/blog/'   # index + published posts
+curl -s -o /dev/null -w '%{http_code}
+' -X POST https://www.meetmypets.app/api/revalidate/   # expect 401
+```
+
+Then publish a test draft from the admin and confirm the green "Published"
+toast (an amber "may still show the old version" toast means the refresh call
+failed — its message says why, and "Refresh site" retries).
+
+**Access:** Blogs is open to `super_admin` and `moderator` (`BLOG_ROLES` in
+`apps/admin/src/lib/roles.ts`). There is no marketing role; staff who only
+publish need a moderator account, which also shows them moderation surfaces.
 
 ---
 
