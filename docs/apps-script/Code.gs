@@ -36,6 +36,9 @@ const REPLY_TO = 'hello@meetmypets.app';
 
 const SITE_URL = 'https://www.meetmypets.app';
 
+// Play Store internal-test track: only opens for testers added to that track.
+const APP_DOWNLOAD_URL = 'https://play.google.com/apps/internaltest/4701214836063659130';
+
 function doPost(e) {
   const out = (o) => ContentService.createTextOutput(JSON.stringify(o))
     .setMimeType(ContentService.MimeType.JSON);
@@ -456,6 +459,23 @@ function welcomeHtml() {
     '</td>',
     '</tr>',
 
+    '<!-- 9b. APP DOWNLOAD BUTTON -->',
+    // Table + inline styles, not a styled <a>: Outlook renders with Word, which drops most CSS on links.
+    '<tr>',
+    '<td align="center" style="padding:26px 38px 0;">',
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">',
+    '<tr>',
+    '<td align="center" bgcolor="#FF1744" style="border-radius:999px;">',
+    '<a href="' + APP_DOWNLOAD_URL + '" target="_blank" rel="noopener"',
+    ' style="display:inline-block; padding:13px 30px; font-family:\'Nunito Sans\',-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif; font-size:15px; font-weight:700; line-height:100%; color:#ffffff; text-decoration:none; border-radius:999px;">',
+    'Click here to download the app',
+    '</a>',
+    '</td>',
+    '</tr>',
+    '</table>',
+    '</td>',
+    '</tr>',
+
     '<!-- 10. CLOSING SIGN-OFF -->',
     '<tr>',
     '<td align="center" class="mmp-stay mmp-closing-cell">',
@@ -513,6 +533,8 @@ function welcomeText() {
     '',
     'Website: ' + SITE_URL,
     'Instagram: @meetmypets.app (https://instagram.com/meetmypets.app)',
+    '',
+    'Click here to download the app: ' + APP_DOWNLOAD_URL,
     '',
     'See you and your pet soon,',
     'Team MeetMyPets',

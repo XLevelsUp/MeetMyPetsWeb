@@ -9,7 +9,7 @@ import { Reveal } from "@/components/motion/Reveal";
 import { DogRunLoader } from "@/components/ui/dog-run-loader";
 import { VipBadge } from "@/components/ui/vip-badge";
 import { isLaunched, waitlist } from "@/config/site";
-import { validateContact } from "@/lib/validation";
+import { validateContact, validatePhone } from "@/lib/validation";
 import { isWaitlistConfigured, submitWaitlist } from "@/lib/waitlist";
 import { cn } from "@/lib/utils";
 
@@ -31,24 +31,37 @@ async function celebrate() {
 
 export function WaitlistForm() {
   const [value, setValue] = useState("");
+  const [phone, setPhone] = useState("");
   // Honeypot. Stays empty for every real user; bots fill every field they find.
   const [honeypot, setHoneypot] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState("");
+  // Which field the error belongs to, so only that one gets the red border.
+  const [errorField, setErrorField] = useState<"email" | "phone" | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
   const reduced = useReducedMotion();
 
   const disabled = !isWaitlistConfigured;
 
+  function fail(field: "email" | "phone", text: string) {
+    setStatus("error");
+    setErrorField(field);
+    setMessage(text);
+  }
+
   /** Validate on blur, not on keystroke — errors mid-typing are hostile. */
-  function handleBlur() {
-    if (value.trim() === "" || status === "submitting") return;
-    const result = validateContact(value);
+  function handleBlur(field: "email" | "phone") {
+    if (status === "submitting") return;
+    const raw = field === "email" ? value : phone;
+    if (raw.trim() === "") return;
+
+    const result = field === "email" ? validateContact(raw) : validatePhone(raw);
     if (!result.valid) {
-      setStatus("error");
-      setMessage(result.message);
-    } else if (status === "error") {
+      fail(field, result.message);
+    } else if (status === "error" && errorField === field) {
       setStatus("idle");
+      setErrorField(null);
       setMessage("");
     }
   }
@@ -59,16 +72,23 @@ export function WaitlistForm() {
 
     const result = validateContact(value);
     if (!result.valid) {
-      setStatus("error");
-      setMessage(result.message);
+      fail("email", result.message);
       inputRef.current?.focus(); // WCAG 3.3.1 — move focus to the problem.
       return;
     }
 
+    const phoneResult = validatePhone(phone);
+    if (!phoneResult.valid) {
+      fail("phone", phoneResult.message);
+      phoneRef.current?.focus();
+      return;
+    }
+
     setStatus("submitting");
+    setErrorField(null);
     setMessage("");
 
-    const outcome = await submitWaitlist(value, "waitlist", honeypot);
+    const outcome = await submitWaitlist(value, phone, "waitlist", honeypot);
 
     if (outcome.ok) {
       setStatus("success");
@@ -220,48 +240,80 @@ export function WaitlistForm() {
                         />
                       </div>
 
-                      <label htmlFor="waitlist-contact" className="block text-sm font-semibold">
-                        Email address
-                      </label>
+                      {/* Side by side only below lg. From lg the card is already two columns, so
+                          splitting the form column again leaves each field ~200px — too narrow for an email. */}
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                        <div>
+                          <label htmlFor="waitlist-contact" className="block text-sm font-semibold">
+                            Email address
+                          </label>
+                          <input
+                            ref={inputRef}
+                            id="waitlist-contact"
+                            name="contact"
+                            type="email"
+                            inputMode="email"
+                            autoComplete="email"
+                            disabled={disabled || status === "submitting"}
+                            value={value}
+                            onChange={(event) => setValue(event.target.value)}
+                            onBlur={() => handleBlur("email")}
+                            aria-invalid={errorField === "email"}
+                            aria-describedby="waitlist-help waitlist-error"
+                            placeholder="you@example.com"
+                            className={cn(
+                              "mt-2 h-12 w-full min-w-0 rounded-full border bg-card px-5 text-base shadow-soft transition-[box-shadow,border-color] duration-200",
+                              "placeholder:text-ink-soft/70 disabled:cursor-not-allowed disabled:opacity-60",
+                              "focus:border-brand/60 focus:ring-4 focus:ring-brand/15 focus:outline-none",
+                              errorField === "email" ? "border-destructive" : "border-input",
+                            )}
+                            maxLength={64}
+                          />
+                        </div>
 
-                      <div className="mt-2 flex flex-col gap-3 sm:flex-row">
-                        <input
-                          ref={inputRef}
-                          id="waitlist-contact"
-                          name="contact"
-                          type="email"
-                          inputMode="email"
-                          autoComplete="email"
-                          disabled={disabled || status === "submitting"}
-                          value={value}
-                          onChange={(event) => setValue(event.target.value)}
-                          onBlur={handleBlur}
-                          aria-invalid={status === "error"}
-                          aria-describedby="waitlist-help waitlist-error"
-                          placeholder="you@example.com"
-                          className={cn(
-                            "h-12 min-w-0 flex-1 rounded-full border bg-card px-5 text-base shadow-soft transition-[box-shadow,border-color] duration-200",
-                            "placeholder:text-ink-soft/70 disabled:cursor-not-allowed disabled:opacity-60",
-                            "focus:border-brand/60 focus:ring-4 focus:ring-brand/15 focus:outline-none",
-                            status === "error" ? "border-destructive" : "border-input",
-                          )}
-                          maxLength={64}
-                        />
-                        <button
-                          type="submit"
-                          disabled={disabled || status === "submitting"}
-                          className={cn(
-                            "inline-flex h-12 min-w-11 cursor-pointer items-center justify-center gap-2 rounded-full",
-                            "bg-brand px-7 text-sm font-semibold text-white transition-colors",
-                            "hover:bg-brand-ink disabled:cursor-not-allowed disabled:opacity-60",
-                          )}
-                        >
-                          {status === "submitting" && (
-                            <DogRunLoader className="size-4 text-white" animate={!reduced} />
-                          )}
-                          {status === "submitting" ? "Joining" : "Save Your Pet's Spot"}
-                        </button>
+                        <div>
+                          <label htmlFor="waitlist-phone" className="block text-sm font-semibold">
+                            Mobile number
+                          </label>
+                          <input
+                            ref={phoneRef}
+                            id="waitlist-phone"
+                            name="phone"
+                            type="tel"
+                            inputMode="tel"
+                            autoComplete="tel"
+                            disabled={disabled || status === "submitting"}
+                            value={phone}
+                            onChange={(event) => setPhone(event.target.value)}
+                            onBlur={() => handleBlur("phone")}
+                            aria-invalid={errorField === "phone"}
+                            aria-describedby="waitlist-help waitlist-error"
+                            placeholder="98765 43210"
+                            className={cn(
+                              "mt-2 h-12 w-full min-w-0 rounded-full border bg-card px-5 text-base shadow-soft transition-[box-shadow,border-color] duration-200",
+                              "placeholder:text-ink-soft/70 disabled:cursor-not-allowed disabled:opacity-60",
+                              "focus:border-brand/60 focus:ring-4 focus:ring-brand/15 focus:outline-none",
+                              errorField === "phone" ? "border-destructive" : "border-input",
+                            )}
+                            maxLength={18}
+                          />
+                        </div>
                       </div>
+
+                      <button
+                        type="submit"
+                        disabled={disabled || status === "submitting"}
+                        className={cn(
+                          "mt-3 inline-flex h-12 w-full min-w-11 cursor-pointer items-center justify-center gap-2 rounded-full",
+                          "bg-brand px-7 text-sm font-semibold text-white transition-colors",
+                          "hover:bg-brand-ink disabled:cursor-not-allowed disabled:opacity-60",
+                        )}
+                      >
+                        {status === "submitting" && (
+                          <DogRunLoader className="size-4 text-white" animate={!reduced} />
+                        )}
+                        {status === "submitting" ? "Joining" : "Save Your Pet's Spot"}
+                      </button>
 
                       {/* Errors live in an aria-live region directly below the field
                           so screen readers announce them without a focus jump. */}
