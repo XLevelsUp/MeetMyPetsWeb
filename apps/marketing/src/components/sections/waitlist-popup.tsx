@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { DogRunLoader } from "@/components/ui/dog-run-loader";
 import { isWaitlistConfigured, submitWaitlist } from "@/lib/waitlist";
-import { validateContact } from "@/lib/validation";
+import { validateContact, validatePhone } from "@/lib/validation";
 import { waitlistPopup } from "@/config/site";
 import { cn } from "@/lib/utils";
 
@@ -40,10 +40,14 @@ export function WaitlistPopup() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
+  const [phone, setPhone] = useState("");
   const [honeypot, setHoneypot] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState("");
+  // Which field the error belongs to, so only that one gets the red border.
+  const [errorField, setErrorField] = useState<"email" | "phone" | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
   const disabled = !isWaitlistConfigured;
 
   useEffect(() => {
@@ -71,14 +75,23 @@ export function WaitlistPopup() {
     if (event.key === "Escape") close();
   }
 
-  function handleBlur() {
-    if (value.trim() === "" || status === "submitting") return;
-    const result = validateContact(value);
+  function fail(field: "email" | "phone", text: string) {
+    setStatus("error");
+    setErrorField(field);
+    setMessage(text);
+  }
+
+  function handleBlur(field: "email" | "phone") {
+    if (status === "submitting") return;
+    const raw = field === "email" ? value : phone;
+    if (raw.trim() === "") return;
+
+    const result = field === "email" ? validateContact(raw) : validatePhone(raw);
     if (!result.valid) {
-      setStatus("error");
-      setMessage(result.message);
-    } else if (status === "error") {
+      fail(field, result.message);
+    } else if (status === "error" && errorField === field) {
       setStatus("idle");
+      setErrorField(null);
       setMessage("");
     }
   }
@@ -89,16 +102,23 @@ export function WaitlistPopup() {
 
     const result = validateContact(value);
     if (!result.valid) {
-      setStatus("error");
-      setMessage(result.message);
+      fail("email", result.message);
       inputRef.current?.focus();
       return;
     }
 
+    const phoneResult = validatePhone(phone);
+    if (!phoneResult.valid) {
+      fail("phone", phoneResult.message);
+      phoneRef.current?.focus();
+      return;
+    }
+
     setStatus("submitting");
+    setErrorField(null);
     setMessage("");
 
-    const outcome = await submitWaitlist(value, "popup", honeypot);
+    const outcome = await submitWaitlist(value, phone, "popup", honeypot);
 
     if (outcome.ok) {
       setStatus("success");
@@ -222,16 +242,41 @@ export function WaitlistPopup() {
                     disabled={disabled || status === "submitting"}
                     value={value}
                     onChange={(event) => setValue(event.target.value)}
-                    onBlur={handleBlur}
-                    aria-invalid={status === "error"}
+                    onBlur={() => handleBlur("email")}
+                    aria-invalid={errorField === "email"}
                     aria-describedby="waitlist-popup-error"
                     placeholder="you@example.com"
                     className={cn(
                       "mt-5 h-12 w-full min-w-0 rounded-full border bg-background px-5 text-base",
                       "placeholder:text-ink-soft/70 disabled:cursor-not-allowed disabled:opacity-60",
-                      status === "error" ? "border-destructive" : "border-input",
+                      errorField === "email" ? "border-destructive" : "border-input",
                     )}
                     maxLength={64}
+                  />
+
+                  <label htmlFor="waitlist-popup-phone" className="sr-only">
+                    Mobile number
+                  </label>
+                  <input
+                    ref={phoneRef}
+                    id="waitlist-popup-phone"
+                    name="phone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    disabled={disabled || status === "submitting"}
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
+                    onBlur={() => handleBlur("phone")}
+                    aria-invalid={errorField === "phone"}
+                    aria-describedby="waitlist-popup-error"
+                    placeholder="98765 43210"
+                    className={cn(
+                      "mt-3 h-12 w-full min-w-0 rounded-full border bg-background px-5 text-base",
+                      "placeholder:text-ink-soft/70 disabled:cursor-not-allowed disabled:opacity-60",
+                      errorField === "phone" ? "border-destructive" : "border-input",
+                    )}
+                    maxLength={18}
                   />
 
                   <p

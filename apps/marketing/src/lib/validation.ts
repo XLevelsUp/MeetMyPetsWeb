@@ -12,7 +12,10 @@ const EMAIL_RE = new RegExp(`^${EMAIL_LOCAL}@(?:${EMAIL_LABEL}\\.)+[A-Za-z]{2,}$
 /** Zero-width and non-breaking characters that survive a paste and break validation invisibly. */
 const INVISIBLE_RE = /[​-‍﻿ ⁠]/g;
 
-export type ContactKind = "email";
+/** Indian mobile: 10 digits starting 6-9, optionally prefixed with +91, 91 or 0. */
+const PHONE_RE = /^(?:\+?91|0)?([6-9]\d{9})$/;
+
+export type ContactKind = "email" | "phone";
 
 export type ValidationResult =
   | { valid: true; kind: ContactKind; normalized: string }
@@ -67,7 +70,7 @@ function emailProblem(value: string): string {
   return "That email address does not look right — check it for a typo.";
 }
 
-/** Validates an email address; the waitlist no longer accepts phone numbers. */
+/** Validates an email address. */
 export function validateContact(raw: string): ValidationResult {
   const trimmed = normalizeContact(raw);
 
@@ -80,4 +83,31 @@ export function validateContact(raw: string): ValidationResult {
   }
 
   return { valid: true, kind: "email", normalized: trimmed.toLowerCase() };
+}
+
+/** Validates an Indian mobile number, normalising it to +91XXXXXXXXXX for the Sheet. */
+export function validatePhone(raw: string): ValidationResult {
+  // Spaces, dashes and brackets are how people actually type numbers — strip them, don't reject them.
+  const cleaned = normalizeContact(raw).replace(/[\s()-]/g, "");
+
+  if (cleaned.length === 0) {
+    return { valid: false, message: "Enter your mobile number." };
+  }
+  if (/[^\d+]/.test(cleaned)) {
+    return { valid: false, message: "A mobile number should contain digits only." };
+  }
+
+  const match = PHONE_RE.exec(cleaned);
+  if (!match) {
+    const digits = cleaned.replace(/\D/g, "").replace(/^(?:91|0)/, "");
+    if (digits.length < 10) {
+      return { valid: false, message: "That number is too short — enter all 10 digits." };
+    }
+    if (digits.length > 10) {
+      return { valid: false, message: "That number is too long — an Indian mobile has 10 digits." };
+    }
+    return { valid: false, message: "An Indian mobile number starts with 6, 7, 8 or 9." };
+  }
+
+  return { valid: true, kind: "phone", normalized: `+91${match[1]}` };
 }

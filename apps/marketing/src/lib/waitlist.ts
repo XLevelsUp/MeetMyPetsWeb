@@ -1,4 +1,4 @@
-import { validateContact } from "@/lib/validation";
+import { validateContact, validatePhone } from "@/lib/validation";
 
 /**
  * Waitlist submission adapter — Google Sheets via an Apps Script web app.
@@ -41,12 +41,18 @@ export type WaitlistResult =
  */
 export async function submitWaitlist(
   contact: string,
+  phone: string,
   source: WaitlistSource,
   honeypot = "",
 ): Promise<WaitlistResult> {
   const parsed = validateContact(contact);
   if (!parsed.valid) {
     return { ok: false, reason: "invalid", message: parsed.message };
+  }
+
+  const parsedPhone = validatePhone(phone);
+  if (!parsedPhone.valid) {
+    return { ok: false, reason: "invalid", message: parsedPhone.message };
   }
 
   if (!ENDPOINT) {
@@ -64,10 +70,10 @@ export async function submitWaitlist(
       mode: "no-cors",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       redirect: "follow",
+      // Same keys and column order as before — the Sheet's existing rows stay aligned.
       body: JSON.stringify({
         email: parsed.normalized,
-        // Always empty — the form is email-only, but the Sheet keeps its Phone column so old rows stay aligned.
-        phone: "",
+        phone: parsedPhone.normalized,
         source,
         website: honeypot,
       }),
