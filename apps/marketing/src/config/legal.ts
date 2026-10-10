@@ -265,7 +265,7 @@ export const privacy: LegalDoc = {
           type: "ul",
           items: [
             "With other users — your profile, pet profiles, community content and proximity band are visible according to the settings you choose.",
-            "With service providers acting on our instructions, under contract: Supabase (database, authentication and real-time messaging), Cloudflare (media storage, CDN and video delivery), Stream (chat infrastructure), Google Document AI (document text extraction), Digio (identity verification), Google Firebase Cloud Messaging and OneSignal (push notifications), Sentry (error monitoring), PostHog (product analytics), Railway (application hosting), Google (Apps Script and Sheets, for waitlist submissions made on meetmypets.app), and Resend (waitlist confirmation email).",
+            "With service providers acting on our instructions, under contract: Supabase (database, authentication and real-time messaging), Cloudflare (media storage, CDN and video delivery), Stream (chat infrastructure), Google Document AI (document text extraction), Digio (identity verification), Google Firebase Cloud Messaging and OneSignal (push notifications), Firebase Crashlytics (crash and error monitoring), PostHog (product analytics), Railway (application hosting), Google (Apps Script and Sheets, for waitlist submissions made on meetmypets.app), and Resend (waitlist confirmation email).",
             "For legal reasons — where required by law, court order, or a valid request from a public authority.",
             "To protect people or animals — where we reasonably believe disclosure is necessary to prevent harm, including credible animal welfare concerns.",
             "In a corporate transaction — if the business is acquired or merged, subject to this policy continuing to apply.",
@@ -334,7 +334,7 @@ export const privacy: LegalDoc = {
         },
         {
           type: "p",
-          text: "Data is encrypted in transit using TLS 1.2 or higher, and encrypted at rest by our infrastructure providers. Access to verification documents is restricted to authorised personnel, and every administrative access is logged. We use Sentry for application error monitoring.",
+          text: "Data is encrypted in transit using TLS 1.2 or higher, and encrypted at rest by our infrastructure providers. Access to verification documents is restricted to authorised personnel, and every administrative access is logged. We use Firebase Crashlytics for application error monitoring.",
         },
         {
           type: "p",
@@ -415,7 +415,7 @@ export const privacy: LegalDoc = {
         },
         {
           type: "p",
-          text: "Data may be processed by our service providers in the United States (Google, Cloudflare, Stream, Sentry, PostHog, Firebase, OneSignal, Resend) and in the European Union. Where personal data leaves India we rely on Standard Contractual Clauses or an equivalent safeguard for GDPR purposes, and on the lawful transfer mechanisms notified under the DPDP Act.",
+          text: "Data may be processed by our service providers in the United States (Google, Cloudflare, Stream, PostHog, Firebase, OneSignal, Resend) and in the European Union. Where personal data leaves India we rely on Standard Contractual Clauses or an equivalent safeguard for GDPR purposes, and on the lawful transfer mechanisms notified under the DPDP Act.",
         },
       ],
     },
@@ -429,7 +429,7 @@ export const privacy: LegalDoc = {
         },
         {
           type: "p",
-          text: "meetmypets.app runs no analytics or session-recording scripts. The mobile applications use Sentry for crash reporting and PostHog for product analytics, configured to anonymise IP addresses and not to share data with advertising networks.",
+          text: "meetmypets.app runs no analytics or session-recording scripts. The mobile applications use Firebase Crashlytics for crash reporting and PostHog for product analytics, configured to anonymise IP addresses and not to share data with advertising networks.",
         },
       ],
     },
