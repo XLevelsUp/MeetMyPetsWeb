@@ -3,9 +3,10 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.example.meet_my_pets",
+      "package_name": "com.xlu.meetmypets",
       "sha256_cert_fingerprints": [
-        "46:56:5F:D9:BD:01:5E:45:2C:BA:B3:74:9E:86:4C:DD:C6:E4:2F:CB:DE:1F:C0:43:DC:F7:78:6C:F5:8D:3C:1C"
+        "4A:5C:49:37:DD:FC:5A:3A:D2:4E:F7:8A:7B:53:69:1A:9C:1D:7B:BD:CD:E9:2D:F0:04:28:90:64:6A:AF:52:8A",
+        "A5:AE:F8:22:FB:69:B6:95:CD:72:49:AC:DE:70:95:29:43:20:FE:55:29:F7:39:31:F9:37:BF:A4:8C:19:07:C8"
       ]
     }
   }
