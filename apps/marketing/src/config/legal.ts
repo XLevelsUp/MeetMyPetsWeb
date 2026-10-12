@@ -33,7 +33,7 @@ export type LegalSection = {
   body: LegalBlock[];
 };
 
-export type LegalSlug = "privacy" | "terms" | "delete-account";
+export type LegalSlug = "privacy" | "terms" | "delete-account" | "csae-policy";
 
 export type LegalDoc = {
   slug: LegalSlug;
@@ -880,4 +880,60 @@ export const deleteAccount: LegalDoc = {
   ],
 };
 
-export const legalDocs = [privacy, terms, deleteAccount] as const;
+/* ========================================================================== */
+/* CHILD SAFETY (CSAE) POLICY                                                 */
+/* ========================================================================== */
+
+/**
+ * Required by Google Play: apps with social features must publish their
+ * standards against child sexual abuse and exploitation (CSAE) at a public URL,
+ * with a reporting contact. Like /delete-account, it must stay readable without
+ * signing in and must stay indexable.
+ *
+ * NOTE: the 16+ minimum age here disagrees with terms §2 and privacy §9 (18+).
+ * Reconcile before Play review.
+ */
+export const csaePolicy: LegalDoc = {
+  slug: "csae-policy",
+  title: "Child Safety Policy",
+  shortTitle: "Child safety",
+  description:
+    "MeetMyPets' zero-tolerance standards against child sexual abuse and exploitation (CSAE), and how to report CSAE content.",
+  updated: "13 October 2026",
+  updatedIso: "2026-10-13",
+  intro: `${legalEntity.product} has a zero-tolerance policy toward child sexual abuse and exploitation (CSAE) in any form.`,
+  sections: [
+    {
+      id: "standards",
+      title: "1. Standards we enforce",
+      body: [
+        {
+          type: "ul",
+          items: [
+            `No sexual content involving minors is permitted on ${legalEntity.product} under any circumstances.`,
+            "All users must be 16 years of age or older to register.",
+            "User-generated content is subject to automated and manual moderation review.",
+            "Any account found sharing, soliciting, or promoting CSAE content will be permanently banned and reported to the National Center for Missing & Exploited Children (NCMEC) and relevant Indian law enforcement authorities.",
+            "We comply fully with the Protection of Children from Sexual Offences (POCSO) Act, 2012 and all applicable Indian law.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "report",
+      title: "2. How to report CSAE content",
+      body: [
+        {
+          type: "ul",
+          items: [`Email: ${legalEntity.email}`, "Subject line: CSAE Report"],
+        },
+        {
+          type: "p",
+          text: "We will respond within 24 hours and act immediately.",
+        },
+      ],
+    },
+  ],
+};
+
+export const legalDocs = [privacy, terms, deleteAccount, csaePolicy] as const;

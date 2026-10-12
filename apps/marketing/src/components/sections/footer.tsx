@@ -10,6 +10,7 @@ import {
   Mail,
   PawPrint,
   Shield,
+  ShieldAlert,
   Smartphone,
   Star,
   Trash2,
@@ -48,6 +49,7 @@ const LINK_ICONS: Record<string, React.ElementType> = {
   "Privacy policy": Shield,
   "Terms of service": FileText,
   "Delete your account": Trash2,
+  "Child safety": ShieldAlert,
   "Data protection": Lock,
   Contact: Mail,
 };

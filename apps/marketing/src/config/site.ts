@@ -383,6 +383,8 @@ export const footerColumns = [
       { label: "Terms of service", href: "/terms/" },
       // Google Play's Data Safety form expects deletion instructions findable without signing in.
       { label: "Delete your account", href: "/delete-account/" },
+      // Google Play's child safety (CSAE) standards declaration needs a public URL.
+      { label: "Child safety", href: "/csae-policy/" },
       { label: "Data protection", href: "/privacy/" },
       { label: "Contact", href: "mailto:hello@meetmypets.app" },
     ],
