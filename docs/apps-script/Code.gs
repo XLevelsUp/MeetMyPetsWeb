@@ -36,8 +36,8 @@ const REPLY_TO = 'hello@meetmypets.app';
 
 const SITE_URL = 'https://www.meetmypets.app';
 
-// Play Store internal-test track: only opens for testers added to that track.
-const APP_DOWNLOAD_URL = 'https://play.google.com/apps/internaltest/4701214836063659130';
+// Play Store testing opt-in page — swap for /store/apps/details?id=com.xlu.meetmypets once the app is public.
+const APP_DOWNLOAD_URL = 'https://play.google.com/apps/testing/com.xlu.meetmypets';
 
 function doPost(e) {
   const out = (o) => ContentService.createTextOutput(JSON.stringify(o))
