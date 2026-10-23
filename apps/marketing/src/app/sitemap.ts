@@ -17,7 +17,12 @@ export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const posts = await listPublishedPosts();
-  const indexable = posts.filter((post) => !post.canonicalUrl || post.canonicalUrl === `${site.url}/blog/${post.slug}/`);
+  const indexable = posts.filter(
+    (post) =>
+      !post.canonicalUrl ||
+      post.canonicalUrl.replace(/^https?:\/\/meetmypets\.app/, site.url) ===
+        `${site.url}/blog/${post.slug}/`,
+  );
   const newest = indexable.reduce<string | null>(
     (latest, post) => (!latest || post.updatedAt > latest ? post.updatedAt : latest),
     null,
@@ -55,6 +60,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(),
       changeFrequency: "yearly",
       priority: 0.4,
+    },
+    {
+      url: `${site.url}/our-story/`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6,
+    },
+    {
+      url: `${site.url}/about/`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6,
+    },
+    {
+      url: `${site.url}/team/`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6,
     },
     // The index is listed only once it has something on it.
     ...(newest

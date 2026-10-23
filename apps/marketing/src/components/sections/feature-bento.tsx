@@ -426,7 +426,7 @@ export function FeatureBento() {
           </BentoCard>
         </div>
 
-        <SectionCta text="All of this, before the app even launches." buttonLabel="Get early access" />
+        <SectionCta text="Everything your pet needs to find companions and thrive." buttonLabel="Find Local Pets" />
       </div>
     </section>
   );

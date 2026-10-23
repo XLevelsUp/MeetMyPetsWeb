@@ -30,7 +30,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const post = await getPublishedPost(slug);
   if (!post) return {};
 
-  const url = post.canonicalUrl ?? postUrl(post.slug);
+  const canonicalNormalized = post.canonicalUrl
+    ? post.canonicalUrl.replace(/^https?:\/\/meetmypets\.app/, site.url)
+    : null;
+  const url = canonicalNormalized ?? postUrl(post.slug);
   const title = post.seoTitle ?? post.title;
   const description = post.seoDescription ?? post.excerpt;
   const shareImage = post.ogImage ?? post.featuredImage;

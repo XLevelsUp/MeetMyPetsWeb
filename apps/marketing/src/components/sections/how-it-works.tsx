@@ -105,7 +105,7 @@ export function HowItWorks() {
           })}
         </ol>
 
-        <SectionCta text="Four steps, one signup away." buttonLabel="Save my spot" />
+        <SectionCta text="Four steps to your pet's next real-life friendship." buttonLabel="Start Matching" />
       </div>
 
       <WaveDivider color="color-mix(in oklab, var(--secondary) 40%, var(--background))" />

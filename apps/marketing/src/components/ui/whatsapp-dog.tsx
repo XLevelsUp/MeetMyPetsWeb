@@ -118,7 +118,7 @@ export function WhatsAppDog() {
         <Image
           key={run}
           src={art.src}
-          alt=""
+          alt="Chat with MeetMyPets on WhatsApp"
           width={art.w}
           height={art.h}
           unoptimized={rich}

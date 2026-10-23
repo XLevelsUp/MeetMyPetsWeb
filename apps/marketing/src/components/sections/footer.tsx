@@ -5,6 +5,7 @@ import {
   FileText,
   Globe,
   Heart,
+  Info,
   Layers,
   Lock,
   Mail,
@@ -12,16 +13,18 @@ import {
   Shield,
   ShieldAlert,
   Smartphone,
+  Sparkles,
   Star,
   Trash2,
   Users,
   Zap,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 import { Logo } from "@/components/ui/logo";
 import { SocialLinks } from "@/components/ui/social-links";
-import { footer, footerColumns, site } from "@/config/site";
+import { appStore, footer, footerColumns, site } from "@/config/site";
 
 
 /** Overlapping pet photos above the footer links. */
@@ -42,6 +45,9 @@ const LINK_ICONS: Record<string, React.ElementType> = {
   Verification: BadgeCheck,
   "How it works": Zap,
   Blog: BookOpen,
+  "Our Story": Sparkles,
+  "About Us": Info,
+  "Our Team": Users,
   "For pet parents": Heart,
   "For pet lovers": Star,
   "For businesses": Building2,
@@ -82,22 +88,26 @@ export function Footer() {
           <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-2 md:gap-12">
             <div>
               <p className="text-xs font-semibold tracking-[0.14em] text-brand-ink uppercase">
-                Early access
+                Now Available
               </p>
               <h2 className="mt-3 text-2xl font-semibold leading-snug sm:text-3xl">
                 Who Will Your Pet Meet First?
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-ink-soft">
-                Join early and be part of the first 1,000 pets getting access to MeetMyPets.
+                Download MeetMyPets on Google Play and start discovering friendly companions today.
               </p>
-              <a
-                href="#waitlist"
-                id="footer-cta-waitlist"
-                className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-brand px-6 py-2.5 text-sm font-semibold text-white shadow-lift transition-all duration-200 hover:bg-brand-ink hover:shadow-float focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-              >
-                <PawPrint className="size-4" aria-hidden="true" />
-                Get Your Pet In
-              </a>
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <a
+                  href={appStore.android}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  id="footer-cta-download"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#01875F] px-6 py-2.5 text-sm font-semibold text-white shadow-lift transition-all duration-200 hover:bg-[#00704E] hover:shadow-float focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#01875F]"
+                >
+                  <PawPrint className="size-4" aria-hidden="true" />
+                  Install on Google Play
+                </a>
+              </div>
             </div>
 
             {/* Community photo wall — overlapping circles of pet photos.
@@ -139,8 +149,8 @@ export function Footer() {
                 </div>
               </div>
               <p className="text-sm leading-snug text-balance text-ink-soft">
-                <span className="font-semibold text-ink">Hundreds of pet owners</span>{" "}
-                already on the list
+                <span className="font-semibold text-ink">Hundreds of pet parents</span>{" "}
+                already connecting
               </p>
             </div>
           </div>
@@ -153,7 +163,10 @@ export function Footer() {
             it, rather than four blocks stacked. */}
         <div className="grid grid-cols-1 gap-10 md:grid-cols-3 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
           <div className="md:col-span-3 lg:col-span-1">
-            <Logo />
+            {/* A footer logo is expected to go home; it was previously inert. */}
+            <Link href="/" className="inline-flex rounded-lg" aria-label="MeetMyPets home">
+              <Logo />
+            </Link>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-ink-soft">{footer.blurb}</p>
             <p className="mt-4 text-sm font-medium text-ink-soft">{footer.note}</p>
 
@@ -163,10 +176,15 @@ export function Footer() {
                 <Smartphone className="size-3.5 text-brand-ink" aria-hidden="true" />
                 iOS — Coming soon
               </span>
-              <span className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold text-ink-soft shadow-soft">
-                <Smartphone className="size-3.5 text-trust" aria-hidden="true" />
-                Android — Coming soon
-              </span>
+              <a
+                href={appStore.android}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl border border-brand/30 bg-brand-soft/70 px-3.5 py-2 text-xs font-semibold text-brand-ink shadow-soft transition-colors hover:bg-brand hover:text-white"
+              >
+                <Smartphone className="size-3.5 text-brand" aria-hidden="true" />
+                Android — Available now
+              </a>
             </div>
           </div>
 
@@ -185,10 +203,13 @@ export function Footer() {
                 <ul className="mt-4 grid gap-1.5">
                   {column.links.map((link) => {
                     const LinkIcon = LINK_ICONS[link.label];
+                    const isExternal = link.href.startsWith("http");
                     return (
                       <li key={link.label}>
                         <a
                           href={link.href}
+                          target={isExternal ? "_blank" : undefined}
+                          rel={isExternal ? "noopener noreferrer" : undefined}
                           className="group inline-flex min-h-9 items-center gap-2 rounded text-sm text-ink-soft transition-colors hover:text-brand-ink"
                         >
                           {LinkIcon && (
