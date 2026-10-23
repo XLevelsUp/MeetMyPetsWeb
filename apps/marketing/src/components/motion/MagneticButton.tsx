@@ -9,19 +9,23 @@ type MagneticButtonProps = {
   children: ReactNode;
   href?: string;
   onClick?: () => void;
-  variant?: "brand" | "outline";
+  target?: string;
+  rel?: string;
+  variant?: "brand" | "outline" | "play";
   className?: string;
   /** How far the button drifts toward the cursor, in px. */
   strength?: number;
 };
 
 const base =
-  "relative inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-6 text-sm font-semibold " +
+  "relative inline-flex min-h-11 items-center justify-center gap-2.5 rounded-full px-6 text-sm font-semibold " +
   "transition-colors duration-200 cursor-pointer select-none";
 
 const variants = {
   // White on --brand = 4.61:1. Safe as a fill; see globals.css contrast note.
   brand: "bg-brand text-white hover:bg-brand-ink shadow-soft",
+  // Official Google Play Store Green
+  play: "bg-[#01875F] text-white hover:bg-[#00704E] shadow-lift hover:shadow-float focus-visible:outline-[#01875F]",
   outline: "border border-border bg-card text-ink hover:bg-accent",
 } as const;
 
@@ -36,6 +40,8 @@ export function MagneticButton({
   children,
   href,
   onClick,
+  target,
+  rel,
   variant = "brand",
   className,
   strength = 14,
@@ -66,10 +72,13 @@ export function MagneticButton({
   const classes = cn(base, variants[variant], className);
 
   if (href) {
+    const isExternal = href.startsWith("http");
     return (
       <m.a
         ref={ref as React.Ref<HTMLAnchorElement>}
         href={href}
+        target={target ?? (isExternal ? "_blank" : undefined)}
+        rel={rel ?? (isExternal ? "noopener noreferrer" : undefined)}
         className={classes}
         style={style}
         onPointerMove={handleMove}

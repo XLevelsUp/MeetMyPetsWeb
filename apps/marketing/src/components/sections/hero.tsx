@@ -10,6 +10,7 @@ import { ParallaxCard } from "@/components/motion/ParallaxCard";
 import { HERO_BLOB_PATH } from "@/components/ui/blob-clip";
 import { HeroCompanions } from "@/components/ui/hero-companions";
 import { HeroMascot } from "@/components/ui/hero-mascot";
+import { GooglePlayIcon } from "@/components/ui/install-button";
 import { SpeciesIcon } from "@/components/ui/species-icon";
 import { VipBadge } from "@/components/ui/vip-badge";
 import { hero, heroCta, heroPersona } from "@/config/site";
@@ -314,8 +315,15 @@ export function Hero() {
             transition={{ duration: 0.55, delay: 0.54 }}
             className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center"
           >
-            <MagneticButton href={heroCta.primaryHref} className="h-12 px-7 text-base">
-              {heroCta.primary}
+            <MagneticButton
+              href={heroCta.primaryHref}
+              variant="play"
+              className="h-12 px-6 text-base"
+            >
+              <span className="grid size-7 place-items-center rounded-lg bg-white shadow-xs">
+                <GooglePlayIcon className="size-4" />
+              </span>
+              <span>{heroCta.primary}</span>
             </MagneticButton>
             <MagneticButton
               href={heroCta.secondaryHref}

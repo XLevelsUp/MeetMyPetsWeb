@@ -2,6 +2,7 @@
 
 import { AnimatePresence, m, useMotionValueEvent, useScroll } from "motion/react";
 import { Menu, PawPrint, X } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { MagneticButton } from "@/components/motion/MagneticButton";
@@ -27,16 +28,18 @@ export function Header() {
       )}
     >
       <div className="section-shell flex h-16 items-center justify-between gap-4 sm:h-18">
-        <a href="#top" className="rounded-lg" aria-label={`${"MeetMyPets"} home`}>
+        {/* Always the landing page, never a scroll-to-top: this header also renders on /our-story. */}
+        <Link href="/" className="rounded-lg" aria-label="MeetMyPets home">
           <Logo />
-        </a>
+        </Link>
 
         <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
           {nav.map((item) => (
             <a
               key={item.href}
               href={item.href}
-              className="group nav-pill flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-accent hover:text-ink"
+              // Tighter at lg, where six items plus the CTA would otherwise wrap to two rows.
+              className="group nav-pill flex items-center gap-1 px-2 py-2 text-sm font-medium whitespace-nowrap text-ink-soft transition-colors hover:bg-accent hover:text-ink xl:gap-1.5 xl:px-3"
             >
               <PawPrint
                 aria-hidden="true"
@@ -91,6 +94,8 @@ export function Header() {
               ))}
               <a
                 href={cta.waitlistHref}
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={() => setMenuOpen(false)}
                 className="mt-2 flex min-h-11 items-center justify-center rounded-full bg-brand px-6 text-sm font-semibold text-white"
               >

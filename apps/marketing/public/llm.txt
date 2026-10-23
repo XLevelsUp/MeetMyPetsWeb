@@ -1,0 +1,39 @@
+# MeetMyPets
+
+> MeetMyPets is a multi-species pet social ecosystem connecting pets and pet parents through verified playdates, companionship matching, community packs, and a directory of vetted pet care businesses.
+
+MeetMyPets (by XLU Technologies Private Limited) brings pets and their people closer together. Designed for dogs, cats, rabbits, birds, and all companion animals, MeetMyPets replaces chaotic messaging groups and unverified listings with a trusted, identity-checked platform where every pet has a profile, verified vaccination records, and local discovery.
+
+## Platform Capabilities
+
+- **Pet Discovery & Local Radar**: Discover compatible pets nearby filtered by species, breed, energy level, temperament, and distance.
+- **Verified Playdates**: Connect with loving pet parents and coordinate safe outdoor meetups and play sessions.
+- **Trust & Verification**: Multi-factor identity checks and veterinary vaccination record verification badges before meetups occur.
+- **Ethical Companion Matching**: Verified health screenings and pedigree verification for responsible companionship.
+- **Pet Care & Business Directory**: Discover vetted veterinarians, groomers, pet-friendly cafes, boarding facilities, and trainers.
+- **Community Packs & Local Events**: Join neighborhood pet walks, breed-specific groups, and local pet parent discussions.
+
+## Availability
+
+- **Website**: https://www.meetmypets.app/
+- **Google Play Store (Android)**: https://play.google.com/store/apps/details?id=com.xlu.meetmypets (Live & Free)
+- **Apple App Store (iOS)**: In active development (Coming Soon)
+
+## Key Pages
+
+- [Homepage](https://www.meetmypets.app/): Main landing page with platform overview, feature demos, and download links.
+- [About Us](https://www.meetmypets.app/about/): Company mission, vision, and core values (Connection, Inclusivity, Trust & Safety, Innovation, Community).
+- [Our Story](https://www.meetmypets.app/our-story/): The founding journey behind MeetMyPets.
+- [Our Team](https://www.meetmypets.app/team/): Founders, developers, and team pets (Bailey CHO, JD CNO, Leo CPO).
+- [Blog](https://www.meetmypets.app/blog/): Expert pet care guides, training tips, animal nutrition, and community stories.
+- [Privacy Policy](https://www.meetmypets.app/privacy/): Comprehensive privacy disclosures compliant with India's DPDP Act 2023.
+- [Terms of Service](https://www.meetmypets.app/terms/): Community standards and platform terms.
+- [Account Deletion](https://www.meetmypets.app/delete-account/): Google Play Data Safety compliance and account deletion instructions.
+- [Child Safety (CSAE Policy)](https://www.meetmypets.app/csae-policy/): Public safety declarations and standards.
+
+## Official Social Channels & Support
+
+- **Email**: hello@meetmypets.app
+- **WhatsApp**: +91 90470 55888 (https://wa.me/919047055888)
+- **X (Twitter)**: https://x.com/meetmypetsapp (@meetmypetsapp)
+- **Instagram**: https://www.instagram.com/meetmypets.app/ (@meetmypets.app)

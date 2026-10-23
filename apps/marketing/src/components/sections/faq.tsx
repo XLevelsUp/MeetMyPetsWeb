@@ -97,7 +97,8 @@ export function Faq() {
         </Reveal>
 
         <SectionCta
-          text="Still have questions? Join the waitlist, or drop us a line and a real person will answer."
+          text="Still have questions? Reach out to our team or install the app to get started."
+          buttonLabel="Install MeetMyPets"
           withEmail
         />
       </div>

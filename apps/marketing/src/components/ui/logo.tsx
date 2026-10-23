@@ -23,26 +23,30 @@ export function PawMark({ className }: { className?: string }) {
   );
 }
 
-/** Brand lockup — next/image because the source is an 87KB PNG rendered at 36px. */
+/** Brand lockup: supplied artwork for both halves, so neither depends on a webfont. */
 export function Logo({ className }: { className?: string }) {
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
-      {/* Decorative: the wordmark beside it already names the brand, so an
-          alt here would make screen readers announce "MeetMyPets" twice. */}
+      {/* Decorative: the wordmark beside it carries the name for assistive tech. */}
       <Image
-        src="/brand-mark.webp"
+        src="/brand-mark.png"
         alt=""
         aria-hidden="true"
-        width={72}
-        height={72}
+        width={144}
+        height={144}
         // In the header on every page, so it must not arrive late.
         priority
         className="size-9 shrink-0"
       />
-      {/* Love Ya Like A Sister. Its lowercase runs small and its strokes are
-          thin, so it needs a size bump and normal weight to sit level with the
-          mark — font-semibold on a handwritten face just muddies it. */}
-      <span className="font-wordmark text-2xl leading-none text-ink">{site.name}</span>
+      {/* Intrinsic 850x144; height is fixed and width follows the 5.9:1 ratio. */}
+      <Image
+        src="/brand-wordmark.png"
+        alt={site.name}
+        width={850}
+        height={144}
+        priority
+        className="h-5 w-auto shrink-0 sm:h-6"
+      />
     </span>
   );
 }

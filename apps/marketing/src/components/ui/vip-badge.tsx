@@ -4,14 +4,11 @@ import { m, useReducedMotion } from "motion/react";
 import { Crown, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { fetchVipCount } from "@/lib/vip-count";
+import { fetchVipCount, vipBadgeText, type VipCount } from "@/lib/vip-count";
 import { vipOffer } from "@/config/site";
 import { cn } from "@/lib/utils";
 
-type State =
-  | { status: "loading" }
-  | { status: "static" }
-  | { status: "live"; claimed: number; remaining: number };
+type State = { status: "static" } | { status: "live"; count: VipCount };
 
 /** VIP promo pill — compact (inline), full (own line), spotlight (feature block). */
 export function VipBadge({
@@ -28,18 +25,15 @@ export function VipBadge({
     let active = true;
     fetchVipCount().then((result) => {
       if (!active || !result) return;
-      setState({ status: "live", claimed: result.claimed, remaining: result.remaining });
+      setState({ status: "live", count: result });
     });
     return () => {
       active = false;
     };
   }, []);
 
-  // Social proof first, scarcity second. Falls back to static copy only when the count is unavailable, never fabricated.
-  const text =
-    state.status === "live"
-      ? `${state.claimed.toLocaleString()} pets are already in — ${state.remaining.toLocaleString()} VIP spots left`
-      : vipOffer.badge;
+  // Wording follows how full the offer is — see vipBadgeText. Falls back to static copy only when the count is unavailable, never fabricated.
+  const text = state.status === "live" ? vipBadgeText(state.count) : vipOffer.badge;
 
   /* ── Spotlight variant ── */
   if (variant === "spotlight") {

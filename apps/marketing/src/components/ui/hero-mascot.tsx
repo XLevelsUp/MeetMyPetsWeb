@@ -76,7 +76,7 @@ export function HeroMascot({
     >
       <Image
         src={SRC}
-        alt=""
+        alt="A happy dog ready to make friends on MeetMyPets"
         width={NATIVE_W}
         height={NATIVE_H}
         priority={priority}

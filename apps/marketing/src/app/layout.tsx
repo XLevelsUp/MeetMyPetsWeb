@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Love_Ya_Like_A_Sister, Nunito_Sans } from "next/font/google";
 
-import { WaitlistPopup } from "@/components/sections/waitlist-popup";
+import { InstallPopup } from "@/components/sections/install-popup";
 import { MotionProvider } from "@/components/motion/MotionProvider";
 import { IntroCurtain } from "@/components/ui/intro-curtain";
 import { PawCursorTrail } from "@/components/ui/paw-cursor-trail";
@@ -148,7 +148,7 @@ setTimeout(function(){d.removeAttribute('data-intro')},4500);
 
           <PawCursorTrail />
           <WhatsAppDog />
-          <WaitlistPopup />
+          <InstallPopup />
         </MotionProvider>
       </body>
     </html>

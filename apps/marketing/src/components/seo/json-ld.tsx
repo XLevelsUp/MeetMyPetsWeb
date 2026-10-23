@@ -1,4 +1,4 @@
-import { faq, isLaunched, site } from "@/config/site";
+import { appStore, faq, site } from "@/config/site";
 
 /**
  * Structured data for rich results.
@@ -27,9 +27,11 @@ export function OrganizationLd() {
         name: site.name,
         legalName: site.legalEntity,
         url: site.url,
+        installUrl: appStore.android,
+        downloadUrl: appStore.android,
         description: site.description,
         logo: `${site.url}/brand-mark.webp`,
-        sameAs: [`https://twitter.com/${site.twitter.replace("@", "")}`, site.instagram],
+        sameAs: [site.x, site.instagram],
         address: { "@type": "PostalAddress", addressCountry: "IN" },
         // Structured-data-only location signal — Tamil Nadu is the initial
         // launch region. Kept out of visible page copy on purpose; this is
@@ -51,7 +53,10 @@ export function SoftwareApplicationLd() {
         "@type": "SoftwareApplication",
         name: site.name,
         applicationCategory: "SocialNetworkingApplication",
-        operatingSystem: "iOS, Android",
+        // Android only: the iOS build does not exist, and claiming it here is a false availability signal.
+        operatingSystem: "Android",
+        installUrl: appStore.android,
+        downloadUrl: appStore.android,
         description: site.description,
         url: site.url,
         publisher: { "@type": "Organization", name: site.legalEntity },
@@ -59,12 +64,8 @@ export function SoftwareApplicationLd() {
           "@type": "Offer",
           price: "0",
           priceCurrency: "INR",
-          // Pre-launch: PreOrder, not InStock. Claiming availability for an
-          // unreleased app is exactly the kind of thing that gets structured
-          // data flagged as spam.
-          availability: isLaunched
-            ? "https://schema.org/InStock"
-            : "https://schema.org/PreOrder",
+          // Live on Google Play, so InStock is now the accurate claim.
+          availability: "https://schema.org/InStock",
         },
       }}
     />

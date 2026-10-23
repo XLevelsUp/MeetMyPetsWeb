@@ -7,8 +7,9 @@ type PetPhoto = { src: string; alt: string };
 
 export const site = {
   name: "MeetMyPets",
-  domain: "meetmypets.app",
-  url: "https://meetmypets.app",
+  domain: "www.meetmypets.app",
+  url: "https://www.meetmypets.app",
+  email: "hello@meetmypets.app",
   // Legal pages and Organization JSON-LD need the name on the incorporation record, not an abbreviation.
   legalEntity: "XLU Technologies Private Limited",
   tagline: "Find friends, playmates and perfect matches for your pets.",
@@ -57,6 +58,7 @@ export const site = {
   ],
   locale: "en_IN",
   twitter: "@meetmypetsapp",
+  x: "https://x.com/meetmypetsapp",
   // Real handle (meetmypets.app, with a dot) — NOT derived from the Twitter handle, which has no dot.
   instagram: "https://www.instagram.com/meetmypets.app/",
 } as const;
@@ -68,25 +70,35 @@ export const whatsapp = {
   message: "Hi! I'm curious about MeetMyPets 🐾",
 } as const;
 
+// The live Play listing. iOS has no build yet, so `ios` stays null and the UI says 'coming soon' rather than linking nowhere.
+export const appStore = {
+  android: "https://play.google.com/store/apps/details?id=com.xlu.meetmypets",
+  ios: null,
+} as const;
+
+
+// Absolute, not bare anchors: these have to work from /about and /blog too, where no such section exists.
+// Keep this to five or six — a seventh wrapped the desktop nav to two rows at every width.
 export const nav = [
-  { label: "Features", href: "#features" },
-  { label: "Ecosystem", href: "#ecosystem" },
-  { label: "Verification", href: "#verification" },
-  { label: "Community", href: "#how-it-works" },
-  { label: "For Businesses", href: "#businesses" },
+  { label: "About Us", href: "/about/" },
+  { label: "Our Story", href: "/our-story/" },
+  { label: "Our Team", href: "/team/" },
+  { label: "Blog", href: "/blog/" },
+  { label: "How it works", href: "/#how-it-works" },
 ] as const;
 
 export const cta = {
-  primary: isLaunched ? "Download for iOS & Android" : "Join the Waitlist",
+  primary: "Download App",
   secondary: "Explore the Ecosystem",
   secondaryHref: "#ecosystem",
-  waitlistHref: "#waitlist",
+  // Anchors the install section, which replaced the waitlist form at the same spot.
+  waitlistHref: appStore.android,
 } as const;
 
 // Hero-only wording. Separate from `cta` above, which the header and every SectionCta still share.
 export const heroCta = {
-  primary: isLaunched ? "Download for iOS & Android" : "Save Your Pet's Spot",
-  primaryHref: "#waitlist",
+  primary: "Install on Google Play",
+  primaryHref: appStore.android,
   secondary: "Find Their Friends",
   secondaryHref: "#ecosystem",
 } as const;
@@ -327,7 +339,7 @@ export const faq = [
   },
   {
     q: "When does the app launch?",
-    a: "We are in pre-launch. Join the waitlist and you will hear from us directly when iOS and Android builds are ready — no marketing blasts in the meantime.",
+    a: "MeetMyPets is live on Google Play — install it today and claim one of the first 1,000 VIP spots. The iOS build is in development; we will announce it the moment it lands.",
   },
 ] as const;
 
@@ -344,7 +356,7 @@ export const waitlist = {
 // A cap on an offer, not a claim that 1,000 people already use the app. `remaining` is live from identity.accounts via apps/admin's one public route; on failure VipBadge shows `badge` with no number rather than a guessed one.
 export const vipOffer = {
   badge: "First 1,000 get VIP access",
-  perk: "Get in early, unlock founding-member perks, and give your pet a head start on their social life.",
+  perk: "Install now to lock in founding-member perks and give your pet a head start on their social life.",
   cap: 1_000,
 } as const;
 
@@ -355,25 +367,321 @@ export const waitlistPopup = {
   body: "MeetMyPets is almost ready. Join the waitlist and we'll let you know the moment doors open — nothing else, ever.",
 } as const;
 
+/**
+ * Founder story for /our-story.
+ *
+ * Names real people (Pranesh, his aunt Poorni, the cat JD), so copy changes
+ * here need their sign-off. Structured as story beats rather than uniform
+ * sections: the page gives each beat a different weight, and `openingItems`,
+ * `belief` and `turn` are the emotional peaks it builds toward.
+ */
+export const ourStory = {
+  eyebrow: "Our story",
+  title: "Built for Every Person Who's Ever Loved an Animal.",
+  intro:
+    "It began with a house full of animals, a cat who needed a friend, and one simple question.",
+
+  opening: {
+    title: "Where a Lifelong Love for Animals Began",
+    lede: "Not every founder story starts in a boardroom.",
+    body: "Pranesh S, the founder of MeetMyPets, grew up in a home filled with animals.",
+    // Rendered as a stagger, with the count animated — the detail that makes the childhood real.
+    items: ["bunnies", "chickens", "fishes", "snails"] as const,
+    countLabel: "lovebirds in a cage at the front of the house",
+    count: 30,
+    closing: "For him, animals were never just animals. They were part of everyday life.",
+    photo: {
+      brief:
+        "Pranesh as a child with the family's animals — or the lovebird cage at the front of the house.",
+      alt: "The founder's childhood home, filled with animals",
+    },
+  },
+
+  belief: {
+    quote: "Any animal you love is your pet.",
+    note: "That childhood shaped a belief that still guides MeetMyPets today.",
+  },
+
+  problem: {
+    eyebrow: "The problem",
+    title: "The Problem That Started It All",
+    lede: "One cat. One search. A problem worth solving.",
+    body: [
+      "Pranesh's aunt, Poorni, has a Persian punchface cat named JD. When she wanted to find JD a suitable mate, the process turned out to be more difficult than expected.",
+      "Finding a compatible cat nearby. Connecting with a trusted owner. Checking reliable health information. Every step was slow, scattered and uncertain.",
+    ],
+    emphasis: "There was no clear place to find everything she needed.",
+    closing:
+      "That experience revealed a bigger problem: pet owners needed a better way to discover, connect and build trust with one another.",
+    photo: {
+      src: "/our-story/jd-studio.webp",
+      caption: "JD — the cat this whole company started with.",
+      alt: "JD, a white and grey Persian punchface cat, wearing a Gryffindor robe and scarf",
+    },
+  },
+
+  turn: {
+    eyebrow: "The turn",
+    question: "Why doesn't a social community just for pets exist?",
+    body: [
+      "One night, scrolling through social media, Pranesh's feed filled with cats, dogs, birds and fish — animals bringing people together, everywhere he looked.",
+      "He imagined a place where people could discover nearby pets, share experiences, find companions and connect with the professionals who care for them.",
+    ],
+    closing: "That idea became MeetMyPets.",
+  },
+
+  pillars: {
+    eyebrow: "The vision",
+    title: "More Than an App. A Community.",
+    lede: "Built around connection. Designed with trust.",
+    intro:
+      "A shared online home for pet parents, animal enthusiasts and pet-care professionals, built on three things:",
+    items: [
+      {
+        title: "Community",
+        body: "A place to share pet moments and connect with fellow animal lovers.",
+      },
+      {
+        title: "Discovery",
+        body: "A way to find compatible pets and explore the local pet community.",
+      },
+      {
+        title: "Trust",
+        body: "A verification system designed to help owners make more informed connections.",
+      },
+    ],
+    // Mirrors the verification section — a badge reflects current documents, never a permanent claim.
+    note: "Our graduated verification approach reflects the status of submitted documentation, including vaccination validity, rather than relying on a permanent badge that may become outdated. Meaningful connections begin when people have better information.",
+  },
+
+  everyPet: {
+    eyebrow: "Who it is for",
+    title: "Every Pet. Every Person.",
+    lede: "Because love for animals has no boundaries.",
+    // `glyph` maps to SpeciesIcon; anything unmapped falls back to a paw.
+    species: [
+      { label: "Dogs", glyph: "dog" },
+      { label: "Cats", glyph: "cat" },
+      { label: "Birds", glyph: "bird" },
+      { label: "Rabbits", glyph: "rabbit" },
+      { label: "Reptiles", glyph: "reptile" },
+      { label: "Fish", glyph: "fish" },
+      { label: "Snails", glyph: "snail" },
+      { label: "and more", glyph: "paw" },
+    ],
+    notJust: "Not just cats and dogs.",
+    belong: {
+      title: "And you don't have to own a pet to belong.",
+      body: "Pet parent, animal enthusiast, or someone who simply loves being around animals — there is room for you here.",
+    },
+    closing:
+      "The animals that filled Pranesh's childhood are the same reason MeetMyPets believes every species deserves a place.",
+  },
+
+  journey: {
+    eyebrow: "What comes next",
+    title: "Our Journey Starts Here",
+    lede: "One community. Countless connections.",
+    body: "We are starting with the essential foundations of pet profiles, local discovery and trust, with a broader ecosystem growing from that community.",
+    vision: "A world where every pet has a community, and every community has trust.",
+    signature: "Every Pet Belongs.",
+  },
+
+  cta: {
+    title: "Be Part of Our Story",
+    lede: "Your pet's next connection could start here.",
+    body: "Join the MeetMyPets community and be part of a more connected world for animals and the people who love them.",
+    label: "Join the MeetMyPets Community",
+    href: appStore.android,
+  },
+} as const;
+
+// Content for /about. `pets` are cut-outs in public/about/, one per value, sitting on each card's top edge.
+export const about = {
+  eyebrow: "About MeetMyPets",
+  title: "Every Pet Deserves a Connection.",
+  intro:
+    "MeetMyPets is a pet social platform built to bring pets and their people closer. We help pet parents discover compatible companions, connect with fellow pet lovers, and explore a world of new friendships.",
+  closing: "Because life is better with a little more friendship and a lot more paws.",
+
+  mission: {
+    label: "Our Mission",
+    body: "Our mission is to bring pets and their people closer through meaningful connections and compatible companions. We make it easier for every pet to discover new friends, share joyful experiences, and explore the world together. Through a welcoming community, we aim to make every pet's social life happier.",
+  },
+
+  vision: {
+    label: "Our Vision",
+    body: "To build the world's largest social ecosystem for pets, where every pet can discover companions and meaningful connections, creating a happier, more connected world.",
+    // What the vision means in practice — the statement alone was abstract.
+    pillars: [
+      { label: "Every species", body: "Not just cats and dogs — a place for every companion animal." },
+      { label: "Every neighbourhood", body: "Local discovery first, so a connection can become a real meetup." },
+      { label: "Built on trust", body: "Verified profiles and visible trust signals before anyone meets." },
+    ],
+  },
+
+  values: {
+    // Rendered two-tone: the first word plain, the second in brand colour.
+    titleLead: "Our",
+    titleAccent: "Values",
+    items: [
+      {
+        id: "connection",
+        title: "Connection",
+        body: "We believe every pet deserves the chance to make friends, build bonds, and create joyful memories.",
+        pet: { src: "/about/connection.webp", alt: "A corgi puppy sitting upright" },
+      },
+      {
+        id: "inclusivity",
+        title: "Inclusivity",
+        body: "We welcome every pet, pet parent, and animal lover, celebrating the unique personality of each one.",
+        pet: { src: "/about/inclusivity.webp", alt: "A hamster standing on its hind legs" },
+      },
+      {
+        id: "trust",
+        title: "Trust & Safety",
+        body: "We strive to create a safe, respectful, and reliable space where pet communities can grow with confidence.",
+        pet: { src: "/about/trust.webp", alt: "A Samoyed puppy sitting" },
+      },
+      {
+        id: "innovation",
+        title: "Innovation",
+        body: "We use thoughtful technology to make discovering compatible companions and connecting with others easier.",
+        pet: { src: "/about/innovation.webp", alt: "A Yorkshire Terrier looking ahead" },
+      },
+      {
+        id: "community",
+        title: "Community",
+        body: "We bring pet lovers together to share experiences, support one another, and build a more connected world for pets.",
+        pet: { src: "/about/community.webp", alt: "A ginger longhaired cat walking" },
+      },
+    ],
+  },
+
+  cta: {
+    title: "Be Part of the Pack",
+    lede: "Your pet's next friendship could start here.",
+    body: "Join the MeetMyPets community and be part of what's next.",
+    label: "Join the Pack",
+    href: appStore.android,
+  },
+} as const;
+
+// Three tiers, deliberately ordered: founders, team, then the pets who outrank both.
+export const team = {
+  eyebrow: "Our Team",
+  title: "The People Behind the Paws.",
+  intro:
+    "A small team building the place we wished existed for our own pets — and the three who supervise us while we do it.",
+
+  groupPhoto: {
+    alt: "The MeetMyPets team together",
+    brief: "The whole team in one shot — relaxed, not a corporate line-up.",
+  },
+
+  founders: {
+    label: "Leadership",
+    members: [
+      { name: "Pranesh S", role: "CEO & Founder", quote: "Big vision. Better connections." },
+      {
+        name: "Prahal Nath K",
+        role: "CTO & Senior Software Engineer",
+        quote: "Turning code into connections.",
+      },
+      { name: "Vishnu Ram K", role: "CFO & App Designer", quote: "Thoughtful design. Smarter growth." },
+    ],
+  },
+
+  people: {
+    label: "The Team",
+    members: [
+      {
+        name: "Arsath Roshan T S",
+        role: "Full Stack Developer",
+        quote: "Building connections, one feature at a time.",
+      },
+      { name: "Logeshwaran S", role: "AI Engineer", quote: "Making pet discovery smarter." },
+      {
+        name: "Mahalaxmi N",
+        role: "Associate Software Engineer",
+        quote: "Building the details that connect us.",
+      },
+      {
+        name: "Gayathri K",
+        role: "Business Development Manager",
+        quote: "Growing relationships and possibilities.",
+      },
+      {
+        name: "Nithyasri V",
+        role: "Senior Marketing Executive",
+        quote: "Creative ideas. Meaningful experiences.",
+      },
+      {
+        name: "Vinoth Kumar S J",
+        role: "Associate Marketing Executive",
+        quote: "Stories that bring pet lovers together.",
+      },
+    ],
+  },
+
+  pets: {
+    label: "And The Real Bosses",
+    lede: "Every decision gets their approval. Eventually.",
+    members: [
+      {
+        name: "Bailey",
+        role: "Chief Happiness Officer",
+        abbr: "CHO",
+        body: "Professional tail-wagger, full-time smile creator, and expert in turning ordinary moments into happy memories.",
+        photo: { src: "/our-story/bailey-studio.webp", alt: "Bailey, a dog" },
+      },
+      {
+        name: "JD",
+        role: "Chief Nap Officer",
+        abbr: "CNO",
+        body: "Nap first, think later. Keeping the team relaxed, one cozy snooze and one purr at a time.",
+        photo: { src: "/our-story/jd-studio.webp", alt: "JD, a cat" },
+      },
+      {
+        name: "Leo",
+        role: "Chief Play Officer",
+        abbr: "CPO",
+        body: "Head of fun, master of mischief, and always ready to turn a quiet day into a pawsome adventure.",
+        photo: { src: "/our-story/leo-studio.webp", alt: "Leo, a cat" },
+      },
+    ],
+  },
+
+  cta: {
+    title: "Want To Join Us?",
+    body: "We are always glad to hear from people who care about pets as much as we do.",
+    label: "Say Hello",
+    href: "mailto:hello@meetmypets.app",
+  },
+} as const;
+
 export const footerColumns = [
   {
     title: "Product",
     links: [
-      { label: "Features", href: "#features" },
-      { label: "Ecosystem", href: "#ecosystem" },
-      { label: "Verification", href: "#verification" },
-      { label: "How it works", href: "#how-it-works" },
+      { label: "Features", href: "/#features" },
+      { label: "Ecosystem", href: "/#ecosystem" },
+      { label: "Verification", href: "/#verification" },
+      { label: "How it works", href: "/#how-it-works" },
       // Absolute, not an anchor — this one has to work from the blog pages too.
       { label: "Blog", href: "/blog/" },
+      { label: "Our Story", href: "/our-story/" },
+      { label: "About Us", href: "/about/" },
+      { label: "Our Team", href: "/team/" },
     ],
   },
   {
     title: "Platform",
     links: [
-      { label: "For pet parents", href: "#ecosystem" },
-      { label: "For pet lovers", href: "#ecosystem" },
-      { label: "For businesses", href: "#businesses" },
-      { label: "Join the waitlist", href: "#waitlist" },
+      { label: "For pet parents", href: "/#ecosystem" },
+      { label: "For pet lovers", href: "/#ecosystem" },
+      { label: "For businesses", href: "/#businesses" },
+      { label: "Download App", href: appStore.android },
     ],
   },
   {
@@ -408,7 +716,5 @@ export const footer = {
     "A multi-species pet ecosystem — community, discovery and verified professionals in one app.",
   compliance:
     "Personal data is handled in accordance with India's Digital Personal Data Protection Act, 2023.",
-  note: isLaunched
-    ? "Available on iOS and Android."
-    : "iOS and Android apps are in development. Join the waitlist to hear first.",
+  note: "Available now on Google Play. iOS coming soon.",
 } as const;

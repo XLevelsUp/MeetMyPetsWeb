@@ -1,10 +1,10 @@
 "use client";
 
 import { ArrowRight, Clock, PawPrint } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { SocialLinks } from "@/components/ui/social-links";
+import { appStore } from "@/config/site";
 import { formatPostDate } from "@/lib/blog-utils";
 import { cn } from "@/lib/utils";
 
@@ -110,16 +110,18 @@ export function BlogSidebar({
         <p className="mt-2 text-sm leading-relaxed text-ink-soft">
           Join early and be part of the first 1,000 pets getting access to MeetMyPets.
         </p>
-        <Link
-          href="/#waitlist"
+        <a
+          href={appStore.android}
+          target="_blank"
+          rel="noopener noreferrer"
           className="group mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-lift transition-all duration-200 hover:bg-brand-ink hover:shadow-float focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         >
-          Join the waitlist
+          Claim VIP Spot
           <ArrowRight
             className="size-4 transition-transform duration-200 group-hover:translate-x-0.5"
             aria-hidden="true"
           />
-        </Link>
+        </a>
       </div>
     </aside>
   );

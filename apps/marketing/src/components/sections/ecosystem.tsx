@@ -164,7 +164,7 @@ export function Ecosystem() {
           </m.div>
         </AnimatePresence>
 
-        <SectionCta text="Whichever one is you, get in early." buttonLabel="Get Early Access" />
+        <SectionCta text="Whichever one is you, join the community today." buttonLabel="Join MeetMyPets" />
       </div>
     </section>
   );

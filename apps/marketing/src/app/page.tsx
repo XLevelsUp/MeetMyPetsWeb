@@ -11,7 +11,7 @@ import { Reels } from "@/components/sections/reels";
 import { Solution } from "@/components/sections/solution";
 import { StatsBanner } from "@/components/sections/stats-banner";
 import { VerificationFlow } from "@/components/sections/verification-flow";
-import { WaitlistForm } from "@/components/sections/waitlist-form";
+import { AppDownload } from "@/components/sections/app-download";
 import { FaqLd, OrganizationLd, SoftwareApplicationLd } from "@/components/seo/json-ld";
 
 export default function Home() {
@@ -32,7 +32,7 @@ export default function Home() {
         <FeatureBento />
         <HowItWorks />
         <VerificationFlow />
-        <WaitlistForm />
+        <AppDownload />
         <Faq />
         <Reels />
       </main>
