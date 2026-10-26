@@ -54,7 +54,7 @@ export function BlogSidebar({
   return (
     // self-start is load-bearing: without it the aside stretches to grid height and sticky never engages.
     // max-h + overflow so a sidebar taller than the viewport still pins instead of scrolling away on short laptops.
-    <aside className="space-y-6 lg:sticky lg:top-24 lg:max-h-[calc(100dvh-7rem)] lg:self-start lg:overflow-y-auto lg:pr-1 lg:[scrollbar-width:thin]">
+    <aside data-analytics-location="blog_sidebar" className="space-y-6 lg:sticky lg:top-24 lg:max-h-[calc(100dvh-7rem)] lg:self-start lg:overflow-y-auto lg:pr-1 lg:[scrollbar-width:thin]">
       <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-soft">
         <p className="text-xs text-ink-soft">Written by</p>
         <p className="mt-0.5 font-semibold text-ink">{authorName}</p>

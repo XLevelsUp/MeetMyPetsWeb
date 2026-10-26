@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Love_Ya_Like_A_Sister, Nunito_Sans } from "next/font/google";
 
+import { SiteAnalytics } from "@/components/analytics/site-analytics";
 import { InstallPopup } from "@/components/sections/install-popup";
 import { MotionProvider } from "@/components/motion/MotionProvider";
 import { IntroCurtain } from "@/components/ui/intro-curtain";
@@ -11,14 +12,21 @@ import "./globals.css";
 
 
 /**
- * ⚠️ NO ANALYTICS OR SESSION-RECORDING SCRIPTS ON THIS SITE.
+ * ⚠️ ANALYTICS ARE DISCLOSED IN THE PRIVACY POLICY — KEEP THEM IN STEP.
  *
- * Microsoft Clarity used to load here. It was removed because the published
- * privacy policy (§15, src/config/legal.ts) states that meetmypets.app runs
- * none — a claim the DPDP Act attaches penalties to. Anything added back here
- * must be disclosed in privacy §8 (processors), §14 (transfers) and §15 in the
- * same change, or the policy becomes false the moment it deploys.
+ * Exactly what runs is <SiteAnalytics> below: cookieless Vercel Web Analytics +
+ * Speed Insights, and Google Analytics 4 only after opt-in consent. Privacy
+ * §3, §5, §8, §14 and §15 (src/config/legal.ts) describe that and nothing
+ * more — a claim the DPDP Act attaches penalties to. Any tracker added here
+ * must be disclosed there in the same change. No session recording (Microsoft
+ * Clarity was removed for exactly this reason).
+ *
+ * GA runs on the production deployment only: preview and local builds get no
+ * GA and no consent banner, so they never pollute the production property.
  */
+const gaMeasurementId =
+  process.env.VERCEL_ENV === "production" ? process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || null : null;
+const onVercel = Boolean(process.env.VERCEL);
 
 // Self-hosted at build time by next/font — no external request to Google, no
 // render-blocking <link>, and `display: swap` prevents invisible text.
@@ -150,6 +158,7 @@ setTimeout(function(){d.removeAttribute('data-intro')},4500);
           <WhatsAppDog />
           <InstallPopup />
         </MotionProvider>
+        <SiteAnalytics gaId={gaMeasurementId} vercel={onVercel} />
       </body>
     </html>
   );

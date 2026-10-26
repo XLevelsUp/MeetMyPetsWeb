@@ -22,6 +22,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 
+import { CookiePreferencesButton } from "@/components/analytics/cookie-preferences-button";
 import { Logo } from "@/components/ui/logo";
 import { SocialLinks } from "@/components/ui/social-links";
 import { appStore, footer, footerColumns, site } from "@/config/site";
@@ -235,7 +236,8 @@ export function Footer() {
         <div className="section-shell flex flex-col gap-4 py-6 pb-24 sm:flex-row sm:items-center sm:justify-between sm:pb-6 sm:pr-24 lg:pr-28">
           <div className="flex flex-col gap-1.5">
             <p className="text-xs text-ink-soft">
-              &copy; {year} {site.legalEntity}. All rights reserved.
+              &copy; {year} {site.legalEntity}. All rights reserved.{" "}
+              <CookiePreferencesButton className="cursor-pointer underline underline-offset-2 hover:text-ink" />
             </p>
             <p className="max-w-md text-xs leading-relaxed text-ink-soft">{footer.compliance}</p>
           </div>
