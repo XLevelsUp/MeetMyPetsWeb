@@ -396,10 +396,18 @@ are needed for reads. Residual asks for the backend team:
 
 | Email | Role | Created | Purpose |
 |-------|------|---------|---------|
-| `xlevelsup.tech@gmail.com` | **`super_admin`** | 2026-08-16 | The real operator account — first and only super_admin |
-| `moderator@meetmypets.app` | `moderator` | 2026-08-26 | **Real moderator account** on the production domain |
-| `admin.moderator.test@meetmypets.dev` | `moderator` | 2026-08-05 | Test fixture. The e2e suite signs in as this one (`E2E_MODERATOR_*`) |
-| `admin.support.test@meetmypets.dev` | `support` | 2026-08-05 | Test fixture. Signs in but gets 403 from analytics — proves the role allowlist |
+| `xlevelsup.tech@gmail.com` | **`super_admin`** | 2026-10-24 (recreated; first 2026-08-16) | The real operator account — first and only super_admin |
+| `moderator@meetmypets.app` | `moderator` | 2026-10-24 (recreated; first 2026-08-26) | **Real moderator account** on the production domain |
+| `hello@meetmypets.app` | `moderator` | role granted 2026-10-24 to a pre-existing account | Shared contact inbox. Already had its own password and confirmed email; only `app_metadata.role` was set |
+| `admin.moderator.test@meetmypets.dev` | `moderator` | 2026-10-24 (recreated; first 2026-08-05) | Test fixture. The e2e suite signs in as this one (`E2E_MODERATOR_*`) |
+| `admin.support.test@meetmypets.dev` | `support` | 2026-10-24 (recreated; first 2026-08-05) | Test fixture. Signs in but gets 403 from analytics — proves the role allowlist |
+
+⚠️ **The database was reset in October 2026**, which removed all four. All
+were recreated on 2026-10-24 by the same method (GoTrue admin API,
+`email_confirm: true`, role in `app_metadata` only) and each was verified by a
+real password sign-in whose access token carried the expected role. The test
+fixtures got new passwords, so the `E2E_*` GitHub secrets must hold the new
+values or CI e2e fails at sign-in.
 
 Passwords are delivered in-session and never recorded here. ⚠️ They are also
 **not recoverable**: `auth.users.encrypted_password` is a bcrypt hash, and the
@@ -420,7 +428,8 @@ immediately afterwards.
 fired and gave it `identity.accounts` row `328525d4-…` with `display_name`
 "moderator", so it appears in `/users` and in the `totalUsers` metric.
 
-**About the super_admin account (created 2026-08-16):** made through the GoTrue
+**About the super_admin account (created 2026-08-16, recreated identically
+after the October 2026 reset on 2026-10-24 — re-verified the same way):** made through the GoTrue
 admin API with `email_confirm: true`, so it works without an email round-trip —
 relevant because the app team's own `EMAIL_DELIVERABILITY.md` documents
 verification mail landing in spam. Verified end to end: sign-in succeeds and the
