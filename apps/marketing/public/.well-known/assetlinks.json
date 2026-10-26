@@ -1,12 +1,17 @@
 [
   {
-    "relation": ["delegate_permission/common.handle_all_urls"],
+    "relation": [
+      "delegate_permission/common.handle_all_urls",
+      "delegate_permission/common.get_login_creds"
+    ],
     "target": {
       "namespace": "android_app",
       "package_name": "com.xlu.meetmypets",
       "sha256_cert_fingerprints": [
         "4A:5C:49:37:DD:FC:5A:3A:D2:4E:F7:8A:7B:53:69:1A:9C:1D:7B:BD:CD:E9:2D:F0:04:28:90:64:6A:AF:52:8A",
-        "A5:AE:F8:22:FB:69:B6:95:CD:72:49:AC:DE:70:95:29:43:20:FE:55:29:F7:39:31:F9:37:BF:A4:8C:19:07:C8"
+        "A5:AE:F8:22:FB:69:B6:95:CD:72:49:AC:DE:70:95:29:43:20:FE:55:29:F7:39:31:F9:37:BF:A4:8C:19:07:C8",
+        "91:1D:A4:A8:28:B1:4E:2C:30:10:59:6A:C3:A1:52:63:B3:7A:EC:14:77:84:33:7F:60:27:45:97:DA:24:BF:1D",
+        "D6:C9:92:73:1F:A5:F0:30:FB:B8:28:73:0A:4F:40:EC:1D:B7:5B:D6:E2:58:F1:15:87:32:3B:F0:17:87:6B:9D"
       ]
     }
   }
