@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/sidebar";
 import { adminNav, admin, copy, navForRole } from "@/config/admin";
 import type { AdminRole } from "@/lib/roles";
+import { BrandMark } from "./brand-mark";
 import { StatusIndicator } from "./status-indicator";
 
 /**
@@ -63,9 +64,7 @@ export function AppSidebar({ role }: { role: AdminRole }) {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-1.5">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary font-heading text-sm font-bold text-primary-foreground">
-            M
-          </span>
+          <BrandMark className="size-7 bg-sidebar-foreground" />
           <span className="truncate font-heading text-sm font-semibold group-data-[collapsible=icon]:hidden">
             {admin.name}
           </span>
