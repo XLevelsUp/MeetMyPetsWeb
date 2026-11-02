@@ -90,6 +90,11 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true, "max-image-preview": "large" },
   },
+  // Pinterest site claim. `other` emits the raw <meta name=... content=...>
+  // Pinterest looks for; the typed `verification` keys cover Google/Yandex only.
+  verification: {
+    other: { "p:domain_verify": "3db61248f7123338c54cd031555f61ba" },
+  },
   category: "lifestyle",
 };
 

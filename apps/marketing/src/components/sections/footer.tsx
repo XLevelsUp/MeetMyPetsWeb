@@ -16,6 +16,7 @@ import {
   Sparkles,
   Star,
   Trash2,
+  Trophy,
   Users,
   Zap,
 } from "lucide-react";
@@ -49,6 +50,7 @@ const LINK_ICONS: Record<string, React.ElementType> = {
   "Our Story": Sparkles,
   "About Us": Info,
   "Our Team": Users,
+  Leaderboard: Trophy,
   "For pet parents": Heart,
   "For pet lovers": Star,
   "For businesses": Building2,
