@@ -82,6 +82,7 @@ export const appStore = {
 export const nav = [
   { label: "About Us", href: "/about/" },
   { label: "Our Story", href: "/our-story/" },
+  { label: "Leaderboard", href: "/leaderboard/" },
   { label: "Our Team", href: "/team/" },
   { label: "Blog", href: "/blog/" },
   { label: "How it works", href: "/#how-it-works" },
@@ -568,6 +569,69 @@ export const about = {
 } as const;
 
 // Three tiers, deliberately ordered: founders, team, then the pets who outrank both.
+// Public rankings. The metric is called POPULARITY here and nowhere else is the
+// internal term used — the page is world readable and must not leak it.
+// Public rankings. The metric is called POPULARITY here and the internal term
+// is never used — the page is world readable and must not leak it.
+export const leaderboard = {
+  eyebrow: "The Pack",
+  title: "Trending In The Pack.",
+  intro:
+    "Four boards, three pets each. Matched, liked, followed and all-round popular — updated straight from the app.",
+  liveNote: "Updates every 30 minutes",
+  scopeNote: "Rankings come straight from activity in the MeetMyPets app.",
+
+  categories: {
+    popular: {
+      title: "Top 3 Most Popular",
+      cta: "Join the board",
+      rank: "#1 in Popularity",
+      blurb: "The highest all-round popularity in the pack",
+      empty: "No pets have made this board yet.",
+    },
+    matched: {
+      title: "Top 3 Most Matched",
+      cta: "Find your match",
+      rank: "#1 in Matches",
+      blurb: "Found the most friends through matching",
+      empty: "No matches on the board yet.",
+    },
+    liked: {
+      title: "Top 3 Most Liked",
+      cta: "Share your pet",
+      rank: "#1 in Likes",
+      blurb: "Posts the community could not stop liking",
+      empty: "No liked posts on the board yet.",
+    },
+    followed: {
+      title: "Top 3 Most Followed",
+      cta: "Build your following",
+      rank: "#1 in Followers",
+      blurb: "The biggest followings in the community",
+      empty: "No follows on the board yet.",
+    },
+  },
+
+  // Never blames itself: leads with the app, keeps retry as the quieter option.
+  error: {
+    title: "The pack is being counted",
+    body: "Rankings refresh every 30 minutes. Check back shortly — or jump straight in and start climbing.",
+  },
+
+  cta: {
+    label: "Get the App",
+    href: appStore.android,
+  },
+
+  // Shown in the homepage teaser, which links through to the full board.
+  teaser: {
+    eyebrow: "Trending now",
+    title: "Who Is Topping The Pack?",
+    body: "Real pets, real rankings, straight from the app. See who is leading right now.",
+    link: "See the full leaderboard",
+  },
+} as const;
+
 export const team = {
   eyebrow: "Our Team",
   title: "The People Behind the Paws.",
@@ -582,13 +646,31 @@ export const team = {
   founders: {
     label: "Leadership",
     members: [
-      { name: "Pranesh S", role: "CEO & Founder", quote: "Big vision. Better connections." },
+      {
+        name: "Pranesh S",
+        role: "CEO & Founder",
+        quote: "Big vision. Better connections.",
+        photo: "/team/pranesh.webp",
+      },
       {
         name: "Prahal Nath K",
         role: "CTO & Senior Software Engineer",
         quote: "Turning code into connections.",
+        photo: "/team/prahal-nath.webp",
       },
-      { name: "Vishnu Ram K", role: "CFO & App Designer", quote: "Thoughtful design. Smarter growth." },
+      {
+        name: "Vishnu Ram K",
+        role: "CFO & App Designer",
+        quote: "Thoughtful design. Smarter growth.",
+        photo: "/team/vishnu-ram.webp",
+      },
+      // Placeholder role — confirm with Poorni before launch.
+      {
+        name: "Poorni",
+        role: "Investor",
+        quote: "Backing a kinder world for pets.",
+        photo: "/team/poorni.webp",
+      },
     ],
   },
 
@@ -599,27 +681,44 @@ export const team = {
         name: "Arsath Roshan T S",
         role: "Full Stack Developer",
         quote: "Building connections, one feature at a time.",
+        photo: "/team/arsath-roshan.webp",
       },
-      { name: "Logeshwaran S", role: "AI Engineer", quote: "Making pet discovery smarter." },
+      {
+        name: "Logeshwaran S",
+        role: "AI Engineer",
+        quote: "Making pet discovery smarter.",
+        photo: "/team/logeshwaran.webp",
+      },
       {
         name: "Mahalaxmi N",
         role: "Associate Software Engineer",
         quote: "Building the details that connect us.",
+        photo: "/team/mahalaxmi.webp",
       },
       {
         name: "Gayathri K",
         role: "Business Development Manager",
         quote: "Growing relationships and possibilities.",
+        photo: "/team/gayathri.webp",
       },
       {
         name: "Nithyasri V",
         role: "Senior Marketing Executive",
         quote: "Creative ideas. Meaningful experiences.",
+        photo: "/team/nithyasri.webp",
       },
       {
         name: "Vinoth Kumar S J",
         role: "Associate Marketing Executive",
         quote: "Stories that bring pet lovers together.",
+        photo: "/team/vinoth-kumar.webp",
+      },
+      // Placeholder role — confirm Ajay’s exact title before launch.
+      {
+        name: "Ajay Vinayak",
+        role: "Human Resources",
+        quote: "Looking after the humans behind the paws.",
+        photo: "/team/ajay-vinayak.webp",
       },
     ],
   },
@@ -673,6 +772,7 @@ export const footerColumns = [
       { label: "Our Story", href: "/our-story/" },
       { label: "About Us", href: "/about/" },
       { label: "Our Team", href: "/team/" },
+      { label: "Leaderboard", href: "/leaderboard/" },
     ],
   },
   {

@@ -4,13 +4,13 @@ import type { ApiError } from "@/lib/api-contract";
 import { fetchVipCount } from "@/lib/public-stats";
 
 /**
- * The ONE unauthenticated route in this app. Exempted from proxy.ts's
- * session check (see its matcher comment) so meetmypets.app — a static
- * export with no server of its own — can read a single public number.
+ * One of two unauthenticated routes in this app (see also
+ * api/public/leaderboard). Exempted from proxy.ts's session check (see its
+ * matcher comment) so meetmypets.app can read a single public number.
  *
- * Never add a second route under /api/public without re-reading
- * lib/public-stats.ts's doc comment: everything reachable from here must
- * stay reducible to a count/aggregate, never a row.
+ * Never add a route under /api/public without re-reading lib/public-stats.ts's
+ * doc comment: everything reachable from here must stay an aggregate or a
+ * deliberately public field, never an identifying row.
  *
  * CORS is an explicit allowlist, not "*" — this still touches the same
  * production Supabase project as every role-gated admin route, so the

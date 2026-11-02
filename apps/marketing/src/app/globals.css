@@ -701,3 +701,20 @@
     transform: rotate(-5deg) scale(1.04);
   }
 }
+
+/* Leaderboard rank treats rattling when their card is hovered — a short shake,
+   not a loop, so it reads as reacting to the cursor rather than idling. */
+@keyframes treat-rattle {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  20% {
+    transform: rotate(-11deg);
+  }
+  45% {
+    transform: rotate(9deg);
+  }
+  70% {
+    transform: rotate(-5deg);
+  }
+}
