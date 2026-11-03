@@ -49,11 +49,23 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
 
   images: {
-    remotePatterns: BLOG_IMAGE_HOSTS.map((hostname) => ({
-      protocol: "https" as const,
-      hostname,
-      pathname: "/storage/v1/object/public/blog-images/**",
-    })),
+    remotePatterns: BLOG_IMAGE_HOSTS.flatMap((hostname) => [
+      {
+        protocol: "https" as const,
+        hostname,
+        pathname: "/storage/v1/object/public/blog-images/**",
+      },
+      // Pet profile photos served from any Supabase Storage public bucket.
+      // The leaderboard's PosterCard uses next/image with fill+unoptimized, but
+      // next/image still validates the hostname against this allowlist — without
+      // this entry every pet photo triggers onError and shows the species-icon
+      // placeholder instead of the real photo.
+      {
+        protocol: "https" as const,
+        hostname,
+        pathname: "/storage/v1/object/public/**",
+      },
+    ]),
   },
 };
 

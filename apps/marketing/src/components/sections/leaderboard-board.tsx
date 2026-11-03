@@ -560,6 +560,7 @@ export function LeaderboardBoard() {
               key="error"
               initial={reduced ? undefined : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
               className="rounded-[2rem] border border-border bg-card px-6 py-16 text-center shadow-soft"
             >
               <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-brand-soft text-brand-ink">
@@ -594,9 +595,21 @@ export function LeaderboardBoard() {
 
           {state.status === "ready" && (
             <m.div key="ready" initial={false} className="space-y-16 sm:space-y-20">
-              {state.categories.map((category, i) => (
-                <CategoryRow key={category.id} category={category} index={i} />
-              ))}
+              {state.categories.length === 0 ? (
+                <div className="rounded-[2rem] border border-dashed border-brand/25 bg-brand-soft/20 px-6 py-16 text-center">
+                  <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-brand-soft text-brand-ink">
+                    <PawPrint className="size-7" aria-hidden="true" />
+                  </span>
+                  <p className="mt-5 font-heading text-xl font-bold text-ink">No rankings yet</p>
+                  <p className="mx-auto mt-3 max-w-md leading-relaxed text-ink-soft">
+                    The first pets to join will appear here — check back soon!
+                  </p>
+                </div>
+              ) : (
+                state.categories.map((category, i) => (
+                  <CategoryRow key={category.id} category={category} index={i} />
+                ))
+              )}
 
               <p className="text-center text-xs text-ink-soft">{leaderboard.scopeNote}</p>
             </m.div>
