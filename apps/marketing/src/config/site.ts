@@ -85,7 +85,7 @@ export const nav = [
   { label: "Leaderboard", href: "/leaderboard/" },
   { label: "Our Team", href: "/team/" },
   { label: "Blog", href: "/blog/" },
-  { label: "How it works", href: "/#how-it-works" },
+  { label: "App for Pets", href: "/app-for-pets/" },
 ] as const;
 
 export const cta = {
@@ -629,6 +629,78 @@ export const leaderboard = {
     title: "Who Is Topping The Pack?",
     body: "Real pets, real rankings, straight from the app. See who is leading right now.",
     link: "See the full leaderboard",
+  },
+} as const;
+
+// SEO landing page at /app-for-pets. Every claim here must match something
+// the app actually does — the JSON-LD on that page mirrors this copy.
+export const appForPets = {
+  eyebrow: "App for pets",
+  title: "Where Pets Find Friends and Playdates",
+  intro:
+    "MeetMyPets is a social app for pets and the people who love them. Create a profile for your pet, discover pets nearby, send a match request, chat with the other pet parent, and plan a real-life playdate.",
+  note: "Supports dogs, cats, birds, rabbits, reptiles and more.",
+
+  best: {
+    title: "What is the best app for pets?",
+    body: "The best app depends on what you need. Vet and health apps track vaccinations and appointments, and social media shows pet photos. MeetMyPets is built for something different: helping your pet make friends. If you want playmates for your pet, a safe way to chat with other pet parents first, and local meetups, it is designed for that.",
+  },
+
+  steps: {
+    title: "How MeetMyPets Works",
+    items: [
+      { title: "Create their profile", body: "Add your pet’s photos, personality and interests." },
+      { title: "Find their match", body: "Discover pets nearby that share their personality and social style, and send a match request." },
+      { title: "Match and chat", body: "Once the other pet parent accepts, start chatting in the app and get to know each other." },
+      { title: "Plan the meetup", body: "Agree on a comfortable place and time, then turn the match into a real-life friendship." },
+    ],
+  },
+
+  why: {
+    title: "Why Pet Parents Choose MeetMyPets",
+    items: [
+      { title: "The right match, not just the nearest one", body: "Swipe through pets near you with filters for playdates, friendships or vaccination-verified breeding.", icon: "match" },
+      { title: "Chat before you meet", body: "Every conversation happens in the app, tied to a profile, before any meetup.", icon: "chat" },
+      { title: "Everything in one place", body: "No more searching through WhatsApp groups, social media and word of mouth.", icon: "one" },
+      { title: "Built for every pet", body: "Dogs, cats, birds, rabbits, reptiles, small mammals and more each have their own place.", icon: "species" },
+      { title: "Local community", body: "Join groups and local meetups near you.", icon: "local" },
+    ],
+  },
+
+  trust: {
+    title: "Trust and Safety You Can See",
+    items: [
+      { title: "Verified pet parent", body: "A government-issued ID check confirms there is a real person behind the pet." },
+      { title: "Vaccination verified", body: "Vaccination documents are reviewed against the pet on the profile, and the badge lapses automatically when a vaccination expires." },
+      { title: "A visible trust badge", body: "Each profile shows its trust level, so you know who you are connecting with." },
+      { title: "Your location stays private", body: "Other users see a distance band such as “within 1 km,” never your exact location or address. Documents are reviewed, never published." },
+    ],
+  },
+
+  audience: {
+    title: "Who Is MeetMyPets For?",
+    items: [
+      { title: "Pet parents", body: "Want friends and playdates for their pets." },
+      { title: "Pet lovers", body: "Join the community and local events. You do not need a pet to take part." },
+      { title: "Pet businesses", body: "Vets, groomers, trainers and boarding services can apply for a verified listing." },
+      { title: "Breeding matches", body: "Available to pet parents with a verified pet profile." },
+    ],
+  },
+
+  compare: {
+    title: "How MeetMyPets Compares",
+    columns: ["Option", "Good for", "Limitation"],
+    rows: [
+      { option: "WhatsApp groups", good: "Quick local chats", limit: "Hard to find a good match, and conversations get lost" },
+      { option: "General social media", good: "Sharing pet photos", limit: "Not built for matching or planning meetups" },
+      { option: "Pet health and vet apps", good: "Records and appointments", limit: "Not designed for socialising" },
+      { option: "MeetMyPets", good: "Matching pets, chatting first, planning meetups", limit: "A new app with a growing community", us: true },
+    ],
+  },
+
+  cta: {
+    title: "Get The App For Pets",
+    body: "Install MeetMyPets on Google Play and give your pet a head start on their social life.",
   },
 } as const;
 
