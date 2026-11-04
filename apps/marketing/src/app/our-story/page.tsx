@@ -38,7 +38,7 @@ export default function OurStoryPage() {
   return (
     <>
       {/* ── 1. Hero: quiet, one line, lots of air ── */}
-      <section className="relative scroll-mt-24 pt-28 pb-14 sm:pt-32 sm:pb-16 lg:pb-20">
+      <section className="relative scroll-mt-24 pt-20 pb-6 sm:pt-24 sm:pb-8 md:pt-28 md:pb-8 lg:pt-32 lg:pb-10">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 -z-10"
@@ -70,9 +70,9 @@ export default function OurStoryPage() {
       </section>
 
       {/* ── 2. The childhood: the list is the point, so it gets the stage ── */}
-      <section id="where-it-began" className="relative scroll-mt-24 py-14 sm:py-16 lg:py-20">
+      <section id="where-it-began" className="relative scroll-mt-24 pt-6 pb-12 sm:pt-8 sm:pb-14 md:pt-8 md:pb-14 lg:pt-10 lg:pb-16">
         <div className="section-shell">
-          <div className="grid grid-cols-1 items-center gap-10 md:gap-12 lg:grid-cols-[1fr_0.85fr] lg:gap-16">
+          <div className="grid grid-cols-1 items-center gap-8 md:gap-10 lg:grid-cols-[1fr_0.85fr] lg:gap-12">
             <div>
               <Reveal>
                 <p className="text-lg font-medium text-brand-ink">{opening.lede}</p>
@@ -118,7 +118,7 @@ export default function OurStoryPage() {
       </section>
 
       {/* ── 3. The belief: full width, nothing competing with it ── */}
-      <section className="relative scroll-mt-24 overflow-hidden bg-brand py-14 sm:py-16 lg:py-20">
+      <section className="relative scroll-mt-24 overflow-hidden bg-brand py-12 sm:py-14 md:py-14 lg:py-16">
         <PawScatter
           paws={[
             { className: "top-[14%] left-[8%] -rotate-[18deg]", size: 72 },
@@ -139,9 +139,9 @@ export default function OurStoryPage() {
       </section>
 
       {/* ── 4. The problem: JD gets the photo, the frustration gets the emphasis ── */}
-      <section id="the-problem" className="relative scroll-mt-24 py-14 sm:py-16 lg:py-20">
+      <section id="the-problem" className="relative scroll-mt-24 py-12 sm:py-14 md:py-14 lg:py-16">
         <div className="section-shell">
-          <div className="grid grid-cols-1 items-center gap-10 md:gap-12 lg:grid-cols-[0.85fr_1fr] lg:gap-16">
+          <div className="grid grid-cols-1 items-center gap-8 md:gap-10 lg:grid-cols-[0.85fr_1fr] lg:gap-12">
             <Reveal variant="springy">
               <PhotoSlot
                 src={problem.photo.src}
@@ -181,7 +181,7 @@ export default function OurStoryPage() {
       </section>
 
       {/* ── 5. The turn: the question is the hinge of the whole story ── */}
-      <section className="relative scroll-mt-24 bg-secondary/40 py-14 sm:py-16 lg:py-20">
+      <section className="relative scroll-mt-24 bg-secondary/40 py-12 sm:py-14 md:py-14 lg:py-16">
         <div className="section-shell">
           <Reveal className="text-center">
             <p className="text-xs font-semibold tracking-[0.14em] text-brand-ink uppercase">
@@ -212,7 +212,7 @@ export default function OurStoryPage() {
       </section>
 
       {/* ── 6. The vision: three pillars ── */}
-      <section className="relative scroll-mt-24 py-14 sm:py-16 lg:py-20">
+      <section className="relative scroll-mt-24 py-12 sm:py-14 md:py-14 lg:py-16">
         <PawScatter
           paws={[
             { className: "top-[10%] right-[4%] rotate-[12deg]", size: 46 },
@@ -261,7 +261,7 @@ export default function OurStoryPage() {
       </section>
 
       {/* ── 7. Every pet: the species ARE the argument, so they get the stage ── */}
-      <section className="relative scroll-mt-24 overflow-hidden bg-secondary/40 py-14 sm:py-16 lg:py-20">
+      <section className="relative scroll-mt-24 overflow-hidden bg-secondary/40 py-12 sm:py-14 md:py-14 lg:py-16">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 -z-10"
@@ -292,7 +292,7 @@ export default function OurStoryPage() {
           />
 
           {/* 2 cols on phones so nothing is cramped, 4 at md, all 8 at lg. */}
-          <ul className="mx-auto mt-7 grid max-w-4xl grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 lg:grid-cols-8">
+          <ul className="mx-auto mt-7 grid max-w-4xl grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 md:grid-cols-4 md:gap-4 lg:grid-cols-8">
             {everyPet.species.map((item, i) => (
               <Reveal as="li" key={item.label} delay={i * 0.06} variant="springy">
                 <div className="group flex h-full flex-col items-center gap-2.5 rounded-2xl border border-border/70 bg-card px-3 py-5 shadow-soft transition-[translate,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-lift">
@@ -326,7 +326,7 @@ export default function OurStoryPage() {
       </section>
 
       {/* ── 8. Journey, then the closing CTA ── */}
-      <section className="relative scroll-mt-24 py-14 sm:py-16 lg:py-20">
+      <section className="relative scroll-mt-24 pt-12 pb-6 sm:pt-14 sm:pb-8 md:pt-14 md:pb-8 lg:pt-16 lg:pb-10">
         <div className="section-shell">
           <Reveal className="mx-auto max-w-2xl text-center">
             <p className="text-xs font-semibold tracking-[0.14em] text-brand-ink uppercase">
@@ -350,7 +350,7 @@ export default function OurStoryPage() {
         </div>
       </section>
 
-      <section className="relative scroll-mt-24 py-14 sm:py-16 lg:py-20">
+      <section className="relative scroll-mt-24 pt-4 pb-12 sm:pt-6 sm:pb-14 md:pt-6 md:pb-14 lg:pt-8 lg:pb-16">
         <div className="section-shell">
           <Reveal variant="springy">
             <div className="card-paw relative overflow-hidden border border-border bg-card px-6 py-12 text-center shadow-lift sm:px-10 sm:py-14">
