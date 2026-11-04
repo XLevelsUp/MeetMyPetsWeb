@@ -9,7 +9,8 @@ export default function robots(): MetadataRoute.Robots {
   return {
     // Draft previews are also noindex and token-gated; this keeps crawlers
     // from spending budget on the path at all.
-    rules: { userAgent: "*", allow: "/", disallow: ["/blog-preview/"] },
+    // /pet/ and /post/ are app-share fallbacks: one URL per id, all identical copy.
+    rules: { userAgent: "*", allow: "/", disallow: ["/blog-preview/", "/pet/", "/post/"] },
     sitemap: `${site.url}/sitemap.xml`,
     host: site.url,
   };

@@ -49,6 +49,8 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
 
   images: {
+    // Next 16 only honours `quality` values listed here; anything else silently falls back to 75.
+    qualities: [75, 95],
     remotePatterns: BLOG_IMAGE_HOSTS.flatMap((hostname) => [
       {
         protocol: "https" as const,

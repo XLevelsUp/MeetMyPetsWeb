@@ -20,6 +20,7 @@ export function PhotoSlot({
   caption,
   className,
   aspect = "aspect-[4/5]",
+  sizes = "(min-width: 1024px) 480px, (min-width: 768px) 60vw, 90vw",
   priority = false,
 }: {
   /** Leave undefined until the real photo exists. */
@@ -31,6 +32,8 @@ export function PhotoSlot({
   caption?: string;
   className?: string;
   aspect?: string;
+  /** Override for a slot wider than the portrait default, or the browser picks a source too small and the photo renders soft. */
+  sizes?: string;
   priority?: boolean;
 }) {
   if (src) {
@@ -42,7 +45,7 @@ export function PhotoSlot({
             alt={alt}
             fill
             priority={priority}
-            sizes="(min-width: 1024px) 480px, (min-width: 768px) 60vw, 90vw"
+            sizes={sizes}
             className="object-cover"
           />
         </div>

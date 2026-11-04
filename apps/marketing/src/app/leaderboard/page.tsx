@@ -66,12 +66,12 @@ export default function LeaderboardPage() {
       </section>
 
       {/* ── 2. The board ── */}
-      <section className="relative scroll-mt-24 pb-16 sm:pb-20">
+      <section className="relative scroll-mt-24 pb-0">
         <LeaderboardBoard />
       </section>
 
       {/* ── 3. Closing CTA ── */}
-      <section className="relative scroll-mt-24 overflow-hidden bg-brand py-16 text-center sm:py-20">
+      <section className="relative scroll-mt-24 overflow-hidden bg-brand py-12 text-center sm:py-14">
         <PawScatter
           paws={[
             { className: "top-[16%] left-[8%] -rotate-[18deg]", size: 68 },
