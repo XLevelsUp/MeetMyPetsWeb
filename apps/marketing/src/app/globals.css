@@ -37,6 +37,7 @@
   --font-sans: var(--font-body);
   --font-heading: var(--font-display);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-serif: "Playfair Display", "Cormorant Garamond", Georgia, Cambria, serif;
   /* Wordmark only — `font-wordmark` on the brand name, never on running text.
      A single-weight handwritten face is charming as a logotype and unreadable
      as a paragraph. */
@@ -535,6 +536,44 @@
       opacity: 1;
       transform: none;
     }
+  }
+}
+
+/* Claymorphic depth for the team cards: outer drop + inner top highlight, no hard lines. */
+@utility clay-card {
+  box-shadow:
+    0 18px 34px -16px color-mix(in oklab, var(--foreground) 26%, transparent),
+    0 4px 10px -4px color-mix(in oklab, var(--foreground) 12%, transparent),
+    inset 0 2px 0 0 color-mix(in oklab, white 70%, transparent);
+}
+
+@utility clay-card-hover {
+  box-shadow:
+    0 26px 48px -18px color-mix(in oklab, var(--brand) 34%, transparent),
+    0 6px 14px -5px color-mix(in oklab, var(--foreground) 14%, transparent),
+    inset 0 2px 0 0 color-mix(in oklab, white 80%, transparent);
+}
+
+/* Collar tag swing. Keeps the -translate-x-1/2 translate-y-1/2 the utility classes set. */
+@keyframes tag-swing {
+  0%,
+  100% {
+    transform: translate(-50%, 50%) rotate(0deg);
+  }
+  25% {
+    transform: translate(-50%, 50%) rotate(7deg);
+  }
+  60% {
+    transform: translate(-50%, 50%) rotate(-5deg);
+  }
+  85% {
+    transform: translate(-50%, 50%) rotate(2deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .group:hover [class*="tag-swing"] {
+    animation: none;
   }
 }
 

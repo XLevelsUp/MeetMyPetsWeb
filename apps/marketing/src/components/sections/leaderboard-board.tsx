@@ -178,6 +178,16 @@ function PosterCard({
       // crown and ribbon — lifting it as well left the row visibly ragged.
       className="group relative"
     >
+      {/* Mobile crown, outside the card: the card clips its own children, so the badge has to live on the li. */}
+      {index === 0 && (
+        <span
+          aria-hidden="true"
+          className="absolute -top-3 -left-2 z-20 grid size-8 place-items-center rounded-full bg-gradient-to-br from-[#ffd76a] to-[#e0a800] text-[#4a3500] shadow-lift sm:hidden"
+        >
+          <Crown className="size-4" />
+        </span>
+      )}
+
       {/* Winner's glow, behind the card so it never tints the photo. */}
       {featured && (
         <m.span
@@ -269,6 +279,8 @@ function PosterCard({
             // Rattle on hover. motion-safe, not a JS branch: `reduced` is false
             // during SSR and true on the client, which mismatched on hydration.
             "transition-transform duration-200 motion-safe:group-hover:animate-[treat-rattle_0.45s_ease-in-out]",
+            // Below sm the winner's crown sits outside the card and ranks 2–3 are dropped, so all in-card chips hide.
+            "hidden sm:grid",
             medal,
           )}
         >
@@ -318,12 +330,13 @@ function PosterCard({
             whileInView={reduced ? undefined : { opacity: 1, scale: 1 }}
             viewport={ANIM.childViewport}
             transition={{ type: "spring", bounce: 0.35, duration: 0.45, delay: delay + ANIM.ribbonDelay }}
-            className="absolute top-3 right-3"
+            // Hidden below sm: at 375px the label wraps to two lines and covers the pet.
+            className="absolute top-3 right-3 hidden sm:block"
           >
             <m.span
               animate={reduced ? undefined : { scale: [1, 1.045, 1] }}
               transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-              className="inline-flex items-center gap-1 rounded-full bg-brand px-2.5 py-1 text-[10px] font-bold tracking-wide text-white uppercase shadow-lift sm:text-[11px]"
+              className="inline-flex items-center gap-1 rounded-full bg-brand px-2.5 py-1 text-[10px] font-bold tracking-wide whitespace-nowrap text-white uppercase shadow-lift sm:text-[11px]"
             >
               <PawPrint className="size-3" aria-hidden="true" />
               {rankLabel}
@@ -335,10 +348,11 @@ function PosterCard({
           <p className="truncate font-heading text-base leading-tight font-bold text-white drop-shadow transition-transform duration-300 ease-out group-hover:-translate-y-0.5 sm:text-lg">
             {entry.name}
           </p>
+          {/* Species is dropped below sm: on a 44vw card the name alone is all that reads cleanly. */}
           {entry.species && (
-            <p className="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-white/70 transition-all duration-300 ease-out group-hover:-translate-y-0.5 group-hover:text-white/90">
-              <SpeciesIcon species={speciesKey(entry.species)} className="size-3.5" />
-              {entry.species}
+            <p className="mt-1 hidden items-center gap-1.5 text-xs font-semibold text-white/85 transition-all duration-300 ease-out group-hover:-translate-y-0.5 group-hover:text-white sm:flex sm:text-[0.8125rem]">
+              <SpeciesIcon species={speciesKey(entry.species)} className="size-4 shrink-0" />
+              <span className="truncate">{entry.species}</span>
             </p>
           )}
         </div>
@@ -515,7 +529,7 @@ export function LeaderboardBoard() {
   }, []);
 
   return (
-    <div ref={stageRef} className="relative overflow-hidden py-14 sm:py-20">
+    <div ref={stageRef} className="relative overflow-hidden pt-14 pb-6 sm:pt-20 sm:pb-8">
       <m.div
         aria-hidden="true"
         style={reduced ? undefined : { y: pawY }}

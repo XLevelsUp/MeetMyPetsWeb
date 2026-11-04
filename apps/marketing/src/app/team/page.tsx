@@ -1,10 +1,11 @@
-import { ArrowRight, PawPrint } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
+import Image from "next/image";
 
 import { Reveal } from "@/components/motion/Reveal";
 import { WordReveal } from "@/components/motion/WordReveal";
 import { PawScatter } from "@/components/ui/paw-scatter";
-import { PhotoSlot } from "@/components/ui/photo-slot";
+import { TeamTiers } from "@/components/sections/team-tiers";
 import { WaveDivider } from "@/components/ui/wave-divider";
 import { site, team } from "@/config/site";
 
@@ -27,136 +28,87 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-type Person = { name: string; role: string; quote: string };
-
-/** Section label with a dotted rule running off to the right. */
-function TierLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-4">
-      <h2 className="font-heading text-sm font-bold tracking-[0.18em] text-brand-ink uppercase">
-        {children}
-      </h2>
-      <span
-        aria-hidden="true"
-        className="h-px flex-1 bg-[repeating-linear-gradient(90deg,var(--border)_0_4px,transparent_4px_10px)]"
-      />
-    </div>
-  );
-}
-
-/** Name, role, quote — no portrait. The quote is what distinguishes one card from the next. */
-function PersonCard({ person, lead = false }: { person: Person; lead?: boolean }) {
-  return (
-    <div className="group relative h-full rounded-[1.5rem] border border-border bg-card px-6 py-7 text-center transition-shadow duration-300 hover:shadow-lift">
-      <span
-        aria-hidden="true"
-        className="mx-auto grid size-10 place-items-center rounded-xl bg-brand-soft text-brand-ink transition-colors duration-300 group-hover:bg-brand group-hover:text-white"
-      >
-        <PawPrint className="size-5" />
-      </span>
-      <h3
-        className={
-          lead
-            ? "mt-4 font-heading text-xl font-bold text-ink sm:text-2xl"
-            : "mt-4 font-heading text-lg font-bold text-ink"
-        }
-      >
-        {person.name}
-      </h3>
-      <p className="mt-1.5 text-sm font-medium text-brand-ink">{person.role}</p>
-      <p className="mt-3 text-sm leading-relaxed text-ink-soft">{person.quote}</p>
-    </div>
-  );
-}
-
 export default function TeamPage() {
-  const { groupPhoto, founders, people, pets, cta } = team;
+  const { cutout, pets, cta } = team;
 
   return (
     <>
       {/* ── 1. Hero ── */}
-      <section className="relative scroll-mt-24 overflow-hidden pt-28 pb-12 sm:pt-36 sm:pb-16">
+      {/* Desktop keeps full editorial stage (lg:min-h-screen); mobile & tab tighten space between headline and image */}
+      <section className="relative flex w-full flex-col justify-end overflow-hidden pt-16 pb-0 sm:pt-20 md:pt-24 lg:pt-24">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 -z-10"
           style={{
             background:
-              "radial-gradient(46rem 28rem at 50% -10%, var(--brand-soft), transparent 70%)",
+              "radial-gradient(80rem 48rem at 50% 10%, var(--brand-soft), transparent 75%), var(--background)",
           }}
         />
         <PawScatter
           paws={[
-            { className: "top-[18%] left-[4%] -rotate-[14deg]", size: 56 },
-            { className: "bottom-[14%] right-[5%] rotate-[16deg]", size: 48 },
+            { className: "top-[12%] left-[4%] -rotate-[14deg]", size: 54 },
+            { className: "top-[18%] right-[5%] rotate-[16deg]", size: 48 },
           ]}
         />
 
-        <div className="section-shell text-center">
-          <Reveal>
-            <p className="text-xs font-semibold tracking-[0.14em] text-brand-ink uppercase">
+        {/* Headline: On mobile & tablet, "The People" and "Behind the Paws" are stacked together in one clean block (matching Image 2).
+            On desktop (lg+), "The People" is at top, and "Behind the Paws" is layered across the lower sofa stage. */}
+        <div className="pointer-events-none relative z-20 px-4 text-center select-none">
+          <Reveal variant="floaty">
+            <p className="mb-1.5 text-xs font-bold tracking-[0.2em] text-brand uppercase sm:mb-2 md:mb-2.5 lg:mb-3">
               {team.eyebrow}
             </p>
-            <h1 className="mx-auto mt-5 max-w-4xl font-heading text-[clamp(2.25rem,6vw,4rem)] leading-[1.05] font-bold tracking-tight text-balance">
-              {team.title}
+            <h1 className="font-heading text-[clamp(2.15rem,7.5vw,4.5rem)] leading-[0.94] font-extrabold tracking-[-0.03em] text-balance text-ink lg:text-[clamp(2.5rem,7.5vw,8.5rem)] lg:leading-[0.92]">
+              <span className="block">{team.titleLead}</span>
+              <span className="block text-brand lg:hidden">{team.titleAccent}</span>
+              <span className="sr-only lg:not-sr-only lg:hidden"> {team.titleAccent}</span>
             </h1>
           </Reveal>
-          <WordReveal
-            text={team.intro}
-            delay={0.2}
-            className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-balance text-ink-soft sm:text-xl"
+        </div>
+
+        {/* Image Stage:
+            On mobile & tablet: tight spacing right beneath "Behind the Paws" with zero overlay over people.
+            On desktop (lg+): preserved pull-up with "Behind the Paws" across the sofa. */}
+        <div className="pointer-events-none relative z-10 mt-1 flex w-full items-end justify-center px-2 sm:mt-2 sm:px-4 md:mt-3 lg:-mt-12 lg:px-0 xl:-mt-16">
+          {/* Desktop-only: "Behind the Paws" sits across the sofa/legs at lg:bottom-[34%] */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 bottom-[34%] z-20 hidden px-4 text-center select-none lg:block"
+          >
+            <Reveal variant="floaty" delay={0.12}>
+              <span className="mx-auto block max-w-[min(100%,72rem)] font-heading text-[clamp(2.5rem,7.5vw,8.5rem)] leading-[0.92] font-extrabold tracking-[-0.03em] text-balance text-brand">
+                {team.titleAccent}
+              </span>
+            </Reveal>
+          </div>
+
+          <Image
+            src={cutout.src}
+            alt={cutout.alt}
+            width={4979}
+            height={3299}
+            priority
+            quality={95}
+            sizes="(min-width: 1440px) 1440px, (min-width: 1024px) 100vw, 100vw"
+            className="h-auto w-full max-w-full select-none lg:w-full"
           />
         </div>
       </section>
 
-      {/* ── 2. Group photo ── */}
-      <section className="relative scroll-mt-24 pb-14 sm:pb-20">
+      {/* ── Intro Callout ── */}
+      <section className="relative border-b border-border/60 bg-secondary/30 py-10 sm:py-12 text-center">
         <div className="section-shell">
-          <Reveal variant="springy">
-            <PhotoSlot
-              alt={groupPhoto.alt}
-              brief={groupPhoto.brief}
-              aspect="aspect-[16/9]"
-              className="mx-auto w-full max-w-4xl"
-            />
-          </Reveal>
+          <WordReveal
+            text={`“${team.intro}”`}
+            className="mx-auto max-w-2xl text-lg font-medium leading-relaxed text-balance text-ink sm:text-xl"
+          />
         </div>
       </section>
 
-      {/* ── 3. Founders — three across, slightly larger than the team tier ── */}
-      <section className="relative scroll-mt-24 py-12 sm:py-16">
-        <div className="section-shell">
-          <Reveal>
-            <TierLabel>{founders.label}</TierLabel>
-          </Reveal>
-          {/* Three across from md: at 768 a 2-col grid left the third card stranded. */}
-          <ul className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:gap-6">
-            {founders.members.map((member, i) => (
-              <Reveal as="li" key={member.name} delay={i * 0.08}>
-                <PersonCard person={member} lead />
-              </Reveal>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      {/* ── 4. The team — same card, two rows of three ── */}
-      <section className="relative scroll-mt-24 py-12 sm:py-16">
-        <div className="section-shell">
-          <Reveal>
-            <TierLabel>{people.label}</TierLabel>
-          </Reveal>
-          <ul className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
-            {people.members.map((member, i) => (
-              <Reveal as="li" key={member.name} delay={i * 0.06}>
-                <PersonCard person={member} />
-              </Reveal>
-            ))}
-          </ul>
-        </div>
-      </section>
+      <TeamTiers />
 
       {/* ── 5. The pets — the only tier with photos, so it reads as the payoff ── */}
-      <section className="relative scroll-mt-24 overflow-hidden bg-secondary/40 py-14 sm:py-20">
+      <section className="relative scroll-mt-24 overflow-hidden bg-secondary/40 py-10 sm:py-11 lg:py-12">
         <PawScatter
           paws={[
             { className: "top-[8%] right-[5%] rotate-[14deg]", size: 52 },
@@ -169,26 +121,37 @@ export default function TeamPage() {
               <span className="text-ink">And The </span>
               <span className="text-brand">Real Bosses</span>
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-lg text-ink-soft">{pets.lede}</p>
+            <p className="mx-auto mt-2 max-w-xl text-sm text-ink-soft sm:text-base">{pets.lede}</p>
           </Reveal>
 
-          {/* Three across from md, as above — one boss per column, none left over. */}
-          <ul className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:gap-10">
+          {/* Pets get a squat landscape tile, so the row never reads as a fourth human tier. */}
+          <ul className="mt-10 grid grid-cols-1 items-stretch gap-6 sm:grid-cols-2 md:grid-cols-3 lg:gap-8">
             {pets.members.map((pet, i) => (
-              <Reveal as="li" key={pet.name} delay={i * 0.1} variant="springy">
-                <div className="h-full text-center">
-                  <PhotoSlot
-                    src={pet.photo.src}
-                    alt={pet.photo.alt}
-                    className="w-full"
-                  />
-                  <h3 className="mt-5 font-heading text-xl font-bold text-ink sm:text-2xl">
-                    {pet.name}
-                  </h3>
-                  <p className="mt-1.5 text-sm font-semibold text-brand-ink">
-                    {pet.role} <span className="text-ink-soft">({pet.abbr})</span>
-                  </p>
-                  <p className="mt-3 leading-relaxed text-ink-soft">{pet.body}</p>
+              <Reveal as="li" key={pet.name} delay={i * 0.1} variant="springy" className="h-full">
+                <div className="clay-card group flex h-full flex-col overflow-hidden rounded-[1.75rem] bg-card transition-[transform,box-shadow] duration-300 ease-out hover:-translate-y-1.5 hover:clay-card-hover sm:rounded-[2rem]">
+                  {/* Portraits at 3:4 and object-contain: the source photos are 0.75, so a landscape crop cut the pets in half. */}
+                  <div className="relative aspect-[3/4] w-full shrink-0 overflow-hidden bg-brand-soft/40">
+                    <Image
+                      src={pet.photo.src}
+                      alt={pet.photo.alt}
+                      fill
+                      sizes="(min-width: 1024px) 21rem, (min-width: 640px) 45vw, 90vw"
+                      className="object-contain object-bottom transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+                    />
+                    <span className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-card px-3 py-1 text-[10px] font-bold tracking-[0.14em] text-brand-ink uppercase shadow-soft">
+                      {pet.abbr}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-1 flex-col px-5 pt-4 pb-2 text-center">
+                    <h3 className="font-heading text-xl font-bold text-ink sm:text-2xl">
+                      {pet.name}
+                    </h3>
+                    <p className="mt-1 text-[10px] font-bold tracking-[0.18em] text-brand uppercase">
+                      {pet.role}
+                    </p>
+                    <p className="mt-3 text-sm leading-relaxed text-ink-soft">{pet.body}</p>
+                  </div>
                 </div>
               </Reveal>
             ))}
@@ -200,7 +163,7 @@ export default function TeamPage() {
       </section>
 
       {/* ── 6. Closing CTA ── */}
-      <section className="relative scroll-mt-24 py-14 text-center sm:py-20">
+      <section className="relative scroll-mt-24 py-10 text-center sm:py-11 lg:py-12">
         <div className="section-shell">
           <Reveal>
             <h2 className="font-heading text-3xl leading-tight font-bold text-balance sm:text-4xl">

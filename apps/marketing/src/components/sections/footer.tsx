@@ -51,9 +51,11 @@ const LINK_ICONS: Record<string, React.ElementType> = {
   "About Us": Info,
   "Our Team": Users,
   Leaderboard: Trophy,
+  "App for Pets": Smartphone,
   "For pet parents": Heart,
   "For pet lovers": Star,
   "For businesses": Building2,
+  "Download App": Smartphone,
   "Join the waitlist": Mail,
   "Privacy policy": Shield,
   "Terms of service": FileText,
@@ -65,6 +67,7 @@ const LINK_ICONS: Record<string, React.ElementType> = {
 
 const COLUMN_ICONS: Record<string, React.ElementType> = {
   Product: Layers,
+  Company: PawPrint,
   Platform: Users,
   Legal: Shield,
 };
@@ -164,8 +167,8 @@ export function Footer() {
       <div className="section-shell py-10 sm:py-14">
         {/* Brand block full-width on tablet with the three link columns beneath
             it, rather than four blocks stacked. */}
-        <div className="grid grid-cols-1 gap-10 md:grid-cols-3 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
-          <div className="md:col-span-3 lg:col-span-1">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 md:gap-10 lg:grid-cols-[1.5fr_repeat(4,1fr)]">
+          <div className="col-span-2 sm:col-span-3 lg:col-span-1">
             {/* A footer logo is expected to go home; it was previously inert. */}
             <Link href="/" className="inline-flex rounded-lg" aria-label="MeetMyPets home">
               <Logo />

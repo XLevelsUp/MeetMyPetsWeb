@@ -197,17 +197,25 @@ export const bentoFeatures = {
 
 // Sample profiles for the multi-species marquee — illustrative, not real users. Entries without `photo` (bird/rabbit/reptile) fall back to the species icon.
 export const speciesMarquee = [
-  { name: "Mochi", species: "Shiba Inu", emojiless: "dog",
-    photo: { src: "/pet-yorkshire-terrier.webp", alt: "Mochi" } satisfies PetPhoto },
-  { name: "Pepper", species: "Bengal Cat", emojiless: "cat",
-    photo: { src: "/pet-cat-ginger-longhair.webp", alt: "Pepper" } satisfies PetPhoto },
+  {
+    name: "Mochi", species: "Shiba Inu", emojiless: "dog",
+    photo: { src: "/pet-yorkshire-terrier.webp", alt: "Mochi" } satisfies PetPhoto
+  },
+  {
+    name: "Pepper", species: "Bengal Cat", emojiless: "cat",
+    photo: { src: "/pet-cat-ginger-longhair.webp", alt: "Pepper" } satisfies PetPhoto
+  },
   { name: "Kiwi", species: "Indian Ringneck", emojiless: "bird" },
   { name: "Nimbus", species: "Holland Lop", emojiless: "rabbit" },
   { name: "Basil", species: "Leopard Gecko", emojiless: "reptile" },
-  { name: "Coco", species: "Indie / Desi", emojiless: "dog",
-    photo: { src: "/pet-corgi-puppy.webp", alt: "Coco" } satisfies PetPhoto },
-  { name: "Olive", species: "Persian Cat", emojiless: "cat",
-    photo: { src: "/pet-maine-coon.webp", alt: "Olive" } satisfies PetPhoto },
+  {
+    name: "Coco", species: "Indie / Desi", emojiless: "dog",
+    photo: { src: "/pet-corgi-puppy.webp", alt: "Coco" } satisfies PetPhoto
+  },
+  {
+    name: "Olive", species: "Persian Cat", emojiless: "cat",
+    photo: { src: "/pet-maine-coon.webp", alt: "Olive" } satisfies PetPhoto
+  },
   { name: "Rio", species: "Cockatiel", emojiless: "bird" },
 ] as const;
 
@@ -221,9 +229,9 @@ export const nearbyBusinesses = [
 // One photo per "How it works" step, order mirroring `howItWorks` below; `objectPosition` overrides `object-top` so the face stays inside the blob clip.
 export const howItWorksPhotos: (PetPhoto & { objectPosition?: string })[] = [
   { src: "/pet-yorkshire-terrier.webp", alt: "A Yorkshire Terrier ready to be added to a profile" },
-  { src: "/pet-corgi-puppy.webp",        alt: "A Corgi puppy discovered nearby" },
+  { src: "/pet-corgi-puppy.webp", alt: "A Corgi puppy discovered nearby" },
   { src: "/pet-cat-grey-shorthair.webp", alt: "A grey shorthair cat ready to meet", objectPosition: "top" },
-  { src: "/pet-samoyed-puppy.webp",      alt: "A Samoyed heading out to a real-life meetup" },
+  { src: "/pet-samoyed-puppy.webp", alt: "A Samoyed heading out to a real-life meetup" },
 ];
 
 export const howItWorks = [
@@ -392,9 +400,10 @@ export const ourStory = {
     count: 30,
     closing: "For him, animals were never just animals. They were part of everyday life.",
     photo: {
+      src: "/our-story/founder-childhood.webp",
       brief:
         "Pranesh as a child with the family's animals — or the lovebird cage at the front of the house.",
-      alt: "The founder's childhood home, filled with animals",
+      alt: "A child among bunnies, chickens and birds at golden hour, evoking the founder's childhood home",
     },
   },
 
@@ -568,6 +577,25 @@ export const about = {
   },
 } as const;
 
+// Landing copy for /pet/<id> and /post/<id>, the links the app shares out.
+// Deliberately says nothing about the pet: this page never loads pet data, so it
+// cannot expose a profile to anyone holding a link.
+export const sharedLink = {
+  pet: {
+    eyebrow: "Shared with you",
+    title: "Someone shared a pet with you",
+    body: "Pet profiles live inside the MeetMyPets app. Install it to see this pet, say hello, and find companions nearby.",
+  },
+  post: {
+    eyebrow: "Shared with you",
+    title: "Someone shared a post with you",
+    body: "Posts live inside the MeetMyPets app. Install it to see this post and join the conversation.",
+  },
+  ctaLabel: "Get the app",
+  openLabel: "Already have the app? Open it",
+  secondary: "Explore MeetMyPets",
+} as const;
+
 // Three tiers, deliberately ordered: founders, team, then the pets who outrank both.
 // Public rankings. The metric is called POPULARITY here and nowhere else is the
 // internal term used — the page is world readable and must not leak it.
@@ -704,96 +732,165 @@ export const appForPets = {
   },
 } as const;
 
+// Full-screen hero at /team-onboarding. Both headline lines render at up to
+// 9rem, so keep them short — a wrap at that size looks like a mistake.
+export const teamOnboarding = {
+  eyebrow: "Meet the team",
+  heroLine1: "The People",
+  heroLine2: "Behind The Paws.",
+  intro:
+    "A small team in Coimbatore building the place we wished existed for our own pets — and the three who supervise us while we do it.",
+  photoAlt: "The MeetMyPets team together, wearing branded tees and making heart shapes",
+} as const;
+
+// Scale = seniority: tier 1 is a hero feature, tier 2 a card row, tier 3 a grid.
+// A person's `cutout` is an optional transparent PNG shown over the colour
+// shape; without one the `photo` renders as a normal rounded portrait.
 export const team = {
   eyebrow: "Our Team",
-  title: "The People Behind the Paws.",
+  titleLead: "The People",
+  titleAccent: "Behind the Paws",
   intro:
-    "A small team building the place we wished existed for our own pets — and the three who supervise us while we do it.",
+    "A small team in Coimbatore building the place we wished existed for our own pets.",
+
+  // Transparent cut-out of the whole team, layered OVER the headline so heads
+  // overlap the letters. groupPhoto stays as the plain fallback.
+  cutout: {
+    src: "/team/team-cutout.webp",
+    alt: "The MeetMyPets team together, wearing branded tees and making heart shapes",
+  },
 
   groupPhoto: {
-    alt: "The MeetMyPets team together",
-    brief: "The whole team in one shot — relaxed, not a corporate line-up.",
+    src: "/team/team-group.webp",
+    alt: "The MeetMyPets team together, wearing branded tees and making heart shapes",
   },
 
-  founders: {
-    label: "Leadership",
-    members: [
-      {
-        name: "Pranesh S",
-        role: "CEO & Founder",
-        quote: "Big vision. Better connections.",
-        photo: "/team/pranesh.webp",
-      },
-      {
-        name: "Prahal Nath K",
-        role: "CTO & Senior Software Engineer",
-        quote: "Turning code into connections.",
-        photo: "/team/prahal-nath.webp",
-      },
-      {
-        name: "Vishnu Ram K",
-        role: "CFO & App Designer",
-        quote: "Thoughtful design. Smarter growth.",
-        photo: "/team/vishnu-ram.webp",
-      },
-      // Placeholder role — confirm with Poorni before launch.
-      {
-        name: "Poorni",
-        role: "Investor",
-        quote: "Backing a kinder world for pets.",
-        photo: "/team/poorni.webp",
-      },
-    ],
-  },
+  // ── Tier 1 ──────────────────────────────────────────────────────────────
+  leaders: [
+    {
+      name: "Pranesh S",
+      first: "Pranesh",
+      last: "Pranesh",
+      role: "Founder & CEO",
+      quote: "Big vision, better connections.",
+      bio: "Grew up surrounded by animals, and started MeetMyPets after watching one cat's search for a companion turn into a months-long ordeal.",
+      photo: "/team/pranesh.webp",
+      color: "var(--brand-soft)",
+      skills: ["Product", "Vision", "Community"],
+      funFact: "Tries to solve one problem, ends up creating three more problems!",
+    },
+    {
+      name: "Poorni Ananda Kumar",
+      first: "Poorni",
+      last: "Ananda Kumar",
+      role: "Director",
+      quote: "Turning big visions into meaningful connections.",
+      bio: "Owner of JD, the Persian cat whose search for a mate became the reason this company exists.",
+      photo: "/team/poorni.webp",
+      color: "var(--trust-soft)",
+      skills: ["Strategy", "Growth", "Partnerships"],
+      funFact: "Directs the team once a week and keeps everyone guessing the rest of the time!",
+    },
+  ],
 
-  people: {
-    label: "The Team",
-    members: [
-      {
-        name: "Arsath Roshan T S",
-        role: "Full Stack Developer",
-        quote: "Building connections, one feature at a time.",
-        photo: "/team/arsath-roshan.webp",
-      },
-      {
-        name: "Logeshwaran S",
-        role: "AI Engineer",
-        quote: "Making pet discovery smarter.",
-        photo: "/team/logeshwaran.webp",
-      },
-      {
-        name: "Mahalaxmi N",
-        role: "Associate Software Engineer",
-        quote: "Building the details that connect us.",
-        photo: "/team/mahalaxmi.webp",
-      },
-      {
-        name: "Gayathri K",
-        role: "Business Development Manager",
-        quote: "Growing relationships and possibilities.",
-        photo: "/team/gayathri.webp",
-      },
-      {
-        name: "Nithyasri V",
-        role: "Senior Marketing Executive",
-        quote: "Creative ideas. Meaningful experiences.",
-        photo: "/team/nithyasri.webp",
-      },
-      {
-        name: "Vinoth Kumar S J",
-        role: "Associate Marketing Executive",
-        quote: "Stories that bring pet lovers together.",
-        photo: "/team/vinoth-kumar.webp",
-      },
-      // Placeholder role — confirm Ajay’s exact title before launch.
-      {
-        name: "Ajay Vinayak",
-        role: "Human Resources",
-        quote: "Looking after the humans behind the paws.",
-        photo: "/team/ajay-vinayak.webp",
-      },
-    ],
-  },
+  // ── Tier 2 ──────────────────────────────────────────────────────────────
+  leadership: [
+    {
+      name: "Prahal Nath K",
+      role: "CTO",
+      bio: "Turning code into connections.",
+      photo: "/team/prahal-nath.webp",
+      color: "#ffe9d6",
+      skills: ["Architecture", "Backend", "Infrastructure"],
+      funFact: "Turns every coding session into a tea session!",
+    },
+    {
+      name: "Vishnu Ram K",
+      role: "CFO",
+      bio: "Thoughtful design, smarter growth.",
+      photo: "/team/vishnu-ram.webp",
+      color: "#e7f0ff",
+      skills: ["Finance", "Design", "Operations"],
+      funFact: "Sketches like an artist, designs like a toddler!",
+    },
+    {
+      name: "Ajay Vinayak",
+      role: "Team Lead",
+      bio: "Guiding the team, turning ideas into action.",
+      photo: "/team/ajay-vinayak.webp",
+      color: "#e9f7ef",
+      skills: ["Leadership", "Delivery", "People"],
+      funFact: "Asks the team to make a plan, then comes up with a completely different one!",
+    },
+  ],
+
+  // ── Tier 3 ──────────────────────────────────────────────────────────────
+  // `group` drives the filter tabs, derived from real roles rather than
+  // generic Design/Dev/Marketing buckets that would sit half empty.
+  people: [
+    {
+      name: "Arsath Roshan T S",
+      role: "Full Stack Developer",
+      group: "Engineering",
+      bio: "Building connections, one feature at a time.",
+      photo: "/team/arsath-roshan.webp",
+      color: "#ffe9d6",
+      skills: ["React", "Node", "APIs"],
+      funFact: "Starts coding at 10 AM, ends at 6 PM with 99 new bugs!",
+    },
+    {
+      name: "Logeshwaran S",
+      role: "AI Engineer",
+      group: "Engineering",
+      bio: "Making pet discovery smarter.",
+      photo: "/team/logeshwaran.webp",
+      color: "#e7f0ff",
+      skills: ["ML", "Matching", "Python"],
+      funFact: "Talks like an AI expert, but Googles how to use Claude!",
+    },
+    {
+      name: "Mahalaxmi N",
+      role: "Associate Software Engineer",
+      group: "Engineering",
+      bio: "Building the details that connect us.",
+      photo: "/team/mahalaxmi.webp",
+      color: "#fde8f0",
+      skills: ["Frontend", "UI", "Testing"],
+      funFact: "Thinks like a pro developer, copies like a pro copycat!",
+    },
+    {
+      name: "Gayathri K",
+      role: "Business Development Manager",
+      group: "Marketing",
+      bio: "Growing relationships and possibilities.",
+      photo: "/team/gayathri.webp",
+      color: "#e9f7ef",
+      skills: ["Partnerships", "Sales", "Strategy"],
+      funFact: "Fast at personal development, slow at business development!",
+    },
+    {
+      name: "Nithyasri V",
+      role: "Senior Marketing Executive",
+      group: "Marketing",
+      bio: "Creative ideas and meaningful experiences.",
+      photo: "/team/nithyasri.webp",
+      color: "#fff4d6",
+      skills: ["Campaigns", "Content", "Brand"],
+      funFact: "Makes great plans, then forgets what the plan was!",
+    },
+    {
+      name: "Vinoth Kumar S J",
+      role: "Associate Marketing Executive",
+      group: "Marketing",
+      bio: "Stories that bring pet lovers together.",
+      photo: "/team/vinoth-kumar.webp",
+      color: "#f0e9ff",
+      skills: ["Social", "Video", "Community"],
+      funFact: "Daydreams all morning, starts scheduling content in the evening!",
+    },
+  ],
+
+  filters: ["All", "Engineering", "Marketing", "Business"],
 
   pets: {
     label: "And The Real Bosses",
@@ -818,7 +915,7 @@ export const team = {
         role: "Chief Play Officer",
         abbr: "CPO",
         body: "Head of fun, master of mischief, and always ready to turn a quiet day into a pawsome adventure.",
-        photo: { src: "/our-story/leo-studio.webp", alt: "Leo, a cat" },
+        photo: { src: "/our-story/leo-studio.webp", alt: "Leo, a dog" },
       },
     ],
   },
@@ -831,6 +928,10 @@ export const team = {
   },
 } as const;
 
+/**
+ * Four columns of five, so the footer's bottom edge stays level. Product used
+ * to carry nine links against Platform's four, which left a long ragged tail.
+ */
 export const footerColumns = [
   {
     title: "Product",
@@ -839,11 +940,17 @@ export const footerColumns = [
       { label: "Ecosystem", href: "/#ecosystem" },
       { label: "Verification", href: "/#verification" },
       { label: "How it works", href: "/#how-it-works" },
+      { label: "App for Pets", href: "/app-for-pets/" },
+    ],
+  },
+  {
+    title: "Company",
+    links: [
+      { label: "About Us", href: "/about/" },
+      { label: "Our Story", href: "/our-story/" },
+      { label: "Our Team", href: "/team/" },
       // Absolute, not an anchor — this one has to work from the blog pages too.
       { label: "Blog", href: "/blog/" },
-      { label: "Our Story", href: "/our-story/" },
-      { label: "About Us", href: "/about/" },
-      { label: "Our Team", href: "/team/" },
       { label: "Leaderboard", href: "/leaderboard/" },
     ],
   },
@@ -854,6 +961,7 @@ export const footerColumns = [
       { label: "For pet lovers", href: "/#ecosystem" },
       { label: "For businesses", href: "/#businesses" },
       { label: "Download App", href: appStore.android },
+      { label: "Contact", href: "mailto:hello@meetmypets.app" },
     ],
   },
   {
@@ -866,7 +974,6 @@ export const footerColumns = [
       // Google Play's child safety (CSAE) standards declaration needs a public URL.
       { label: "Child safety", href: "/csae-policy/" },
       { label: "Data protection", href: "/privacy/" },
-      { label: "Contact", href: "mailto:hello@meetmypets.app" },
     ],
   },
 ] as const;
