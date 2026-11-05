@@ -73,6 +73,15 @@ export const legalEntity = {
 const EFFECTIVE = "10 September 2026";
 const EFFECTIVE_ISO = "2026-09-10";
 
+/**
+ * The privacy policy alone was revised for website analytics (Vercel Web
+ * Analytics, Speed Insights, opt-in Google Analytics — §3, §5, §8, §14, §15).
+ * Terms and deletion did not change, so they keep EFFECTIVE rather than
+ * claiming a revision they didn't have. Same rule: must equal the deploy date.
+ */
+const PRIVACY_UPDATED = "26 October 2026";
+const PRIVACY_UPDATED_ISO = "2026-10-26";
+
 /* ========================================================================== */
 /* PRIVACY POLICY                                                             */
 /* ========================================================================== */
@@ -83,8 +92,8 @@ export const privacy: LegalDoc = {
   shortTitle: "Privacy",
   description:
     "How MeetMyPets collects, uses, shares and protects personal data across pet owners, enthusiasts and verified pet businesses — under India's DPDP Act 2023, the GDPR and the CCPA.",
-  updated: EFFECTIVE,
-  updatedIso: EFFECTIVE_ISO,
+  updated: PRIVACY_UPDATED,
+  updatedIso: PRIVACY_UPDATED_ISO,
   intro: `This policy explains what personal data ${legalEntity.product} collects, why, who it is shared with, and the rights you have over it. It applies to ${legalEntity.site} and to the ${legalEntity.product} mobile applications.`,
   sections: [
     {
@@ -152,6 +161,7 @@ export const privacy: LegalDoc = {
             "Device and technical data — device model, operating system, app version, language, and crash diagnostics.",
             "Usage data — features used, screens viewed, and interactions such as matches made or events attended.",
             "Log data — IP address, access times and referring pages.",
+            "Website usage — on meetmypets.app: pages viewed, the referring site and campaign tags (such as utm_source), browser and device type, approximate country, and page-performance measurements. Collected without cookies by Vercel Web Analytics and Speed Insights, and — only if you accept analytics cookies — by Google Analytics. See section 15.",
           ],
         },
         {
@@ -194,7 +204,7 @@ export const privacy: LegalDoc = {
         },
         {
           type: "p",
-          text: "Where the GDPR applies, our legal bases are: performance of a contract (operating your account and matching), consent (verification documents, precise location access, marketing messages), legitimate interests (safety, fraud prevention, product improvement), and legal obligation.",
+          text: "Where the GDPR applies, our legal bases are: performance of a contract (operating your account and matching), consent (verification documents, precise location access, marketing messages, analytics cookies on meetmypets.app), legitimate interests (safety, fraud prevention, product improvement, and cookieless aggregate measurement of meetmypets.app), and legal obligation.",
         },
         {
           type: "p",
@@ -265,7 +275,7 @@ export const privacy: LegalDoc = {
           type: "ul",
           items: [
             "With other users — your profile, pet profiles, community content and proximity band are visible according to the settings you choose.",
-            "With service providers acting on our instructions, under contract: Supabase (database, authentication and real-time messaging), Cloudflare (media storage, CDN and video delivery), Stream (chat infrastructure), Google Document AI (document text extraction), Digio (identity verification), Google Firebase Cloud Messaging and OneSignal (push notifications), Firebase Crashlytics (crash and error monitoring), PostHog (product analytics), Railway (application hosting), Google (Apps Script and Sheets, for waitlist submissions made on meetmypets.app), and Resend (waitlist confirmation email).",
+            "With service providers acting on our instructions, under contract: Supabase (database, authentication and real-time messaging), Cloudflare (media storage, CDN and video delivery), Stream (chat infrastructure), Google Document AI (document text extraction), Digio (identity verification), Google Firebase Cloud Messaging and OneSignal (push notifications), Firebase Crashlytics (crash and error monitoring), PostHog (product analytics), Railway (application hosting), Vercel (hosting of meetmypets.app, and cookieless website analytics and performance measurement), Google Analytics (Google LLC; website analytics on meetmypets.app, only with your consent), Google (Apps Script and Sheets, for waitlist submissions made on meetmypets.app), and Resend (waitlist confirmation email).",
             "For legal reasons — where required by law, court order, or a valid request from a public authority.",
             "To protect people or animals — where we reasonably believe disclosure is necessary to prevent harm, including credible animal welfare concerns.",
             "In a corporate transaction — if the business is acquired or merged, subject to this policy continuing to apply.",
@@ -415,7 +425,7 @@ export const privacy: LegalDoc = {
         },
         {
           type: "p",
-          text: "Data may be processed by our service providers in the United States (Google, Cloudflare, Stream, PostHog, Firebase, OneSignal, Resend) and in the European Union. Where personal data leaves India we rely on Standard Contractual Clauses or an equivalent safeguard for GDPR purposes, and on the lawful transfer mechanisms notified under the DPDP Act.",
+          text: "Data may be processed by our service providers in the United States (Google, Cloudflare, Stream, PostHog, Firebase, OneSignal, Resend, Vercel) and in the European Union. Where personal data leaves India we rely on Standard Contractual Clauses or an equivalent safeguard for GDPR purposes, and on the lawful transfer mechanisms notified under the DPDP Act.",
         },
       ],
     },
@@ -425,11 +435,20 @@ export const privacy: LegalDoc = {
       body: [
         {
           type: "p",
-          text: "meetmypets.app is a static marketing site. It sets no advertising or cross-site tracking cookies.",
+          text: "meetmypets.app sets no advertising or cross-site tracking cookies and runs no session-recording scripts. It measures how the site is used in two ways:",
+        },
+        {
+          type: "ul",
+          items: [
+            "Vercel Web Analytics and Speed Insights (Vercel Inc.) — on for every visitor. They set no cookies and store nothing on your device. They record which pages are viewed, the referring site, campaign tags, browser and device type, approximate country, and page-performance measurements such as load time. Visits are distinguished by a short-lived hash of the request that is discarded within 24 hours and is not linked to you; we see only aggregate figures.",
+            "Google Analytics 4 (Google LLC) — only if you choose Accept in the cookie banner. If you decline or ignore the banner, Google Analytics is never loaded and nothing is sent to Google. With your consent it sets the _ga and _ga_<ID> cookies, which expire after 13 months, and records the pages you view, how you arrived (including campaign tags), approximate location, device and browser type, and clicks on our own buttons and links — for example app-store, social-media and contact links. Google signals and all advertising features are switched off.",
+            "We never send your name, email address, phone number or anything you type to either service.",
+            "You can change your choice at any time with “Cookie preferences” at the bottom of every page. Withdrawing deletes the Google Analytics cookies and stops further collection.",
+          ],
         },
         {
           type: "p",
-          text: "meetmypets.app runs no analytics or session-recording scripts. The mobile applications use Firebase Crashlytics for crash reporting and PostHog for product analytics, configured to anonymise IP addresses and not to share data with advertising networks.",
+          text: "The mobile applications use Firebase Crashlytics for crash reporting and PostHog for product analytics, configured to anonymise IP addresses and not to share data with advertising networks.",
         },
       ],
     },

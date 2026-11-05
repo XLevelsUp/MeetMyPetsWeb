@@ -314,6 +314,10 @@ export function Hero() {
             animate={reduced ? undefined : { opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.54 }}
             className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center"
+            // Analytics: store links here are app_download_click; the in-page
+            // CTA is primary_cta_click (see components/analytics/site-analytics.tsx).
+            data-analytics-location="hero"
+            data-analytics-cta=""
           >
             <MagneticButton
               href={heroCta.primaryHref}

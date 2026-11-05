@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
+import { ArticleViewTracker } from "@/components/analytics/article-view-tracker";
 import { ArticleView } from "@/components/blog/article-view";
 import { BlogPostingLd, postUrl } from "@/components/seo/blog-ld";
 import { site } from "@/config/site";
@@ -83,6 +84,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     <>
       <BlogPostingLd post={post} />
       <ArticleView post={post} related={related} />
+      <ArticleViewTracker slug={post.slug} category={post.category?.slug ?? null} />
     </>
   );
 }

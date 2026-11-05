@@ -68,6 +68,7 @@ export function WhatsAppDog() {
     // A landmark: sits outside <main>, so without one the link has no region.
     <aside
       aria-label="Contact us on WhatsApp"
+      data-analytics-location="whatsapp_mascot"
       className={cn(
         "fixed right-2 z-40 sm:right-4 lg:right-5",
         // ~1.8:1 artwork; the link below clears the 44px touch minimum.
@@ -108,7 +109,12 @@ export function WhatsAppDog() {
         target="_blank"
         rel="noopener noreferrer"
         aria-label={`Chat with MeetMyPets on WhatsApp (${whatsapp.display})`}
-        onFocus={wake}
+        // Keyboard focus only. A mouse press focuses the link too, and waking
+        // then re-keys the <img> between mousedown and mouseup — the browser
+        // drops the click and WhatsApp never opens. Hover already wakes it.
+        onFocus={(event) => {
+          if (event.currentTarget.matches(":focus-visible")) wake();
+        }}
         onTouchStart={() => {
           if (settled) wake();
         }}

@@ -63,6 +63,7 @@ export function InstallPopup() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="install-popup-title"
+          data-analytics-location="install_popup"
           onKeyDown={handleDialogKeyDown}
           className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
         >
