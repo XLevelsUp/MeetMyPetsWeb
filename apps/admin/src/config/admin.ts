@@ -56,6 +56,15 @@ export const adminNav = [
     roles: VERIFICATION_ROLES,
   },
   { label: "Content Reports", href: "/reports", icon: "flag", enabled: true, roles: REPORTS_ROLES },
+  {
+    label: "AI Reports",
+    href: "/ai-reports",
+    icon: "scan-eye",
+    enabled: true,
+    // Same allowlist as Content Reports: confirming the model is queue
+    // hygiene, not a sanction.
+    roles: REPORTS_ROLES,
+  },
   { label: "Trust Review", href: "/trust", icon: "shield-alert", enabled: true, roles: TRUST_ROLES },
   {
     label: "Business Directory",
@@ -86,6 +95,13 @@ export const copy = {
   comingSoon: "Coming in a later phase",
   /** Strings shared by every list surface. Feature-specific copy stays below. */
   common: {
+    loading: "Loading…",
+    exportCsv: "Export CSV",
+    exporting: "Preparing…",
+    /** `{count}` is the number of rows written. */
+    exportDone: "Downloaded {count} rows",
+    exportEmpty: "Nothing to export with these filters.",
+    exportFailed: "Export failed",
     retry: "Retry",
     pagination: { previous: "Previous", next: "Next", showing: "Showing" },
   },
@@ -108,21 +124,38 @@ export const copy = {
   dashboard: {
     title: "Dashboard",
     metrics: {
-      totalUsers: "Total Users",
-      activePets: "Active Pets",
-      totalMatches: "Total Matches",
-      activeChats: "Active Chats",
-      pendingVerifications: "Pending Verifications",
-      openReports: "Open Reports",
-      likeRate: "Like Rate",
+      /* Short enough to survive a five-column row without truncating. */
+      totalUsers: "Users",
+      activePets: "Active pets",
+      totalMatches: "Matches",
+      activeChats: "Active chats",
+      pendingVerifications: "Verifications",
+      openReports: "Open reports",
+      likeRate: "Like rate",
+    },
+    operations: {
+      waiting: "Waiting for review",
+      fromAi: "AI",
+      fromUsers: "reports",
+      oldest: "Oldest:",
+      allClear: "Nothing waiting",
+      reach: "Can be reached",
+      of: "of",
+      accounts: "accounts",
+      noPet: "Signed up, no pet",
+      ofSignups: "of all sign-ups",
+      devices: "Phones registered",
+      android: "Android",
+      iphone: "iPhone",
     },
     charts: {
-      acquisitionTitle: "User acquisition",
-      acquisitionDescription: "New sign-ups",
-      swipeTitle: "Swipe volume",
-      swipeDescription: "Swipes by direction",
-      swipeLikes: "Like",
-      swipePasses: "Pass",
+      /* "User acquisition" and "Swipe volume" were analytics jargon. */
+      acquisitionTitle: "New sign-ups",
+      acquisitionDescription: "People joining MeetMyPets",
+      swipeTitle: "Likes and passes",
+      swipeDescription: "How people are swiping",
+      swipeLikes: "Liked",
+      swipePasses: "Passed",
       speciesTitle: "Active pets by species",
       /** Appended to a description, e.g. "New sign-ups · per week". */
       perBucket: { day: "per day", week: "per week", month: "per month" },
@@ -165,6 +198,8 @@ export const copy = {
       archived: "Archived",
       suspended: "Suspended",
       banned: "Banned",
+      blocked: "Blocked",
+      deleted: "Deleted",
       flagged: "Flagged",
     },
     columns: {
@@ -179,6 +214,9 @@ export const copy = {
       species: "Species",
       owner: "Owner",
       added: "Added",
+      followers: "Followers",
+      likes: "Likes",
+      matches: "Matches",
       trust: "Trust",
       actions: "Actions",
     },
@@ -323,6 +361,7 @@ export const copy = {
       breed: "Breed",
       blog_post: "Blog post",
       blog_category: "Blog category",
+      ai_decision: "AI decision",
     },
     /**
      * An empty audit log is the normal state on a fresh install, not an
@@ -363,6 +402,145 @@ export const copy = {
       "blog.unpublish": "Blog post unpublished",
       "blog.delete": "Blog post deleted",
       "blog_category.create": "Blog category added",
+      "ai_decision.approve": "AI decision approved",
+      "ai_decision.reject": "AI decision rejected",
+    },
+  },
+  aiReports: {
+    title: "AI Reports",
+    description:
+      "Photos and videos our AI has checked. It handles the clear cases on its own and sends the rest here. Confirm or correct it — your corrections train the next version.",
+    searchPlaceholder: "Search by file name, or paste a pet or decision ID…",
+    filters: {
+      review: "Show",
+      media: "Where it was posted",
+      content: "Photo or video",
+      all: "Everything",
+      clear: "Clear filters",
+    },
+    columns: {
+      media: "Media",
+      item: "Item",
+      aiSaid: "AI key points",
+      answer: "Moderator's decision",
+      action: "Action",
+      status: "Status",
+    },
+    review: {
+      question: "Is the AI's decision right?",
+      aiContext: {
+        APPROVED: "AI approved",
+        REJECTED: "AI rejected",
+        HUMAN_REVIEW: "AI wasn't sure; agreeing rejects the post",
+      },
+      aiRight: "Approve: AI is right",
+      aiWrong: "Reject: AI is wrong",
+      whyWrong: "Why is the AI wrong?",
+      pickReasonPlaceholder: "Pick a reason…",
+      codeLabel: "Code for the rejection",
+      pickCodePlaceholder: "Pick a code…",
+      outcomePrefix: "Post will be",
+      outcomeBlocked: "rejected",
+      outcomePublished: "approved",
+      aiGenLabel: "AI generated",
+      noteLabel: "Note (optional)",
+      noteRequired: "Note (required for Other)",
+      notePlaceholder: "What you saw",
+      submit: "Submit",
+      saving: "Saving…",
+      done: "Reviewed",
+      agreed: "Agreed with the AI",
+      overturned: "Overturned the AI",
+      savingToast: "Saving your decision…",
+      approvedToast: "Approved — now visible in the app",
+      rejectedToast: "Rejected — hidden from the app",
+    },
+    /**
+     * An empty queue is the goal state, not an error — but an empty *filtered*
+     * view usually means the filter, so the two read differently.
+     */
+    empty: "Nothing is waiting for review. The AI is keeping up.",
+    emptyFiltered: "Nothing matches these filters.",
+    /* One status replaces the old "AI verdict" + "Review" pair — see lib/ai-moderation-status.ts. */
+    /* Two outcomes, not four: who decided is said in words underneath, not in the badge. */
+    statusLabels: {
+      waiting_ai_approved: "AI says approve",
+      waiting_ai_rejected: "AI says reject",
+      waiting_ai_unsure: "AI wasn't sure",
+      published: "Approved by the AI",
+      blocked: "Rejected by the AI",
+      published_by_human: "Approved",
+      blocked_by_human: "Rejected",
+    },
+    statusHelp: {
+      waiting_ai_approved: "The AI would let this through, but it is waiting for you to confirm.",
+      waiting_ai_rejected: "The AI would block this, but it is waiting for you to confirm.",
+      waiting_ai_unsure: "The AI could not decide. It needs your judgement.",
+      published: "The AI was sure this was fine and let it through. Nobody reviewed it.",
+      blocked: "The AI was sure this broke the rules and stopped it. Nobody reviewed it.",
+      published_by_human: "A moderator checked this and approved it.",
+      blocked_by_human: "A moderator checked this and rejected it.",
+    },
+    /* Plain words for the row: "post_media" and "image" are database terms. */
+    itemLabels: {
+      "pet_media:image": "Photo in a post",
+      "pet_media:video": "Video in a post",
+      "post_media:image": "Photo in a post",
+      "post_media:video": "Video in a post",
+      "pet_profile_photo:image": "Pet profile photo",
+      "pet_profile_photo:video": "Pet profile video",
+    },
+    media: {
+      noFile: "No file",
+      enlarge: "Click to see it full size",
+      video: "VIDEO",
+    },
+    owner: {
+      title: "Uploader",
+      joined: "Joined",
+      lastSeen: "Last seen",
+      never: "Never signed in",
+      pets: "pets",
+      onePet: "1 pet",
+      trust: "Trust",
+      clean: "No moderation action ever taken",
+      pastActions: "past actions, none active",
+      openFull: "Open full profile",
+    },
+    row: {
+      uploadedBy: "Uploaded by",
+      noPet: "No pet linked",
+      fakeImage: "Not a real photo",
+      /* Badges are exceptions, so each has to teach itself on hover. */
+      fakeImageHelp:
+        "The AI thinks this picture was generated by a computer rather than taken with a camera. The number is how sure it is.",
+      serious: "Very bad",
+      seriousHelp:
+        "Not a close call. The AI is certain this breaks the rules — things like animal abuse, or a file the virus scanner flagged.",
+      whyStopped: "Why the AI stopped it",
+      viewProfile: "Open this user's profile",
+    },
+    /* Plain words for the model's own output, used in the detail panel only. */
+    decisionLabels: {
+      APPROVED: "Approved",
+      HUMAN_REVIEW: "Asked for a person",
+      REJECTED: "Rejected",
+    },
+    reviewFilterLabels: {
+      needs_review: "Needs review — all",
+      needs_review_ai_approved: "Needs review — AI says approve",
+      needs_review_ai_rejected: "Needs review — AI says reject",
+      needs_review_ai_unsure: "Needs review — AI wasn't sure",
+      approved_by_moderator: "Approved by a moderator",
+      rejected_by_moderator: "Rejected by a moderator",
+      approved_by_ai: "Approved by the AI",
+      rejected_by_ai: "Rejected by the AI",
+    },
+    /* Both are a photo in a post — two tables, one user-facing thing (see the seed script's note). */
+    mediaLabels: {
+      pet_media: "In a post",
+      post_media: "In a post",
+      pet_profile_photo: "Pet profile photo",
     },
   },
   reports: {

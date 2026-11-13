@@ -70,6 +70,7 @@ describe("navForRole", () => {
       "Users & Pets",
       "Verifications",
       "Content Reports",
+      "AI Reports",
       "Trust Review",
       "Blogs",
       "Audit Logs",

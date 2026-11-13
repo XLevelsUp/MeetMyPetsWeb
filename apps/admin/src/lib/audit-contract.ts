@@ -21,6 +21,7 @@ export const AUDIT_TARGET_TYPES = [
   "breed",
   "blog_post",
   "blog_category",
+  "ai_decision",
 ] as const;
 
 export const auditEntrySchema = z.object({
