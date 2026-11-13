@@ -32,6 +32,8 @@ export const AUDIT_ACTIONS = [
   "blog.unpublish",
   "blog.delete",
   "blog_category.create",
+  "ai_decision.approve",
+  "ai_decision.reject",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
