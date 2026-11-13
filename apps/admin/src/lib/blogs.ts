@@ -54,6 +54,7 @@ type Actor = { userId: string; email: string; role: AdminRole };
 const POSTS = "blog_posts";
 const CATEGORIES = "blog_categories";
 const REDIRECTS = "blog_slug_redirects";
+const AUDIT_TABLE = "admin_audit_logs";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -133,12 +134,36 @@ async function categoryNames(): Promise<Map<string, string>> {
   return new Map(((data ?? []) as { id: string; name: string }[]).map((row) => [row.id, row.name]));
 }
 
+/**
+ * Who last saved each of these posts, newest audit row wins.
+ *
+ * The admin's own identities live in Supabase Auth, not a joinable table, so
+ * the audit trail is the only place an editor's email is persisted. One query
+ * for the whole page; a post whose audit rows have aged out returns null.
+ */
+async function lastEditors(ids: string[]): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map();
+  const { data, error } = await db()
+    .from(AUDIT_TABLE)
+    .select("target_id,actor_email,created_at")
+    .eq("target_type", "blog_post")
+    .in("target_id", ids)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(`${AUDIT_TABLE}: ${error.message}`);
+
+  const found = new Map<string, string>();
+  for (const row of (data ?? []) as { target_id: string; actor_email: string }[]) {
+    if (!found.has(row.target_id)) found.set(row.target_id, row.actor_email);
+  }
+  return found;
+}
+
 type SummaryRow = Pick<
   PostRow,
   "id" | "slug" | "title" | "status" | "author_name" | "category_id" | "created_at" | "updated_at" | "published_at"
 >;
 
-function toSummary(row: SummaryRow, names: Map<string, string>): BlogSummary {
+function toSummary(row: SummaryRow, names: Map<string, string>, editors: Map<string, string>): BlogSummary {
   return {
     id: row.id,
     title: row.title,
@@ -151,6 +176,7 @@ function toSummary(row: SummaryRow, names: Map<string, string>): BlogSummary {
     updatedAt: row.updated_at,
     publishedAt: row.published_at,
     publicUrl: publicUrl(row.slug),
+    lastEditedBy: editors.get(row.id) ?? null,
   };
 }
 
@@ -179,8 +205,12 @@ export async function listBlogPosts(query: BlogListQuery): Promise<BlogResult<Bl
       .range(offset, offset + pageSize - 1);
     if (error) throw new Error(`${POSTS}: ${error.message}`);
 
-    const names = await categoryNames();
-    const items = ((data ?? []) as PostRow[]).map((row) => toSummary(row, names));
+    const rows = (data ?? []) as PostRow[];
+    const [names, editors] = await Promise.all([
+      categoryNames(),
+      lastEditors(rows.map((row) => row.id)),
+    ]);
+    const items = rows.map((row) => toSummary(row, names, editors));
     return { ok: true, data: { items, page, pageSize, total: count ?? 0 } };
   } catch (error) {
     return {
@@ -211,11 +241,11 @@ export async function getBlogPost(id: string): Promise<BlogResult<BlogPost>> {
   try {
     const row = await readPost(id);
     if (!row) return { ok: false, reason: "not_found", message: "No article with that id." };
-    const names = await categoryNames();
+    const [names, editors] = await Promise.all([categoryNames(), lastEditors([row.id])]);
     return {
       ok: true,
       data: {
-        ...toSummary(row, names),
+        ...toSummary(row, names, editors),
         excerpt: row.excerpt,
         content: row.content,
         faq: row.faq ?? [],
@@ -411,7 +441,7 @@ export async function createBlogPost(
       .insert({
         ...columnsFrom(input, prepared.doc),
         status,
-        published_at: publishing ? now : null,
+        published_at: publishing ? (input.publishedAt ?? now) : null,
         created_at: now,
         updated_at: now,
         created_by: actor.userId,
@@ -474,7 +504,9 @@ export async function updateBlogPost(
       .update({
         ...columnsFrom(input, prepared.doc),
         status,
-        published_at: publishing ? (before.published_at ?? now) : before.published_at,
+        published_at: publishing
+          ? (input.publishedAt ?? before.published_at ?? now)
+          : (input.publishedAt ?? before.published_at),
         updated_at: now,
         updated_by: actor.userId,
       })
@@ -559,6 +591,7 @@ export async function applyBlogAction(
           seoDescription: before.seo_description,
           canonicalUrl: before.canonical_url,
           ogImage: before.og_image,
+          publishedAt: before.published_at,
         },
         true,
       );

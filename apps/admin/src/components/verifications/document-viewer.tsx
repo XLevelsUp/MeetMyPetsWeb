@@ -88,7 +88,7 @@ export function DocumentViewer({
 
   if (!hasDocument) {
     return (
-      <div className="flex h-full min-h-64 items-center justify-center rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+      <div className="flex h-[clamp(24rem,60vh,40rem)] items-center justify-center rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
         {copy.verifications.review.noDocument}
       </div>
     );
@@ -96,7 +96,7 @@ export function DocumentViewer({
 
   if (doc.isPending) {
     return (
-      <div className="flex h-full min-h-64 flex-col gap-2 rounded-lg border p-3">
+      <div className="flex h-[clamp(24rem,60vh,40rem)] flex-col gap-2 rounded-lg border p-3">
         <Skeleton className="h-8 w-40" />
         <Skeleton className="h-full min-h-48 w-full" />
         <span className="sr-only">{copy.verifications.review.loading}</span>
@@ -106,7 +106,7 @@ export function DocumentViewer({
 
   if (doc.isError) {
     return (
-      <div className="flex h-full min-h-64 flex-col items-center justify-center gap-3 rounded-lg border p-6 text-center">
+      <div className="flex h-[clamp(24rem,60vh,40rem)] flex-col items-center justify-center gap-3 rounded-lg border p-6 text-center">
         <p className="text-sm text-muted-foreground">
           {copy.verifications.review.documentError}
         </p>
@@ -167,7 +167,7 @@ export function DocumentViewer({
       </div>
 
       <div
-        className="relative h-full min-h-64 flex-1 overflow-hidden rounded-lg border bg-muted"
+        className="relative h-[clamp(24rem,60vh,40rem)] overflow-hidden rounded-lg border bg-muted"
         onWheel={image ? handleWheel : undefined}
       >
         {image ? (

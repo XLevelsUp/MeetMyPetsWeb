@@ -36,24 +36,25 @@ export function MetricCard({
   const DeltaIcon = direction === "up" ? TrendingUp : direction === "down" ? TrendingDown : Minus;
 
   return (
-    <Card className="py-4">
-      <CardContent className="flex flex-col gap-1.5 px-4">
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm text-muted-foreground">{label}</span>
-          <Icon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+    <Card className="h-full py-3">
+      <CardContent className="flex flex-1 flex-col gap-1 px-3.5">
+        <div className="flex items-start justify-between gap-2">
+          <span className="text-sm leading-snug text-muted-foreground">{label}</span>
+          <Icon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
         </div>
         <span className="font-heading text-2xl font-semibold tabular-nums">{value}</span>
+        {/* mt-auto pins this to the base so two-line labels keep deltas aligned; wraps rather than truncating. */}
         <span
           className={cn(
-            "flex items-center gap-1 text-xs tabular-nums",
+            "mt-auto flex flex-wrap items-center gap-x-1 pt-1 text-xs tabular-nums",
             direction === "up" && "text-verified",
             direction === "down" && "text-destructive",
             direction === "flat" && "text-muted-foreground",
           )}
         >
-          <DeltaIcon aria-hidden className="size-3.5" />
+          <DeltaIcon aria-hidden className="size-3.5 shrink-0" />
           {changePct === null ? copy.dashboard.noData : `${changePct > 0 ? "+" : ""}${changePct}%`}
-          <span className="truncate text-muted-foreground">{comparison}</span>
+          <span className="text-muted-foreground">{comparison}</span>
         </span>
       </CardContent>
     </Card>

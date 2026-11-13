@@ -653,7 +653,7 @@ export const copy = {
   verifications: {
     title: "Verifications",
     description: "Pet certificates awaiting review — vaccination, health and licence documents.",
-    searchPlaceholder: "Search certificate number, vet, clinic, or paste an ID…",
+    searchPlaceholder: "Search pet name, owner email, cert number, clinic, or paste an ID…",
     filters: {
       status: "Status",
       type: "Type",
@@ -755,7 +755,7 @@ export const copy = {
      */
     clockWarning:
       "A temporary ban never expires on its own. The owner was told a review date — only restoring the pet here ends it.",
-    searchPlaceholder: "Search pet name, or paste a pet / owner ID…",
+    searchPlaceholder: "Search pet name, owner email, or paste a pet / owner ID…",
     filters: { status: "Status", all: "All", overdue: "Overdue reviews only", clear: "Clear filters" },
     columns: {
       pet: "Pet",
@@ -789,7 +789,7 @@ export const copy = {
     review: "Review",
     ledger: {
       heading: "Trust history",
-      description: "Every automatic change to this pet's score, newest first.",
+      description: "Every automatic change to this pet's score, chronological order (first events first).",
       empty: "No recorded events. This pet's score has never moved automatically.",
       /** Admin restores are not in their ledger — say so rather than let it look complete. */
       restoreNote:
@@ -994,6 +994,7 @@ export const copy = {
       editTitle: "Edit article",
       back: "All articles",
       unsaved: "Unsaved changes",
+      lastEditedBy: "Last edited by {who}",
       saveDraft: "Save draft",
       save: "Save changes",
       publish: "Publish",
@@ -1028,6 +1029,8 @@ export const copy = {
         tagsHint: "Comma-separated. Used as structured-data keywords, not shown on the page.",
         author: "Author",
         authorHint: "“MeetMyPets Team” is published as the organisation; any other name as a person.",
+        publishedAt: "Publish date",
+        publishedAtHint: "Leave empty to stamp the moment you publish. Set a date to show an earlier or later one.",
         image: "Image",
         imageAlt: "Alt text",
         imageAltHint: "Describe the image for screen readers and search. Required to publish.",

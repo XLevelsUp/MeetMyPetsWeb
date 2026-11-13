@@ -90,6 +90,14 @@ export const trustQuerySchema = listQuerySchema.extend({
 });
 export type TrustQuery = z.infer<typeof trustQuerySchema>;
 
+export const DEFAULT_TRUST_QUERY: TrustQuery = {
+  page: 1,
+  pageSize: 25,
+  q: undefined,
+  status: "all",
+  overdueOnly: false,
+};
+
 /* -------------------------------------------------------------------------
  * Restore
  * ---------------------------------------------------------------------- */

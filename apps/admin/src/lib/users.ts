@@ -18,6 +18,7 @@ import type {
   RestrictionKind,
   SpeciesOption,
 } from "@/lib/users-contract";
+import { PET_ENGAGEMENT_SORTS } from "@/lib/users-contract";
 
 /**
  * Users & Pets moderation adapter — one of the two files that know the
@@ -63,7 +64,13 @@ const TABLES = {
   breeds: { schema: "pets", table: "breeds" },
   /** Ours — public because that schema is already exposed to the Data API. */
   restrictions: { schema: "public", table: "admin_restrictions" },
+  follows: { schema: "matching", table: "pet_follows" },
+  likes: { schema: "matching", table: "pet_likes" },
+  matches: { schema: "matching", table: "matches" },
 } as const;
+
+/** Caps an engagement scan, mirroring public-leaderboard.ts. */
+const ENGAGEMENT_SCAN_LIMIT = 20_000;
 
 type TableRef = { schema: string; table: string };
 
@@ -431,6 +438,44 @@ async function allAccountIds(): Promise<string[]> {
   return ((data ?? []) as { id: string }[]).map((r) => r.id);
 }
 
+/**
+ * Followers, likes or matches per pet.
+ *
+ * `matching.*` holds no per-pet totals, and PostgREST cannot GROUP BY, so the
+ * rows are scanned and tallied here — the same trade `public-leaderboard.ts`
+ * makes. Capped: past the limit this ranks the scanned window, not the table.
+ */
+async function engagementCounts(
+  metric: "followers" | "likes" | "matches",
+): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  const bump = (id: string | null) => {
+    if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
+  };
+
+  if (metric === "matches") {
+    // A match belongs to both pets, so each row counts once on either side.
+    const { data, error } = await from(TABLES.matches)
+      .select("pet_1_id,pet_2_id")
+      .limit(ENGAGEMENT_SCAN_LIMIT);
+    if (error) throw new Error(`matching.matches: ${error.message}`);
+    for (const row of (data ?? []) as { pet_1_id: string | null; pet_2_id: string | null }[]) {
+      bump(row.pet_1_id);
+      bump(row.pet_2_id);
+    }
+    return counts;
+  }
+
+  // Followers and likes are directional: the TARGET is the one receiving them.
+  const ref = metric === "followers" ? TABLES.follows : TABLES.likes;
+  const { data, error } = await from(ref)
+    .select("target_pet_id")
+    .limit(ENGAGEMENT_SCAN_LIMIT);
+  if (error) throw new Error(`${ref.schema}.${ref.table}: ${error.message}`);
+  for (const row of (data ?? []) as { target_pet_id: string | null }[]) bump(row.target_pet_id);
+  return counts;
+}
+
 async function petCountsFor(accountIds: string[]): Promise<Map<string, number>> {
   const counts = new Map<string, number>();
   if (accountIds.length === 0) return counts;
@@ -613,10 +658,18 @@ const PET_COLUMNS =
 /** Resolves species/breed ids to names via the anon reference client. */
 async function decoratePets(rows: PetRow[]): Promise<PetSummary[]> {
   if (rows.length === 0) return [];
-  const [species, breeds] = await Promise.all([
+  const ownerIds = Array.from(new Set(rows.map((r) => r.owner_account_id).filter(Boolean))) as string[];
+  const [species, breeds, ownersRes] = await Promise.all([
     referenceNames(TABLES.species),
     referenceNames(TABLES.breeds),
+    ownerIds.length > 0
+      ? from(TABLES.accounts).select("id,display_name,email").in("id", ownerIds)
+      : Promise.resolve({ data: [] }),
   ]);
+  const ownerNames = new Map<string, string>();
+  for (const acc of (ownersRes.data ?? []) as { id: string; display_name: string | null; email: string | null }[]) {
+    ownerNames.set(acc.id, acc.display_name || acc.email || "");
+  }
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
@@ -624,11 +677,15 @@ async function decoratePets(rows: PetRow[]): Promise<PetSummary[]> {
     breed: (row.breed_id && breeds.get(row.breed_id)) || null,
     status: row.status,
     ownerAccountId: row.owner_account_id,
+    ownerName: row.owner_account_id ? (ownerNames.get(row.owner_account_id) || null) : null,
     createdAt: row.created_at,
     photoUrl: row.profile_photo_url,
     restriction: null,
     trustScore: row.trust_score,
     trustBannedUntil: row.temporary_ban_until,
+    followers: null,
+    likes: null,
+    matches: null,
   }));
 }
 
@@ -678,12 +735,52 @@ export async function listPets(query: PetsQuery): Promise<UsersResult<PetsRespon
     if (trust === "at_risk") request = request.lte("trust_score", TRUST_REVIEW_SCORE_CEILING);
     if (trust === "normal") request = request.gt("trust_score", TRUST_REVIEW_SCORE_CEILING);
 
-    const { data, count, error } = await request
-      .order(sort, { ascending, nullsFirst: false })
-      .range(offset, offset + pageSize - 1);
+    /**
+     * Engagement sorts take the `pet_count` path: resolve every matching id,
+     * order those by the computed count, then slice. Ordering the fetched page
+     * would sort within the page and be wrong past the first one.
+     */
+    const engagement = (PET_ENGAGEMENT_SORTS as readonly string[]).includes(sort)
+      ? (sort as (typeof PET_ENGAGEMENT_SORTS)[number])
+      : null;
+
+    let counts: Map<string, number> | null = null;
+    let orderedPageIds: string[] | null = null;
+    let computedTotal: number | null = null;
+
+    if (engagement) {
+      const { data: idData, error: idError } = await request;
+      if (idError) throw new Error(`pets.pets: ${idError.message}`);
+
+      counts = await engagementCounts(engagement);
+      const candidates = ((idData ?? []) as PetRow[]).map((r) => r.id);
+      candidates.sort((a, b) => {
+        const delta = (counts?.get(a) ?? 0) - (counts?.get(b) ?? 0);
+        // Stable tie-break by id so paging never repeats or drops a row.
+        return (ascending ? delta : -delta) || a.localeCompare(b);
+      });
+
+      computedTotal = candidates.length;
+      orderedPageIds = candidates.slice(offset, offset + pageSize);
+      if (orderedPageIds.length === 0) {
+        return { ok: true, data: { items: [], page, pageSize, total: computedTotal } };
+      }
+    }
+
+    const paged = orderedPageIds
+      ? from(TABLES.pets).select(PET_COLUMNS).in("id", orderedPageIds)
+      : request.order(sort, { ascending, nullsFirst: false }).range(offset, offset + pageSize - 1);
+
+    const { data, count, error } = await paged;
     if (error) throw new Error(`pets.pets: ${error.message}`);
 
-    const rows = (data ?? []) as PetRow[];
+    let rows = (data ?? []) as PetRow[];
+    if (orderedPageIds) {
+      // `in()` returns rows in table order; restore the ranking we computed.
+      const rank = new Map(orderedPageIds.map((id, index) => [id, index]));
+      rows = [...rows].sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
+    }
+
     const [items, restrictions] = await Promise.all([
       decoratePets(rows),
       activeRestrictionsFor(
@@ -693,9 +790,15 @@ export async function listPets(query: PetsQuery): Promise<UsersResult<PetsRespon
     ]);
     for (const pet of items) {
       pet.restriction = restrictions.get(pet.id) ?? null;
+      // Only the sorted metric is filled; the others stay null rather than
+      // claiming zero for a count nobody asked for.
+      if (engagement) pet[engagement] = counts?.get(pet.id) ?? 0;
     }
 
-    return { ok: true, data: { items, page, pageSize, total: count ?? 0 } };
+    return {
+      ok: true,
+      data: { items, page, pageSize, total: computedTotal ?? count ?? 0 },
+    };
   } catch (error) {
     return {
       ok: false,

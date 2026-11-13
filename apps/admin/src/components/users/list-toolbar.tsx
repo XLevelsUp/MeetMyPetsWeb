@@ -82,7 +82,9 @@ export function ListToolbar({
           {/* Base UI hands back `string | null`; the filter always has a value. */}
           <Select value={status} onValueChange={(value) => onStatusChange(value ?? "all")}>
             <SelectTrigger id="list-status" className="w-40">
-              <SelectValue />
+              <SelectValue>
+                {(val: string) => copy.users.statusOptions[val as StatusKey] ?? val}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {statusOptions.map((option) => (

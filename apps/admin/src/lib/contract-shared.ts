@@ -98,7 +98,7 @@ export function queryToSearchParams(
 ): URLSearchParams {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
-    if (value === undefined || value === null || value === "") continue;
+    if (value === undefined || value === null || value === "" || value === false) continue;
     if (defaults && defaults[key] === value) continue;
     params.set(key, String(value));
   }

@@ -1,25 +1,71 @@
 "use client";
 
+import { Check, Clock, Minus, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 import { DecideDialog } from "@/components/verifications/decide-dialog";
 import { DocumentViewer } from "@/components/verifications/document-viewer";
+import { CertificateStatusBadge, CertificateTypeBadge } from "@/components/verifications/verification-badges";
 import {
   formatDate,
   formatWhen,
-  isExpired,
-  statusLabel,
-  statusVariant,
-  typeLabel,
-} from "@/components/verifications/verification-format";
-import { Badge } from "@/components/ui/badge";
+  expiryNote,
+  waitingNote,
+  statusLabel,} from "@/components/verifications/verification-format";
+import { Spinner } from "@/components/shared/spinner";
 import { Button } from "@/components/ui/button";
 import { copy } from "@/config/admin";
 import { useReviewShortcuts } from "@/hooks/use-review-shortcuts";
 import { useDecideCertificate } from "@/hooks/use-verifications";
 import type { RejectionReason } from "@/lib/certificate-constants";
 import type { CertificateSummary } from "@/lib/verifications-contract";
+
+/** A boxed set of related claims; `alert` tints the box when something inside is wrong. */
+function ClaimGroup({
+  title,
+  tone,
+  children,
+}: {
+  title?: string;
+  tone?: "alert";
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      className={`rounded-lg border px-3 py-2.5 ${
+        tone === "alert" ? "border-rejected/30 bg-rejected-soft/40" : "bg-card"
+      }`}
+    >
+      {title ? (
+        <h4 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          {title}
+        </h4>
+      ) : null}
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5">{children}</dl>
+    </section>
+  );
+}
+
+/** One strand of the pet's verification. Tick and colour both carry the state. */
+function LevelPill({ label, done }: { label: string; done: boolean | null }) {
+  return (
+    <span
+      className={`inline-flex min-h-6 items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+        done
+          ? "border-approved/25 bg-approved-soft text-approved-fg"
+          : "border-border text-muted-foreground"
+      }`}
+    >
+      {done ? (
+        <Check className="size-3" aria-hidden="true" />
+      ) : (
+        <Minus className="size-3" aria-hidden="true" />
+      )}
+      {label}
+    </span>
+  );
+}
 
 function Claim({ label, value, flag }: { label: string; value: string | null; flag?: string }) {
   return (
@@ -90,72 +136,91 @@ export function ReviewPane({
   }
 
   const { claims } = certificate;
-  const expiredFlag = isExpired(claims.expiresAt) ? "Expired" : undefined;
+  const expiredFlag = expiryNote(claims.expiresAt) ?? undefined;
+  const waiting = certificate.status === "pending" ? waitingNote(certificate.createdAt) : null;
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant={statusVariant(certificate.status)}>
-          {statusLabel(certificate.status)}
-        </Badge>
-        <Badge variant="secondary">{typeLabel(certificate.certificateType)}</Badge>
-        <span className="text-sm">
-          {certificate.petName ?? certificate.petId}
-        </span>
-        {certificate.ownerAccountId ? (
-          <Link
-            href={`/users/${certificate.ownerAccountId}`}
-            className="text-xs text-muted-foreground underline-offset-4 hover:underline"
-          >
-            {certificate.ownerEmail ?? "Open owner"}
-          </Link>
-        ) : null}
-        <span className="ml-auto text-xs text-muted-foreground">
-          {formatWhen(certificate.createdAt)}
-        </span>
+    <div className="flex flex-col gap-4 overflow-hidden rounded-lg border">
+      {/* Two rows, not one: badges and the pet never compete with the waiting
+          time for space, so nothing is clipped at a narrow column width. */}
+      <div className="flex flex-col gap-2.5 border-b bg-muted/40 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <CertificateStatusBadge status={certificate.status} />
+          <CertificateTypeBadge type={certificate.certificateType} />
+          {/* Green under 3 days, amber under a week, red beyond: a date alone never shows neglect. */}
+          {waiting ? (
+            <span
+              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                waiting.days >= 7
+                  ? "border-rejected/30 bg-rejected-soft text-rejected-fg"
+                  : waiting.days >= 3
+                    ? "border-waiting/30 bg-waiting-soft text-waiting-fg"
+                    : "border-approved/25 bg-approved-soft text-approved-fg"
+              }`}
+            >
+              <Clock className="size-3.5" aria-hidden="true" />
+              {waiting.text}
+            </span>
+          ) : null}
+          <span className="ml-auto text-xs whitespace-nowrap text-muted-foreground">
+            {formatWhen(certificate.createdAt)}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span className="font-medium">{certificate.petName ?? certificate.petId}</span>
+          {certificate.ownerAccountId ? (
+            <Link
+              href={`/users/${certificate.ownerAccountId}`}
+              className="truncate text-sm text-muted-foreground underline-offset-4 hover:underline"
+            >
+              {certificate.ownerEmail ?? "Open owner"}
+            </Link>
+          ) : null}
+        </div>
       </div>
 
-      {/* Stacks on small screens; the side-by-side comparison only makes sense
-          once there is room for both halves. */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="flex flex-col gap-4">
+      {/* The scan gets the wider column: the claims are short labelled fields,
+          while a certificate is unreadable at half width. */}
+      <div className="grid gap-5 px-4 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+        <div className="flex flex-col gap-3">
           <div>
             <h3 className="text-sm font-medium">{review.claimsHeading}</h3>
             <p className="mt-0.5 text-xs text-muted-foreground">{review.claimsHint}</p>
           </div>
 
-          <dl className="grid gap-3 sm:grid-cols-2">
+          {/* One box, not three: the groups cost more height than they saved in scanning. */}
+          <ClaimGroup tone={expiredFlag ? "alert" : undefined}>
             <Claim label="Title" value={claims.title} />
             <Claim label="Certificate no." value={claims.certificateNumber} />
-            <Claim label="Issued by" value={claims.issuedBy} />
             <Claim label="Issued on" value={formatDate(claims.issuedAt)} />
             <Claim label="Expires" value={formatDate(claims.expiresAt)} flag={expiredFlag} />
             <Claim label="Next due" value={formatDate(claims.nextDueAt)} />
+            <Claim label="Issued by" value={claims.issuedBy} />
             <Claim label="Veterinarian" value={claims.veterinarian} />
             <Claim label="Clinic" value={claims.clinicName} />
-          </dl>
+          </ClaimGroup>
+
 
           {claims.notes?.trim() ? (
             <Claim label="Owner's notes" value={claims.notes} />
           ) : null}
 
-          <div className="rounded-md bg-muted p-3">
-            <h3 className="text-xs font-medium uppercase tracking-wide">
+          <div className="rounded-lg border bg-muted/40 px-3.5 py-3">
+            <h4 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               {review.levelHeading}
-            </h3>
+            </h4>
             {certificate.level ? (
+              /* Green for what is verified, grey for what is not: three green
+                 pills and a grey one say more than four identical outlines. */
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <Badge variant="outline">
+                <span className="inline-flex min-h-6 items-center rounded-full border border-trust/30 bg-trust-soft px-2.5 py-0.5 text-xs font-semibold text-trust-fg">
                   {certificate.level.levelCode ?? "—"}
                   {certificate.level.level !== null ? ` (L${certificate.level.level})` : ""}
-                </Badge>
-                {certificate.level.vaccinationVerified ? (
-                  <Badge variant="outline">Vaccination</Badge>
-                ) : null}
-                {certificate.level.healthVerified ? <Badge variant="outline">Health</Badge> : null}
-                {certificate.level.ownershipVerified ? (
-                  <Badge variant="outline">Ownership</Badge>
-                ) : null}
+                </span>
+                <LevelPill label="Vaccination" done={certificate.level.vaccinationVerified} />
+                <LevelPill label="Health" done={certificate.level.healthVerified} />
+                <LevelPill label="Ownership" done={certificate.level.ownershipVerified} />
               </div>
             ) : (
               <p className="mt-1 text-sm text-muted-foreground">{review.noLevel}</p>
@@ -164,7 +229,7 @@ export function ReviewPane({
           </div>
 
           {certificate.status !== "pending" ? (
-            <div className="rounded-md border p-3 text-sm">
+            <div className="rounded-lg border px-3.5 py-3 text-sm">
               <span className="text-muted-foreground">
                 {statusLabel(certificate.status)} · {formatWhen(certificate.reviewedAt)}
               </span>
@@ -175,7 +240,7 @@ export function ReviewPane({
           ) : null}
         </div>
 
-        <div className="flex min-h-96 flex-col gap-2">
+        <div className="flex flex-col gap-2">
           <h3 className="text-sm font-medium">{review.documentHeading}</h3>
           {/* Keyed so moving to the next certificate remounts the viewer at a
               neutral zoom rather than inheriting the previous scan's. */}
@@ -188,23 +253,29 @@ export function ReviewPane({
         </div>
       </div>
 
+      {/* Sticky: the scan is tall, and a decision bar that scrolls away means
+          hunting for it after every certificate. */}
       {canDecide ? (
-        <div className="flex flex-wrap items-center gap-2 border-t pt-4">
+        <div className="sticky bottom-0 flex flex-wrap items-center gap-2 rounded-b-lg border-t bg-card/95 px-4 py-3 backdrop-blur">
           <Button
-            variant="default"
             disabled={decide.isPending}
             onClick={() => setDialog("approve")}
+            nativeButton
+            className="gap-1.5 bg-approved text-white hover:bg-approved/90"
           >
+            {decide.isPending ? <Spinner className="text-white" /> : <Check className="size-4" aria-hidden="true" />}
             {copy.verifications.decide.approve}
           </Button>
           <Button
-            variant="destructive"
             disabled={decide.isPending}
             onClick={() => setDialog("reject")}
+            nativeButton
+            className="gap-1.5 bg-rejected text-white hover:bg-rejected/90"
           >
+            {decide.isPending ? <Spinner className="text-white" /> : <X className="size-4" aria-hidden="true" />}
             {copy.verifications.decide.reject}
           </Button>
-          <span className="text-xs text-muted-foreground">{review.shortcutHint}</span>
+          <span className="ml-auto text-xs text-muted-foreground">{review.shortcutHint}</span>
         </div>
       ) : null}
 

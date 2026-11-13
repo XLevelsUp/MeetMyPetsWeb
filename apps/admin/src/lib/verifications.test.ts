@@ -34,6 +34,7 @@ const baseQuery: CertificatesQuery = {
   certificateType: "all",
   sort: "created_at",
   dir: "asc",
+  expiredOnly: false,
 };
 
 const CERT_ROW = {
@@ -233,6 +234,50 @@ describe("listCertificates", () => {
       const parsed = certificatesQuerySchema.parse({ sort: "pet_name", dir: "sideways" });
       // `pet_name` is not orderable — it is merged in from another schema.
       expect(parsed).toMatchObject({ sort: "created_at", dir: "asc" });
+    });
+  });
+
+  describe("filtering and search", () => {
+    it("applies expiredOnly filter to query certificates with past expiry", async () => {
+      const mock = setup({ "pets.pet_certificates": { rows: [CERT_ROW], count: 1 } });
+      await listCertificates({ ...baseQuery, expiredOnly: true });
+
+      const certCalls = mock.calls.find((c) => c.key === "pets.pet_certificates");
+      const ltFilter = certCalls?.filters?.find((f) => f.method === "lt");
+      const notNullFilter = certCalls?.filters?.find((f) => f.method === "not");
+
+      expect(ltFilter?.args[0]).toBe("expires_at");
+      expect(notNullFilter).toEqual({ method: "not", args: ["expires_at", "is", null] });
+    });
+
+    it("pre-resolves pet name and owner email on free text search", async () => {
+      const mock = setup({
+        "pets.pets": { rows: [{ id: PET_ID, name: "Biscuit", owner_account_id: OWNER_ID }] },
+        "identity.accounts": { rows: [{ id: OWNER_ID, email: "biscuit-owner@example.com" }] },
+        "pets.pet_certificates": { rows: [CERT_ROW], count: 1 },
+        "pets.pet_verification_levels": { rows: LEVEL_ROWS },
+      });
+
+      await listCertificates({ ...baseQuery, q: "biscuit" });
+
+      const certCalls = mock.calls.find((c) => c.key === "pets.pet_certificates");
+      const orFilter = certCalls?.filters?.find((f) => f.method === "or");
+      expect(orFilter?.args[0]).toContain(`pet_id.in.(${PET_ID})`);
+    });
+
+    it("matches UUID directly against certificate id and pet_id", async () => {
+      const mock = setup({
+        "pets.pet_certificates": { rows: [CERT_ROW], count: 1 },
+        "pets.pets": { rows: PET_ROWS },
+        "pets.pet_verification_levels": { rows: [] },
+        "identity.accounts": { rows: [] },
+      });
+
+      await listCertificates({ ...baseQuery, q: CERT_ID });
+
+      const certCalls = mock.calls.find((c) => c.key === "pets.pet_certificates");
+      const orFilter = certCalls?.filters?.find((f) => f.method === "or");
+      expect(orFilter?.args[0]).toBe(`id.eq.${CERT_ID},pet_id.eq.${CERT_ID}`);
     });
   });
 });

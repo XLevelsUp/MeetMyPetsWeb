@@ -4,6 +4,7 @@ import { Bricolage_Grotesque, Nunito_Sans } from "next/font/google";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { QueryProgress } from "@/components/layout/query-progress";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { admin } from "@/config/admin";
 import "./globals.css";
@@ -44,8 +45,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col">
         <ThemeProvider>
           <QueryProvider>
+            {/* Inside QueryProvider: it reads the client's in-flight count. */}
+            <QueryProgress />
             <TooltipProvider>{children}</TooltipProvider>
-            <Toaster richColors position="top-right" />
+            {/* closeButton so a long save can be dismissed; 4s is long enough to read one line. */}
+            <Toaster richColors closeButton position="top-right" duration={4000} />
           </QueryProvider>
         </ThemeProvider>
       </body>

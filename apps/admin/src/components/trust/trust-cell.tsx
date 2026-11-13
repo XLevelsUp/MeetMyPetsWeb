@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 
-import { statusLabel, statusVariant } from "@/components/trust/trust-format";
-import { Badge } from "@/components/ui/badge";
+import { TrustStatusBadge } from "@/components/trust/trust-badges";
+import { statusLabel } from "@/components/trust/trust-format";
 import { copy } from "@/config/admin";
 import { trustStatusFor } from "@/lib/trust-constants";
 import type { PetSummary } from "@/lib/users-contract";
@@ -36,7 +36,7 @@ export function TrustCell({ pet }: { pet: PetSummary }) {
       aria-label={`${copy.users.trustAria} ${pet.name ?? ""} — ${statusLabel(status)}`.trim()}
     >
       {score}
-      <Badge variant={statusVariant(status)}>{statusLabel(status)}</Badge>
+      <TrustStatusBadge status={status} />
     </Link>
   );
 }

@@ -67,9 +67,19 @@ type Draft = {
   seoDescription: string;
   canonicalUrl: string;
   ogImage: string | null;
+  /** Local datetime-local value, or "" to let the server stamp it. */
+  publishedAt: string;
 };
 
 const NO_CATEGORY = "none";
+
+/** ISO UTC → the "YYYY-MM-DDTHH:mm" local-time string datetime-local requires. */
+function toLocalInput(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
 function draftFrom(post: BlogPost | null): Draft {
   return {
@@ -87,6 +97,7 @@ function draftFrom(post: BlogPost | null): Draft {
     seoTitle: post?.seoTitle ?? "",
     seoDescription: post?.seoDescription ?? "",
     canonicalUrl: post?.canonicalUrl ?? "",
+    publishedAt: post?.publishedAt ? toLocalInput(post.publishedAt) : "",
     ogImage: post?.ogImage ?? null,
   };
 }
@@ -111,6 +122,7 @@ function toBody(draft: Draft) {
     seoTitle: draft.seoTitle,
     seoDescription: draft.seoDescription,
     canonicalUrl: draft.canonicalUrl,
+    publishedAt: draft.publishedAt ? new Date(draft.publishedAt).toISOString() : null,
     ogImage: draft.ogImage,
   };
 }
@@ -280,6 +292,11 @@ function EditorForm({ post }: { post: BlogPost | null }) {
         <h1 className="font-heading text-2xl font-semibold">{id ? text.editor.editTitle : text.editor.newTitle}</h1>
         <BlogStatusBadge status={status} />
         {dirty ? <span className="text-xs text-amber-600 dark:text-amber-400">{text.editor.unsaved}</span> : null}
+        {post?.lastEditedBy ? (
+          <span className="text-xs text-muted-foreground">
+            {text.editor.lastEditedBy.replace("{who}", post.lastEditedBy)}
+          </span>
+        ) : null}
 
         <div className="ml-auto flex flex-wrap gap-2">
           {id && isPublished ? (
@@ -329,7 +346,8 @@ function EditorForm({ post }: { post: BlogPost | null }) {
         </p>
       ) : null}
 
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+      {/* items-stretch, so both columns run to the taller one's full height. */}
+      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         {/* Main column */}
         <div className="flex min-w-0 flex-col gap-4">
           <Card>
@@ -403,7 +421,8 @@ function EditorForm({ post }: { post: BlogPost | null }) {
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Last card in the column: grows to take up any slack the side column leaves. */}
+          <Card className="lg:flex-1">
             <CardHeader>
               <CardTitle>{text.editor.sections.faq}</CardTitle>
             </CardHeader>
@@ -414,7 +433,7 @@ function EditorForm({ post }: { post: BlogPost | null }) {
         </div>
 
         {/* Side column */}
-        <div className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-4">
+        <div className="flex min-w-0 flex-col gap-4">
           <Card>
             <CardHeader>
               <CardTitle>{text.editor.sections.details}</CardTitle>
@@ -475,6 +494,16 @@ function EditorForm({ post }: { post: BlogPost | null }) {
                   onChange={(event) => set("authorName", event.target.value)}
                 />
               </Field>
+
+              {/* Empty stamps the publish moment; a value back- or post-dates it. */}
+              <Field id="blog-published-at" label={f.publishedAt} hint={f.publishedAtHint}>
+                <Input
+                  id="blog-published-at"
+                  type="datetime-local"
+                  value={draft.publishedAt}
+                  onChange={(event) => set("publishedAt", event.target.value)}
+                />
+              </Field>
             </CardContent>
           </Card>
 
@@ -503,7 +532,8 @@ function EditorForm({ post }: { post: BlogPost | null }) {
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Last card in the column: grows to take up any slack the main column leaves. */}
+          <Card className="lg:flex-1">
             <CardHeader>
               <CardTitle>{text.editor.sections.seo}</CardTitle>
             </CardHeader>

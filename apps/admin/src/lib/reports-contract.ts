@@ -63,6 +63,13 @@ export const trustRevertPreviewSchema = z.object({
 });
 export type TrustRevertPreview = z.infer<typeof trustRevertPreviewSchema>;
 
+export const reportMediaSchema = z.object({
+  url: z.string().nullable(),
+  contentType: z.enum(["image", "video"]),
+  storagePath: z.string().nullable(),
+});
+export type ReportMedia = z.infer<typeof reportMediaSchema>;
+
 export const reportSummarySchema = z.object({
   id: z.string(),
   status: z.enum(REPORT_STATUSES),
@@ -82,6 +89,7 @@ export const reportSummarySchema = z.object({
   reporterPetName: z.string().nullable(),
 
   post: reportedPostSchema.nullable(),
+  media: reportMediaSchema.nullable(),
   trust: trustSignalSchema,
   /** Total reports ever filed against this pet, this one included. */
   reportsAgainstPet: z.number().int().min(0),
@@ -109,6 +117,8 @@ export type ReportsResponse = z.infer<typeof reportsResponseSchema>;
 export const REPORT_STATUS_FILTERS = ["all", ...REPORT_STATUSES] as const;
 export const REPORT_REASON_FILTERS = ["all", ...REPORT_REASONS] as const;
 export const REPORT_SCOPE_FILTERS = ["all", ...REPORT_SCOPES] as const;
+export const REPORT_MEDIA_TYPE_FILTERS = ["all", "image", "video"] as const;
+export type ReportMediaTypeFilter = (typeof REPORT_MEDIA_TYPE_FILTERS)[number];
 
 /**
  * Sort keys.
@@ -140,6 +150,12 @@ export const reportsQuerySchema = listQuerySchema.extend({
    * defaults are deliberate; neither should be copied to the other.
    */
   dir: z.enum(SORT_DIRECTIONS).catch("desc"),
+  /** When true, only reports against pets with 2+ total reports are returned. */
+  repeatOnly: z
+    .union([z.boolean(), z.string().transform((v) => v === "true")])
+    .default(false)
+    .catch(false),
+  mediaType: z.enum(REPORT_MEDIA_TYPE_FILTERS).catch("all"),
 });
 export type ReportsQuery = z.infer<typeof reportsQuerySchema>;
 

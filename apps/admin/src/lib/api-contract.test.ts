@@ -38,6 +38,17 @@ describe("analyticsSummarySchema", () => {
         likeRate: { current: 25.5, previous: 23.4, changePct: 9 },
       },
       activePetsBySpecies: [{ species: "Dog", count: 30 }],
+      // Standing facts, with no period delta — they describe the world now.
+      operations: {
+        aiQueue: 10,
+        openReports: 20,
+        oldestWaitingHours: 2230,
+        reachableAccounts: 5,
+        totalAccounts: 92,
+        devicesAndroid: 6,
+        devicesIos: 1,
+        accountsWithPet: 57,
+      },
       // The window the deltas were measured over — the cards label themselves
       // from it, so it is required rather than optional.
       from: "2026-07-19",

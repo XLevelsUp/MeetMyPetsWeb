@@ -189,7 +189,7 @@ export async function listCertificates(
   }
 
   try {
-    const { page, pageSize, q, status, certificateType, sort, dir } = query;
+    const { page, pageSize, q, status, certificateType, sort, dir, expiredOnly } = query;
     const offset = (page - 1) * pageSize;
 
     let request = from(TABLES.certificates).select(CERTIFICATE_COLUMNS, { count: "exact" });
@@ -197,15 +197,63 @@ export async function listCertificates(
     if (status !== "all") request = request.eq("status", status);
     if (certificateType !== "all") request = request.eq("certificate_type", certificateType);
 
+    // Pet name & owner email pre-resolution: `pets.pets` and `identity.accounts`
+    // are in different schemas or tables, so PostgREST cannot inline join them
+    // on a list query. Fan-out like `reports.ts`: resolve matching pet IDs by
+    // pet name AND owner email first, then fold them into the OR filter so typing
+    // "tommy" or "aarav.dev" matches certificates for those pets.
+    let matchingPetIds: string[] | null = null;
+    if (q && !UUID_RE.test(sanitizeSearch(q))) {
+      const term = sanitizeSearch(q);
+      if (term) {
+        const { data: petData } = await from(TABLES.pets)
+          .select("id")
+          .ilike("name", `%${term}%`)
+          .limit(500);
+        const namePetIds = ((petData ?? []) as { id: string }[]).map((r) => r.id);
+
+        const { data: accountData } = await from(TABLES.accounts)
+          .select("id")
+          .ilike("email", `%${term}%`)
+          .limit(500);
+        const accountIds = ((accountData ?? []) as { id: string }[]).map((r) => r.id);
+
+        let ownerPetIds: string[] = [];
+        if (accountIds.length > 0) {
+          const { data: ownerPets } = await from(TABLES.pets)
+            .select("id")
+            .in("owner_account_id", accountIds)
+            .limit(500);
+          ownerPetIds = ((ownerPets ?? []) as { id: string }[]).map((r) => r.id);
+        }
+
+        matchingPetIds = [...new Set([...namePetIds, ...ownerPetIds])];
+      }
+    }
+
     if (q) {
       const term = sanitizeSearch(q);
       if (term) {
-        request = UUID_RE.test(term)
-          ? request.or(`id.eq.${term},pet_id.eq.${term}`)
-          : request.or(
-              `certificate_number.ilike.*${term}*,veterinarian.ilike.*${term}*,clinic_name.ilike.*${term}*,title.ilike.*${term}*`,
-            );
+        if (UUID_RE.test(term)) {
+          request = request.or(`id.eq.${term},pet_id.eq.${term}`);
+        } else {
+          const fieldOr = `certificate_number.ilike.*${term}*,veterinarian.ilike.*${term}*,clinic_name.ilike.*${term}*,title.ilike.*${term}*`;
+          if (matchingPetIds && matchingPetIds.length > 0) {
+            request = request.or(`${fieldOr},pet_id.in.(${matchingPetIds.join(",")})`);
+          } else {
+            request = request.or(fieldOr);
+          }
+        }
       }
+    }
+
+    // Expired-only filter: certificates whose stated expiry is in the past.
+    // Null `expires_at` means "no stated expiry", not "expired right now", so
+    // the `.not("expires_at", "is", null)` guard is essential.
+    if (expiredOnly) {
+      request = request
+        .lt("expires_at", new Date().toISOString())
+        .not("expires_at", "is", null);
     }
 
     /**

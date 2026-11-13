@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, Flag } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -41,6 +42,7 @@ export function ActionDialog({
   isPending,
   triggerVariant = "outline",
   triggerSize = "sm",
+  triggerClassName,
 }: {
   action: ModerationAction;
   disabled?: boolean;
@@ -49,6 +51,7 @@ export function ActionDialog({
   isPending: boolean;
   triggerVariant?: "outline" | "destructive" | "secondary";
   triggerSize?: "sm" | "default";
+  triggerClassName?: string;
 }) {
   const text = copy.users.actions[action];
   const [open, setOpen] = useState(false);
@@ -95,7 +98,10 @@ export function ActionDialog({
         size={triggerSize}
         disabled={disabled}
         onClick={() => setOpen(true)}
+        className={triggerClassName}
       >
+        {action === "flag" ? <Flag className="size-3.5 shrink-0" aria-hidden="true" /> : null}
+        {action === "unflag" ? <Check className="size-3.5 shrink-0" aria-hidden="true" /> : null}
         {text.label}
       </Button>
 
@@ -115,8 +121,12 @@ export function ActionDialog({
                   setDurationHours(value ? Number(value) : SUSPEND_DURATIONS_HOURS[2])
                 }
               >
-                <SelectTrigger id="duration">
-                  <SelectValue />
+                <SelectTrigger id="duration" className="w-full">
+                  <SelectValue>
+                    {(value: string) =>
+                      copy.users.dialog.durations[value as "24" | "72" | "168" | "720"] ?? value
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {SUSPEND_DURATIONS_HOURS.map((hours) => (
@@ -150,7 +160,16 @@ export function ActionDialog({
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>{copy.users.dialog.cancel}</AlertDialogCancel>
           <AlertDialogAction
-            variant={action === "restore" || action === "unflag" ? "default" : "destructive"}
+            className={
+              action === "flag"
+                ? "bg-red-600 hover:bg-red-700 text-white dark:bg-red-500 dark:hover:bg-red-600"
+                : action === "unflag"
+                  ? "bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-500 dark:hover:bg-amber-600"
+                  : action === "restore"
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-500 dark:hover:bg-emerald-600"
+                    : undefined
+            }
+            variant={action === "flag" || action === "ban" || action === "suspend" ? "destructive" : "default"}
             disabled={isPending || !reasonCheck.success}
             onClick={handleConfirm}
           >

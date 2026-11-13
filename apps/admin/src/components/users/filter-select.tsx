@@ -38,7 +38,9 @@ export function FilterSelect<T extends string>({
           so a null selection falls back to the first option. */}
       <Select value={value} onValueChange={(next) => onChange((next ?? options[0].value) as T)}>
         <SelectTrigger id={id} className={className}>
-          <SelectValue />
+          <SelectValue>
+            {(val: string) => options.find((o) => o.value === val)?.label ?? val}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {options.map((option) => (

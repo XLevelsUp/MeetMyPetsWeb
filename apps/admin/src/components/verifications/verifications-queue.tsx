@@ -1,22 +1,23 @@
 "use client";
 
+import Link from "next/link";
+
 import { CalendarX2, FileWarning } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
+import { ExportCsvButton } from "@/components/shared/export-csv-button";
 import { Pagination } from "@/components/shared/pagination";
+import { FetchingOverlay } from "@/components/shared/fetching-overlay";
 import { QueryErrorCard } from "@/components/shared/query-error-card";
 import { SortableHead } from "@/components/shared/sortable-head";
 import { ReviewPane } from "@/components/verifications/review-pane";
+import { CertificateStatusBadge, CertificateTypeBadge } from "@/components/verifications/verification-badges";
 import { VerificationFilters } from "@/components/verifications/verification-filters";
 import {
   formatDate,
   formatWhen,
   isExpired,
-  statusLabel,
-  statusVariant,
-  typeLabel,
 } from "@/components/verifications/verification-format";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -29,7 +30,9 @@ import {
 import { copy } from "@/config/admin";
 import { useUrlSyncedQuery } from "@/hooks/use-url-query";
 import { useCertificates } from "@/hooks/use-verifications";
+import { CERTIFICATE_CSV_COLUMNS } from "@/components/users/csv-columns";
 import {
+  certificatesResponseSchema,
   DEFAULT_CERTIFICATES_QUERY,
   type CertificatesQuery,
 } from "@/lib/verifications-contract";
@@ -90,11 +93,22 @@ export function VerificationsQueue({ initialQuery }: { initialQuery: Certificate
   }, [items, selected]);
 
   const isFiltered =
-    Boolean(query.q) || query.status !== "pending" || query.certificateType !== "all";
+    Boolean(query.q) || query.status !== "pending" || query.certificateType !== "all" || query.expiredOnly;
 
   return (
     <div className="flex flex-col gap-4">
-      <VerificationFilters query={query} onChange={handleFilterChange} />
+      <div className="flex items-start justify-between gap-2">
+        <VerificationFilters query={query} onChange={handleFilterChange} />
+        <div className="shrink-0 pt-0.5">
+          <ExportCsvButton
+            endpoint="/api/v1/admin/verifications"
+            query={query}
+            filenamePrefix="verifications"
+            parse={(json) => certificatesResponseSchema.parse(json)}
+            columns={CERTIFICATE_CSV_COLUMNS}
+          />
+        </div>
+      </div>
 
       {certificates.isError ? (
         <QueryErrorCard
@@ -103,6 +117,7 @@ export function VerificationsQueue({ initialQuery }: { initialQuery: Certificate
         />
       ) : (
         <>
+          <FetchingOverlay isFetching={certificates.isFetching && !certificates.isPending}>
           <div className="overflow-x-auto rounded-lg border">
             <Table>
               <TableHeader>
@@ -192,15 +207,24 @@ export function VerificationsQueue({ initialQuery }: { initialQuery: Certificate
                         {formatWhen(item.createdAt)}
                       </TableCell>
                       <TableCell>
-                        <span className="block text-sm">{item.petName ?? item.petId}</span>
-                        {item.ownerEmail ? (
+                        <span className="block text-sm font-medium">{item.petName ?? item.petId}</span>
+                        {item.ownerAccountId ? (
+                          <Link
+                            href={`/users/${item.ownerAccountId}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="block text-xs text-muted-foreground underline-offset-4 hover:underline hover:text-foreground"
+                            title={`View owner profile (${item.ownerEmail || item.ownerAccountId})`}
+                          >
+                            {item.ownerEmail || "View Owner"}
+                          </Link>
+                        ) : item.ownerEmail ? (
                           <span className="block text-xs text-muted-foreground">
                             {item.ownerEmail}
                           </span>
                         ) : null}
                       </TableCell>
-                      <TableCell className="text-sm">
-                        {typeLabel(item.certificateType)}
+                      <TableCell>
+                        <CertificateTypeBadge type={item.certificateType} />
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm">
                         {/* `isExpired` is the same helper the review pane uses,
@@ -240,9 +264,7 @@ export function VerificationsQueue({ initialQuery }: { initialQuery: Certificate
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={statusVariant(item.status)}>
-                          {statusLabel(item.status)}
-                        </Badge>
+                        <CertificateStatusBadge status={item.status} />
                       </TableCell>
                     </TableRow>
                   ))
@@ -250,6 +272,7 @@ export function VerificationsQueue({ initialQuery }: { initialQuery: Certificate
               </TableBody>
             </Table>
           </div>
+          </FetchingOverlay>
 
           {certificates.data ? (
             <Pagination

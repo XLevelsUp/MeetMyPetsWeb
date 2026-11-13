@@ -45,10 +45,36 @@ export const speciesCountSchema = z.object({
 });
 export type SpeciesCount = z.infer<typeof speciesCountSchema>;
 
+/**
+ * Three standing facts that do not fit the metric cards.
+ *
+ * Each is a state of the world right now, not a count over the selected
+ * window, so none of them carries a period-over-period delta — a "+12% vs
+ * previous 30 days" on "oldest item waiting" would be meaningless.
+ */
+export const operationsSchema = z.object({
+  /** AI moderation items with review_status = pending. */
+  aiQueue: z.number().int().min(0),
+  /** User-filed reports still unresolved. */
+  openReports: z.number().int().min(0),
+  /** Hours the oldest unreviewed item of either kind has waited; null when clear. */
+  oldestWaitingHours: z.number().nullable(),
+  /** Accounts that can receive a push: active device AND notifications not disabled. */
+  reachableAccounts: z.number().int().min(0),
+  totalAccounts: z.number().int().min(0),
+  /** Registered ACTIVE devices — devices, not people; some accounts own several. */
+  devicesAndroid: z.number().int().min(0),
+  devicesIos: z.number().int().min(0),
+  /** Accounts owning at least one pet. NOT the pet count — one owner may have up to 20. */
+  accountsWithPet: z.number().int().min(0),
+});
+export type Operations = z.infer<typeof operationsSchema>;
+
 export const analyticsSummarySchema = z.object({
   generatedAt: z.iso.datetime(),
   metrics: z.record(z.enum(METRIC_KEYS), metricValueSchema),
   activePetsBySpecies: z.array(speciesCountSchema),
+  operations: operationsSchema,
   /** The window the deltas were computed over, echoed for the card labels. */
   from: z.string(),
   to: z.string(),

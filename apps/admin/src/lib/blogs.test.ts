@@ -21,7 +21,7 @@ vi.mock("@/lib/blog-revalidate", async (importOriginal) => {
   };
 });
 
-import { applyBlogAction, createBlogPost, isAllowedImageSrc, updateBlogPost } from "@/lib/blogs";
+import { applyBlogAction, createBlogPost, getBlogPost, isAllowedImageSrc, updateBlogPost } from "@/lib/blogs";
 import type { BlogInput } from "@/lib/blog-contract";
 
 const ID = "11111111-1111-4111-8111-111111111111";
@@ -46,6 +46,7 @@ const input = (overrides: Partial<BlogInput> = {}): BlogInput => ({
   seoDescription: null,
   canonicalUrl: null,
   ogImage: null,
+  publishedAt: null,
   ...overrides,
 });
 
@@ -240,6 +241,75 @@ describe("updateBlogPost", () => {
     const db = setup({});
     expect(await updateBlogPost("not-a-uuid", input(), "save", ACTOR)).toMatchObject({ ok: false, reason: "not_found" });
     expect(db.calls).toEqual([]);
+  });
+});
+
+describe("getBlogPost — last edited by", () => {
+  it("takes the newest audit row per post and ignores the older ones", async () => {
+    setup({
+      "public.blog_posts#select": { single: row(), rows: [] },
+      "public.blog_categories#select": { rows: [{ id: CAT, name: "Care" }] },
+      "public.admin_audit_logs#select": {
+        // The adapter orders created_at desc, so the mock returns them that way.
+        rows: [
+          { target_id: ID, actor_email: "latest@meetmypets.dev", created_at: "2026-11-02T00:00:00Z" },
+          { target_id: ID, actor_email: "earlier@meetmypets.dev", created_at: "2026-10-01T00:00:00Z" },
+        ],
+      },
+    });
+
+    const result = await getBlogPost(ID);
+    expect(result).toMatchObject({ ok: true });
+    if (result.ok) expect(result.data.lastEditedBy).toBe("latest@meetmypets.dev");
+  });
+
+  it("reports null when the post has no audit rows left", async () => {
+    setup({
+      "public.blog_posts#select": { single: row(), rows: [] },
+      "public.blog_categories#select": { rows: [] },
+      "public.admin_audit_logs#select": { rows: [] },
+    });
+
+    const result = await getBlogPost(ID);
+    if (result.ok) expect(result.data.lastEditedBy).toBeNull();
+  });
+});
+
+describe("publish date override", () => {
+  it("publishing with an explicit date uses it instead of now", async () => {
+    const db = setup({
+      "public.blog_posts#select": { rows: [] },
+      "public.blog_posts#insert": { rows: [{ id: ID, slug: "first-playdate", status: "published" }] },
+    });
+
+    await createBlogPost(input({ publishedAt: "2026-01-15T09:00:00.000Z" }), "publish", ACTOR);
+
+    const insert = db.calls.find((c) => c.op === "insert" && c.key === "public.blog_posts");
+    expect(insert?.values).toMatchObject({ published_at: "2026-01-15T09:00:00.000Z", status: "published" });
+  });
+
+  it("correcting the date on a live post overwrites the original stamp", async () => {
+    const db = setup({
+      "public.blog_posts#select": { single: row({ status: "published", published_at: "2026-10-02T00:00:00Z" }), rows: [] },
+      "public.blog_posts#update": { rows: [{ id: ID, slug: "first-playdate", status: "published" }] },
+    });
+
+    await updateBlogPost(ID, input({ publishedAt: "2026-03-03T08:00:00.000Z" }), "save", ACTOR);
+
+    const update = db.calls.find((c) => c.op === "update" && c.key === "public.blog_posts");
+    expect(update?.values).toMatchObject({ published_at: "2026-03-03T08:00:00.000Z" });
+  });
+
+  it("leaving the date empty on a live post keeps the existing one", async () => {
+    const db = setup({
+      "public.blog_posts#select": { single: row({ status: "published", published_at: "2026-10-02T00:00:00Z" }), rows: [] },
+      "public.blog_posts#update": { rows: [{ id: ID, slug: "first-playdate", status: "published" }] },
+    });
+
+    await updateBlogPost(ID, input({ publishedAt: null }), "save", ACTOR);
+
+    const update = db.calls.find((c) => c.op === "update" && c.key === "public.blog_posts");
+    expect(update?.values).toMatchObject({ published_at: "2026-10-02T00:00:00Z" });
   });
 });
 

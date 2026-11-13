@@ -14,6 +14,7 @@ import {
 import { AcquisitionChart } from "@/components/dashboard/acquisition-chart";
 import { ChartSkeleton, MetricGridSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { MetricCard } from "@/components/dashboard/metric-card";
+import { OperationsCards } from "@/components/dashboard/operations-cards";
 import { RangeFilter } from "@/components/dashboard/range-filter";
 import { SpeciesBreakdown } from "@/components/dashboard/species-breakdown";
 import { SwipeVolumeChart } from "@/components/dashboard/swipe-volume-chart";
@@ -64,7 +65,7 @@ export function MetricGrid({ initialRange }: { initialRange: AnalyticsRangeQuery
   const isClamped = Boolean(dataStartsAt && timeseries.data && dataStartsAt >= drawn.from);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {/* One filter row, above everything it scopes. */}
       <RangeFilter range={range} onChange={(next) => setRange(() => next)} dataStartsAt={dataStartsAt} />
 
@@ -74,11 +75,15 @@ export function MetricGrid({ initialRange }: { initialRange: AnalyticsRangeQuery
         <QueryErrorCard message={summary.error.message} onRetry={() => summary.refetch()} />
       ) : (
         <>
+          {/* 80%, not 60%: a deep dim read as a glitch; the top bar carries the signal. */}
           <div
-            className={summary.isFetching ? "opacity-60 transition-opacity" : "transition-opacity"}
+            className={summary.isFetching ? "opacity-80 transition-opacity" : "transition-opacity"}
             aria-busy={summary.isFetching}
           >
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {/* 4 columns at xl turns 3 rows of cards into 2 without shrinking anything. */}
+            <div className="grid auto-rows-fr grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {/* Standing facts first: a moderator's workload is what they came for. */}
+              <OperationsCards ops={summary.data.operations} />
               {(Object.keys(metricIcons) as MetricKey[]).map((key) => (
                 <MetricCard
                   key={key}
@@ -96,7 +101,7 @@ export function MetricGrid({ initialRange }: { initialRange: AnalyticsRangeQuery
       )}
 
       {timeseries.isPending ? (
-        <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
           <ChartSkeleton />
           <ChartSkeleton />
         </div>
@@ -104,7 +109,7 @@ export function MetricGrid({ initialRange }: { initialRange: AnalyticsRangeQuery
         <QueryErrorCard message={timeseries.error.message} onRetry={() => timeseries.refetch()} />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
             <AcquisitionChart
               data={timeseries.data.userAcquisition}
               bucket={bucket}

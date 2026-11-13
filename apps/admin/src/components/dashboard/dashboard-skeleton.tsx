@@ -4,10 +4,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 /** Loading placeholders matching the dashboard's real layout. */
 export function MetricGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <Card key={i} className="py-4">
-          <CardContent className="flex flex-col gap-2 px-4">
+    <div className="grid auto-rows-fr grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      {Array.from({ length: 10 }).map((_, i) => (
+        <Card key={i} className="py-3">
+          <CardContent className="flex flex-col gap-1.5 px-3.5">
             <Skeleton className="h-4 w-24" />
             <Skeleton className="h-8 w-20" />
             <Skeleton className="h-3.5 w-32" />

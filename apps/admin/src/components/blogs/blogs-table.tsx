@@ -235,7 +235,13 @@ export function BlogsTable({ initialQuery }: { initialQuery: BlogListQuery }) {
                         {formatDate(post.createdAt)}
                       </TableCell>
                       <TableCell className="text-sm whitespace-nowrap text-muted-foreground">
-                        {formatDate(post.updatedAt)}
+                        {/* Under the date, not a column of its own: same fact, no extra table width. */}
+                        <span className="block">{formatDate(post.updatedAt)}</span>
+                        {post.lastEditedBy ? (
+                          <span className="block max-w-40 truncate text-xs" title={post.lastEditedBy}>
+                            {post.lastEditedBy}
+                          </span>
+                        ) : null}
                       </TableCell>
                       <TableCell className="text-sm whitespace-nowrap text-muted-foreground">
                         {post.publishedAt ? formatDate(post.publishedAt) : text.notPublished}
