@@ -18,6 +18,7 @@ import {
   trustStatusFor,
 } from "@/lib/trust-constants";
 import type {
+  ReportMedia,
   ReportSummary,
   ReportsQuery,
   ReportsResponse,
@@ -65,6 +66,7 @@ const TABLES = {
   pets: { schema: "pets", table: "pets" },
   accounts: { schema: "identity", table: "accounts" },
   posts: { schema: "social", table: "posts" },
+  postMedia: { schema: "social", table: "post_media" },
   /** The app's trust ledger — SELECT only. We read it to find what to credit. */
   trustEvents: { schema: "pets", table: "trust_score_events" },
   /** Ours: the counter-entry their ledger will not let us write. */
@@ -114,6 +116,7 @@ type PetRow = {
   id: string;
   name: string | null;
   owner_account_id: string | null;
+  profile_photo_url: string | null;
   trust_score: number | null;
   temporary_ban_until: string | null;
 };
@@ -125,6 +128,41 @@ type PostRow = {
   deleted_at: string | null;
 };
 
+function mediaUrl(storagePath: string | null): string | null {
+  if (!storagePath) return null;
+  if (storagePath.startsWith("http://") || storagePath.startsWith("https://")) return storagePath;
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!base) return null;
+  const slash = storagePath.indexOf("/");
+  if (slash <= 0) return null;
+  const bucket = storagePath.slice(0, slash);
+  const path = storagePath.slice(slash + 1);
+  return `${base}/storage/v1/object/public/${bucket}/${encodeURI(path)}`;
+}
+
+async function postMediaByPostIds(
+  postIds: string[],
+): Promise<Map<string, { storagePath: string; mediaType: string }>> {
+  const map = new Map<string, { storagePath: string; mediaType: string }>();
+  if (postIds.length === 0) return map;
+
+  try {
+    const { data, error } = await from(TABLES.postMedia)
+      .select("post_id,storage_path,media_type")
+      .in("post_id", postIds);
+    if (!error && data) {
+      for (const row of data as { post_id: string; storage_path: string; media_type: string }[]) {
+        if (!map.has(row.post_id)) {
+          map.set(row.post_id, { storagePath: row.storage_path, mediaType: row.media_type });
+        }
+      }
+    }
+  } catch {
+    // Non-fatal if social.post_media has no rows or is unreachable
+  }
+  return map;
+}
+
 const REPORT_COLUMNS =
   "id,reporter_pet_id,reported_pet_id,reporter_account_id,reason,details,status,context_entity_type,context_entity_id,created_at";
 
@@ -134,7 +172,7 @@ async function petsById(ids: string[]): Promise<Map<string, PetRow>> {
   if (ids.length === 0) return map;
 
   const { data, error } = await from(TABLES.pets)
-    .select("id,name,owner_account_id,trust_score,temporary_ban_until")
+    .select("id,name,owner_account_id,profile_photo_url,trust_score,temporary_ban_until")
     .in("id", ids);
   if (error) throw new Error(`pets.pets: ${error.message}`);
 
@@ -496,9 +534,62 @@ export async function listReports(query: ReportsQuery): Promise<ReportsResult<Re
   }
 
   try {
-    const { page, pageSize, q, status, reason, scope, sort, dir } = query;
+    const { page, pageSize, q, status, reason, scope, sort, dir, repeatOnly, mediaType } = query;
     const offset = (page - 1) * pageSize;
     const ascending = dir === "asc";
+
+    // Media type pre-resolution (image vs video)
+    let videoPostIds: string[] | null = null;
+    if (mediaType === "video" || mediaType === "image") {
+      const { data: videoData } = await from(TABLES.postMedia)
+        .select("post_id")
+        .eq("media_type", "video");
+      videoPostIds = ((videoData ?? []) as { post_id: string }[]).map((r) => r.post_id);
+    }
+
+    // Pet name & owner email pre-resolution: cross-schema lookup so typing
+    // "Rocky" or an owner email matches reports even if not in the details text.
+    let matchingPetIds: string[] | null = null;
+    if (q && !UUID_RE.test(sanitizeSearch(q))) {
+      const term = sanitizeSearch(q);
+      if (term) {
+        const { data: petData } = await from(TABLES.pets)
+          .select("id")
+          .ilike("name", `%${term}%`)
+          .limit(500);
+        const namePetIds = ((petData ?? []) as { id: string }[]).map((r) => r.id);
+
+        const { data: accountData } = await from(TABLES.accounts)
+          .select("id")
+          .ilike("email", `%${term}%`)
+          .limit(500);
+        const accountIds = ((accountData ?? []) as { id: string }[]).map((r) => r.id);
+
+        let ownerPetIds: string[] = [];
+        if (accountIds.length > 0) {
+          const { data: ownerPets } = await from(TABLES.pets)
+            .select("id")
+            .in("owner_account_id", accountIds)
+            .limit(500);
+          ownerPetIds = ((ownerPets ?? []) as { id: string }[]).map((r) => r.id);
+        }
+
+        matchingPetIds = [...new Set([...namePetIds, ...ownerPetIds])];
+      }
+    }
+
+    // Repeat offenders pre-resolution: pets with 2+ reports against them
+    let repeatPetIds: string[] | null = null;
+    if (repeatOnly) {
+      const { data: allReports } = await from(TABLES.reports).select("reported_pet_id");
+      const petCounts = new Map<string, number>();
+      for (const r of (allReports ?? []) as { reported_pet_id: string }[]) {
+        petCounts.set(r.reported_pet_id, (petCounts.get(r.reported_pet_id) ?? 0) + 1);
+      }
+      repeatPetIds = [...petCounts.entries()]
+        .filter(([, count]) => count >= 2)
+        .map(([id]) => id);
+    }
 
     /**
      * Every filter except ordering and paging, in one place so the trust path's
@@ -528,6 +619,7 @@ export async function listReports(query: ReportsQuery): Promise<ReportsResult<Re
       is(column: string, value: null): Filterable;
       or(filters: string): Filterable;
       ilike(column: string, pattern: string): Filterable;
+      in(column: string, values: string[]): Filterable;
     };
 
     const applyFilters = <T>(input: T): T => {
@@ -544,9 +636,31 @@ export async function listReports(query: ReportsQuery): Promise<ReportsResult<Re
       if (q) {
         const term = sanitizeSearch(q);
         if (term) {
-          out = UUID_RE.test(term)
-            ? out.or(`id.eq.${term},reported_pet_id.eq.${term},reporter_pet_id.eq.${term}`)
-            : out.ilike("details", `%${term}%`);
+          if (UUID_RE.test(term)) {
+            out = out.or(`id.eq.${term},reported_pet_id.eq.${term},reporter_pet_id.eq.${term}`);
+          } else if (matchingPetIds && matchingPetIds.length > 0) {
+            out = out.or(
+              `details.ilike.*${term}*,reported_pet_id.in.(${matchingPetIds.join(",")}),reporter_pet_id.in.(${matchingPetIds.join(",")})`,
+            );
+          } else {
+            out = out.ilike("details", `%${term}%`);
+          }
+        }
+      }
+
+      if (repeatOnly) {
+        if (repeatPetIds && repeatPetIds.length > 0) {
+          out = out.in("reported_pet_id", repeatPetIds);
+        } else {
+          out = out.eq("id", "00000000-0000-0000-0000-000000000000");
+        }
+      }
+
+      if (mediaType === "video") {
+        if (videoPostIds && videoPostIds.length > 0) {
+          out = out.eq("context_entity_type", "post").in("context_entity_id", videoPostIds);
+        } else {
+          out = out.eq("id", "00000000-0000-0000-0000-000000000000");
         }
       }
 
@@ -627,9 +741,10 @@ export async function listReports(query: ReportsQuery): Promise<ReportsResult<Re
     );
     const reportedPetIds = unique(rows.map((r) => r.reported_pet_id));
 
-    const [pets, posts, counts] = await Promise.all([
+    const [pets, posts, postMedia, counts] = await Promise.all([
       petsById(petIds),
       postsById(postIds),
+      postMediaByPostIds(postIds),
       reportCountsFor(reportedPetIds),
     ]);
 
@@ -655,6 +770,27 @@ export async function listReports(query: ReportsQuery): Promise<ReportsResult<Re
           ? posts.get(row.context_entity_id) ?? null
           : null;
 
+      let media: ReportMedia | null = null;
+      if (row.context_entity_type === "post" && row.context_entity_id) {
+        const pm = postMedia.get(row.context_entity_id);
+        if (pm) {
+          media = {
+            url: mediaUrl(pm.storagePath),
+            contentType: pm.mediaType === "video" ? "video" : "image",
+            storagePath: pm.storagePath,
+          };
+        }
+      } else {
+        const petPhoto = reported?.profile_photo_url ?? null;
+        if (petPhoto) {
+          media = {
+            url: mediaUrl(petPhoto),
+            contentType: "image",
+            storagePath: petPhoto,
+          };
+        }
+      }
+
       return {
         id: row.id,
         status: row.status as ReportStatus,
@@ -679,6 +815,7 @@ export async function listReports(query: ReportsQuery): Promise<ReportsResult<Re
               deletedAt: post.deleted_at,
             }
           : null,
+        media,
         trust: {
           score: reported?.trust_score ?? null,
           status: trustStatusFor(reported?.trust_score ?? null),

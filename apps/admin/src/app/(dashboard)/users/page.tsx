@@ -44,7 +44,9 @@ export default async function UsersPage({
           <h1 className="font-heading text-2xl font-semibold">{copy.users.title}</h1>
           <p className="text-sm text-muted-foreground">{copy.users.subtitle}</p>
         </div>
+        {/* key: a ?tab= link remounts the tabs rather than syncing in an effect. */}
         <UsersTabs
+          key={params.get("tab") === "pets" ? "pets" : "users"}
           role={session.role}
           initialTab={params.get("tab") === "pets" ? "pets" : "users"}
           initialAccountsQuery={searchParamsToQuery(accountsQuerySchema, params)}

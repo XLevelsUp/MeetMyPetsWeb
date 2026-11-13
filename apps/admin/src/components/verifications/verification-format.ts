@@ -67,3 +67,30 @@ export function isExpired(expiresAt: string | null): boolean {
   if (!expiresAt) return false;
   return new Date(expiresAt).getTime() < Date.now();
 }
+
+/** Whole days between a date and now; negative is in the past. */
+function daysFromNow(value: string): number {
+  return Math.round((new Date(value).getTime() - Date.now()) / 86_400_000);
+}
+
+/** "Expired 4 months ago" — the moderator should not have to do date arithmetic. */
+export function expiryNote(expiresAt: string | null): string | null {
+  if (!expiresAt) return null;
+  const days = daysFromNow(expiresAt);
+  if (days < 0) {
+    const ago = Math.abs(days);
+    if (ago < 31) return `Expired ${ago}d ago`;
+    return `Expired ${Math.round(ago / 30)} months ago`;
+  }
+  // Only warn when it is close: a certificate valid for a year is not news.
+  if (days <= 30) return `Expires in ${days}d`;
+  return null;
+}
+
+/** How long this has sat unreviewed, so a forgotten queue looks wrong. */
+export function waitingNote(createdAt: string | null): { text: string; days: number } | null {
+  if (!createdAt) return null;
+  const days = Math.abs(daysFromNow(createdAt));
+  if (days < 1) return { text: "Today", days };
+  return { text: days === 1 ? "1 day waiting" : `${days} days waiting`, days };
+}

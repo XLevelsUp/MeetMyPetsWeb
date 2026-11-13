@@ -30,7 +30,17 @@ export function UsersTabs({
   initialAccountsQuery: AccountsQuery;
   initialPetsQuery: PetsQuery;
 }) {
+  // Keyed on initialTab by the page, so a link to ?tab=pets remounts here and
+  // picks it up — syncing in an effect would cascade an extra render instead.
   const [tab, setTab] = useState<UsersTab>(initialTab);
+  const [petOwnerSearch, setPetOwnerSearch] = useState<{ id: string; timestamp: number } | null>(
+    null,
+  );
+
+  const handleViewUserPets = (ownerId: string) => {
+    setPetOwnerSearch({ id: ownerId, timestamp: Date.now() });
+    setTab("pets");
+  };
 
   return (
     <Tabs value={tab} onValueChange={(value) => setTab((value as UsersTab) ?? "users")}>
@@ -39,10 +49,19 @@ export function UsersTabs({
         <TabsTrigger value="pets">{copy.users.tabs.pets}</TabsTrigger>
       </TabsList>
       <TabsContent value="users">
-        <UsersTable initialQuery={initialAccountsQuery} active={tab === "users"} />
+        <UsersTable
+          initialQuery={initialAccountsQuery}
+          active={tab === "users"}
+          onViewUserPets={handleViewUserPets}
+        />
       </TabsContent>
       <TabsContent value="pets">
-        <PetsTable role={role} initialQuery={initialPetsQuery} active={tab === "pets"} />
+        <PetsTable
+          role={role}
+          initialQuery={initialPetsQuery}
+          active={tab === "pets"}
+          externalOwnerSearch={petOwnerSearch}
+        />
       </TabsContent>
     </Tabs>
   );

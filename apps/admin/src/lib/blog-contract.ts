@@ -79,6 +79,8 @@ export const blogSummarySchema = z.object({
   publishedAt: z.string().nullable(),
   /** Absolute URL on meetmypets.app — meaningful only while published. */
   publicUrl: z.string(),
+  /** Who saved last, from the audit trail; null once that entry ages out. */
+  lastEditedBy: z.string().nullable(),
 });
 export type BlogSummary = z.infer<typeof blogSummarySchema>;
 
@@ -188,6 +190,8 @@ export const blogInputSchema = z.object({
   seoDescription: optionalText(BLOG_LIMITS.seoDescription),
   canonicalUrl: httpsUrl,
   ogImage: optionalText(2048),
+  /** Overrides the publish timestamp; null or absent keeps the automatic one. */
+  publishedAt: z.iso.datetime().nullish().transform((v) => v ?? null),
 });
 export type BlogInput = z.infer<typeof blogInputSchema>;
 

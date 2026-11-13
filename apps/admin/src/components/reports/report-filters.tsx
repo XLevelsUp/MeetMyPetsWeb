@@ -1,6 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Flame, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { reasonLabel, scopeLabel, statusLabel } from "@/components/reports/report-format";
@@ -44,7 +44,9 @@ export function ReportFilters({
     Boolean(query.q) ||
     query.status !== "pending" ||
     query.reason !== "all" ||
-    query.scope !== "all";
+    query.scope !== "all" ||
+    query.repeatOnly ||
+    query.mediaType !== "all";
 
   return (
     <div className="flex flex-col gap-3">
@@ -127,6 +129,42 @@ export function ReportFilters({
           </Select>
         </div>
 
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="report-media-type">Media</Label>
+          <Select
+            value={query.mediaType}
+            onValueChange={(value) =>
+              onChange({ mediaType: (value ?? "all") as ReportsQuery["mediaType"] })
+            }
+          >
+            <SelectTrigger id="report-media-type" className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All media</SelectItem>
+              <SelectItem value="image">Photos</SelectItem>
+              <SelectItem value="video">Videos</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Repeat offenders quick filter */}
+        <div className="flex items-end pb-0.5">
+          <button
+            type="button"
+            onClick={() => onChange({ repeatOnly: !query.repeatOnly })}
+            className={
+              query.repeatOnly
+                ? "inline-flex items-center gap-1.5 rounded-full border border-purple-400 bg-purple-100 px-2.5 py-1.5 text-xs font-medium text-purple-900 transition-colors dark:border-purple-600 dark:bg-purple-950 dark:text-purple-200"
+                : "inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+            }
+            aria-pressed={query.repeatOnly}
+          >
+            <Flame className="size-3.5 shrink-0 text-purple-600 dark:text-purple-400" aria-hidden="true" />
+            Repeat offenders (2+)
+          </button>
+        </div>
+
         {hasFilters ? (
           <Button
             variant="ghost"
@@ -134,7 +172,14 @@ export function ReportFilters({
             onClick={() => {
               setDraft("");
               committed.current = "";
-              onChange({ q: undefined, status: "pending", reason: "all", scope: "all" });
+              onChange({
+                q: undefined,
+                status: "pending",
+                reason: "all",
+                scope: "all",
+                repeatOnly: false,
+                mediaType: "all",
+              });
             }}
           >
             {copy.reports.filters.clear}

@@ -36,9 +36,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--border-radius": "var(--radius)",
         } as React.CSSProperties
       }
+      // Sonner's default toast is sized for multi-line content; ours are one line.
       toastOptions={{
         classNames: {
-          toast: "cn-toast",
+          toast: "cn-toast !py-2.5 !text-sm",
+          title: "!text-sm !font-medium",
+          closeButton: "!left-auto !right-2 !top-2 !translate-x-0 !translate-y-0",
         },
       }}
       {...props}

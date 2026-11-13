@@ -48,3 +48,9 @@ export function statusVariant(status: TrustStatus): "destructive" | "secondary" 
 export function formatDelta(delta: number): string {
   return delta > 0 ? `+${delta}` : String(delta);
 }
+
+/** Whole days past review deadline. */
+export function calculateDaysOverdue(dueAt: string | null): number {
+  if (!dueAt) return 0;
+  return Math.max(1, Math.round((Date.now() - new Date(dueAt).getTime()) / 86_400_000));
+}

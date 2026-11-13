@@ -125,6 +125,7 @@ export function rangeBounds({ from, to }: ResolvedRange): { start: string; endEx
 /** Human label for the comparison, e.g. "vs previous 30 days". */
 export function comparisonLabel(range: ResolvedRange): string {
   const days = daysBetween(range.from, range.to);
-  if (days === 1) return "vs previous day";
-  return `vs previous ${days} days`;
+  // Short form: at five cards per row "vs previous 30 days" truncates.
+  if (days === 1) return "vs prev. day";
+  return `vs prev. ${days}d`;
 }

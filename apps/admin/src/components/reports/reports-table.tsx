@@ -2,22 +2,33 @@
 
 import Link from "next/link";
 import { useCallback } from "react";
+import { CheckCircle2, Eye, MoreHorizontal } from "lucide-react";
+import { toast } from "sonner";
 
 import { ReportDetailDialog } from "@/components/reports/report-detail-dialog";
 import { ReportFilters } from "@/components/reports/report-filters";
+import { ReportMediaReveal } from "@/components/reports/report-media-reveal";
 import {
-  formatWhen,
-  reasonLabel,
-  scopeLabel,
-  statusLabel,
-  statusVariant,
-  trustLabel,
-  trustVariant,
-} from "@/components/reports/report-format";
+  ReportReasonBadge,
+  ReportScopeBadge,
+  ReportStatusBadge,
+  ReportTrustBadge,
+} from "@/components/reports/report-badges";
+import { formatWhen, revertMessage } from "@/components/reports/report-format";
+import { ExportCsvButton } from "@/components/shared/export-csv-button";
+import { FetchingOverlay } from "@/components/shared/fetching-overlay";
 import { Pagination } from "@/components/shared/pagination";
+import { WaitingBadge } from "@/components/shared/waiting-badge";
 import { QueryErrorCard } from "@/components/shared/query-error-card";
 import { SortableHead } from "@/components/shared/sortable-head";
-import { Badge } from "@/components/ui/badge";
+import { REPORT_CSV_COLUMNS } from "@/components/users/csv-columns";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -29,10 +40,14 @@ import {
 } from "@/components/ui/table";
 import { copy } from "@/config/admin";
 import { useUrlSyncedQuery } from "@/hooks/use-url-query";
-import { useReports } from "@/hooks/use-reports";
-import { DEFAULT_REPORTS_QUERY, type ReportsQuery } from "@/lib/reports-contract";
+import { useReports, useResolveReport } from "@/hooks/use-reports";
+import {
+  DEFAULT_REPORTS_QUERY,
+  reportsResponseSchema,
+  type ReportsQuery,
+} from "@/lib/reports-contract";
 
-const COLUMN_COUNT = 7;
+const COLUMN_COUNT = 8;
 
 export function ReportsTable({ initialQuery }: { initialQuery: ReportsQuery }) {
   // URL-synced, so a sorted or filtered queue is linkable and survives a
@@ -58,35 +73,72 @@ export function ReportsTable({ initialQuery }: { initialQuery: ReportsQuery }) {
   );
 
   const reports = useReports(query);
+  const resolve = useResolveReport();
+
+  const handleQuickResolve = useCallback(
+    async (reportId: string, resolution: "dismissed" | "reviewed") => {
+      try {
+        const res = await resolve.mutateAsync({
+          id: reportId,
+          resolution,
+          reason:
+            resolution === "dismissed"
+              ? "Quick dismissed by moderator"
+              : "Quick reviewed by moderator",
+        });
+        if (res.revert) {
+          toast.success(revertMessage(res.revert, "did"));
+        } else {
+          toast.success(`Report ${resolution}.`);
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to resolve report.");
+      }
+    },
+    [resolve],
+  );
+
   const isFiltered =
     Boolean(query.q) ||
     query.status !== "pending" ||
     query.reason !== "all" ||
-    query.scope !== "all";
+    query.scope !== "all" ||
+    query.repeatOnly ||
+    query.mediaType !== "all";
 
   return (
     <div className="flex flex-col gap-4">
-      <ReportFilters query={query} onChange={handleFilterChange} />
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <ReportFilters query={query} onChange={handleFilterChange} />
+        <div className="shrink-0 pt-0.5">
+          <ExportCsvButton
+            endpoint="/api/v1/admin/reports"
+            query={query}
+            filenamePrefix="content-reports"
+            parse={(json) => reportsResponseSchema.parse(json)}
+            columns={REPORT_CSV_COLUMNS}
+          />
+        </div>
+      </div>
 
       {reports.isError ? (
         <QueryErrorCard message={reports.error.message} onRetry={() => reports.refetch()} />
       ) : (
         <>
+          <FetchingOverlay isFetching={reports.isFetching && !reports.isPending}>
           <div className="overflow-x-auto rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-16">Media</TableHead>
                   <SortableHead
                     column="created_at"
-                    label={copy.reports.columns.when}
+                    label="Filed Date"
                     activeColumn={query.sort}
                     direction={query.dir}
-                    // Newest first — the opposite of /verifications, on purpose.
                     defaultDirection="desc"
                     onSort={handleSort}
                   />
-                  {/* Pet name is merged in from pets.pets through a Map, so
-                      there is nothing to order by. */}
                   <TableHead>{copy.reports.columns.reported}</TableHead>
                   <SortableHead
                     column="reason"
@@ -141,47 +193,90 @@ export function ReportsTable({ initialQuery }: { initialQuery: ReportsQuery }) {
                 ) : (
                   reports.data.items.map((report) => (
                     <TableRow key={report.id}>
-                      <TableCell className="whitespace-nowrap text-muted-foreground">
-                        {formatWhen(report.createdAt)}
+                      <TableCell className="w-16 p-2 align-middle">
+                        <ReportMediaReveal
+                          media={report.media}
+                          alt={report.reportedPetName ?? "Reported content"}
+                          size="sm"
+                        />
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                        {/* Inline: a stacked badge doubled every row's height. */}
+                        <div className="flex items-center gap-1.5">
+                          {formatWhen(report.createdAt)}
+                          {/* Only while unresolved: a closed report's age is history, not work. */}
+                          {report.status === "pending" ? (
+                            <WaitingBadge since={report.createdAt} />
+                          ) : null}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {/* Falls back to the id rather than a dash: a moderator
                             can still act on a report whose pet row is gone. */}
-                        <span className="block text-sm">
+                        <span className="block text-sm font-medium">
                           {report.reportedPetName ?? report.reportedPetId}
                         </span>
                         {report.reportedOwnerAccountId ? (
                           <Link
                             href={`/users/${report.reportedOwnerAccountId}`}
-                            className="block text-xs text-muted-foreground underline-offset-4 hover:underline"
+                            className="block text-xs text-muted-foreground underline-offset-4 hover:underline hover:text-foreground"
                           >
                             {report.reportedOwnerEmail ?? copy.reports.detailDialog.openAccount}
                           </Link>
                         ) : null}
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm">{reasonLabel(report.reason)}</span>
+                        <ReportReasonBadge reason={report.reason} />
                         {report.reportsAgainstPet > 1 ? (
-                          <span className="block text-xs text-muted-foreground">
+                          <span className="mt-0.5 block text-xs text-muted-foreground">
                             {report.reportsAgainstPet} total
                           </span>
                         ) : null}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {scopeLabel(report.scope)}
+                      <TableCell>
+                        <ReportScopeBadge scope={report.scope} />
                       </TableCell>
                       <TableCell>
-                        <Badge variant={trustVariant(report.trust.status)}>
-                          {report.trust.score ?? trustLabel(report.trust.status)}
-                        </Badge>
+                        <ReportTrustBadge trust={report.trust} />
                       </TableCell>
                       <TableCell>
-                        <Badge variant={statusVariant(report.status)}>
-                          {statusLabel(report.status)}
-                        </Badge>
+                        <ReportStatusBadge status={report.status} />
                       </TableCell>
                       <TableCell className="text-right">
-                        <ReportDetailDialog report={report} />
+                        <div className="flex items-center justify-end gap-1">
+                          <ReportDetailDialog report={report} />
+                          {report.status === "pending" ? (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                render={
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                    aria-label="Quick actions"
+                                  />
+                                }
+                              >
+                                <MoreHorizontal className="size-4" aria-hidden="true" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem
+                                  onClick={() => handleQuickResolve(report.id, "dismissed")}
+                                  className="text-emerald-700 dark:text-emerald-400 focus:text-emerald-800"
+                                >
+                                  <CheckCircle2 className="size-4 text-emerald-600" />
+                                  Dismiss & refund trust
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleQuickResolve(report.id, "reviewed")}
+                                >
+                                  <Eye className="size-4 text-sky-600" />
+                                  Mark reviewed
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          ) : null}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -189,6 +284,7 @@ export function ReportsTable({ initialQuery }: { initialQuery: ReportsQuery }) {
               </TableBody>
             </Table>
           </div>
+          </FetchingOverlay>
 
           {reports.data ? (
             <Pagination

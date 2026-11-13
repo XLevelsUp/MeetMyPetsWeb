@@ -40,7 +40,7 @@ export default async function DashboardPage({
 
   return (
     <main className="flex-1 p-4 md:p-6">
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4">
+      <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-3">
         <h1 className="font-heading text-2xl font-semibold">{copy.dashboard.title}</h1>
         <MetricGrid initialRange={searchParamsToQuery(analyticsRangeQuerySchema, params)} />
       </div>

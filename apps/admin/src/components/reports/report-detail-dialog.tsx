@@ -1,20 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
+import { AlertCircle, ShieldCheck } from "lucide-react";
 
 import {
+  ReportReasonBadge,
+  ReportScopeBadge,
+  ReportStatusBadge,
+  ReportTrustBadge,
+} from "@/components/reports/report-badges";
+import {
   formatWhen,
-  reasonLabel,
   revertMessage,
   revertTone,
-  scopeLabel,
-  statusLabel,
-  trustLabel,
-  trustVariant,
 } from "@/components/reports/report-format";
-import { Badge } from "@/components/ui/badge";
+import { ReportMediaReveal } from "@/components/reports/report-media-reveal";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,26 +36,6 @@ import { REPORT_RESOLUTIONS, type ReportResolution } from "@/lib/report-constant
 import type { ReportSummary } from "@/lib/reports-contract";
 import { cn } from "@/lib/utils";
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
-      <dd className="break-words text-sm">{children}</dd>
-    </div>
-  );
-}
-
-/**
- * The review surface: everything a moderator needs to judge one report, plus
- * the three resolutions.
- *
- * Resolution requires a reason for the same reason every other destructive
- * action does — it becomes the audit row. Note what this dialog deliberately
- * does NOT do: it never flags the pet or restricts the owner. Those are
- * separate, individually-audited actions on /users with their own (narrower)
- * role checks, and conflating them here would let one click do two things a
- * reviewer later can't tell apart.
- */
 export function ReportDetailDialog({ report }: { report: ReportSummary }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
@@ -80,8 +62,6 @@ export function ReportDetailDialog({ report }: { report: ReportSummary }) {
         resolution,
         reason: reasonCheck.data,
       });
-      // Report what actually happened to the score. A dismissal that declined
-      // to credit anything back looks identical to one that did, unless it says.
       if (result.revert) {
         const message = revertMessage(result.revert, "did");
         if (result.revert.outcome === "reverted") toast.success(message);
@@ -106,141 +86,259 @@ export function ReportDetailDialog({ report }: { report: ReportSummary }) {
         {copy.reports.details}
       </Button>
 
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{copy.reports.detailDialog.title}</DialogTitle>
-          <DialogDescription>{copy.reports.detailDialog.description}</DialogDescription>
-        </DialogHeader>
-
-        <dl className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">{statusLabel(report.status)}</Badge>
-            <Badge variant="secondary">{reasonLabel(report.reason)}</Badge>
-            <Badge variant="outline">{scopeLabel(report.scope)}</Badge>
-            <span className="text-xs text-muted-foreground">{formatWhen(report.createdAt)}</span>
-          </div>
-
-          <Row label={copy.reports.detailDialog.reporterNote}>
-            {report.details?.trim() ? (
-              <span className="whitespace-pre-wrap">{report.details}</span>
-            ) : (
-              <span className="text-muted-foreground">
-                {copy.reports.detailDialog.noReporterNote}
+      <DialogContent className="sm:max-w-xl md:max-w-2xl max-h-[85vh] overflow-hidden flex flex-col p-0 gap-0 border shadow-2xl">
+        {/* Header */}
+        <DialogHeader className="p-5 pb-4 border-b bg-muted/20 pr-12">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-lg font-semibold tracking-tight">
+                {copy.reports.detailDialog.title}
+              </DialogTitle>
+              <span className="text-xs text-muted-foreground mr-2">
+                {formatWhen(report.createdAt)}
               </span>
-            )}
-          </Row>
-
-          <Row label={copy.reports.detailDialog.reportedPet}>
-            {report.reportedPetName ?? report.reportedPetId}
-          </Row>
-
-          <Row label={copy.reports.detailDialog.owner}>
-            {report.reportedOwnerAccountId ? (
-              <Link
-                href={`/users/${report.reportedOwnerAccountId}`}
-                className="underline-offset-4 hover:underline"
-              >
-                {report.reportedOwnerEmail ?? copy.reports.detailDialog.openAccount}
-              </Link>
-            ) : (
-              <span className="text-muted-foreground">—</span>
-            )}
-          </Row>
-
-          <Row label={copy.reports.detailDialog.reporterPet}>
-            {report.reporterPetName ?? report.reporterPetId}
-          </Row>
-
-          {report.post ? (
-            <Row label={copy.reports.detailDialog.post}>
-              {report.post.caption?.trim() ? (
-                <span className="whitespace-pre-wrap">{report.post.caption}</span>
-              ) : (
-                <span className="text-muted-foreground">
-                  {copy.reports.detailDialog.noCaption}
-                </span>
-              )}
-              {report.post.deletedAt ? (
-                <span className="mt-1 block text-xs text-muted-foreground">
-                  {copy.reports.detailDialog.postDeleted}
-                </span>
-              ) : null}
-            </Row>
-          ) : null}
-
-          <Row label={copy.reports.columns.trust}>
-            <span className="flex flex-wrap items-center gap-2">
-              <Badge variant={trustVariant(report.trust.status)}>
-                {trustLabel(report.trust.status)}
-              </Badge>
-              {report.trust.score !== null ? (
-                <span className="text-muted-foreground">{report.trust.score}</span>
-              ) : null}
-            </span>
-            <span className="mt-1 block text-xs text-muted-foreground">
-              {copy.reports.trustHint}
-            </span>
-          </Row>
-
-          <Row label={copy.reports.detailDialog.history}>{report.reportsAgainstPet}</Row>
-        </dl>
-
-        {isResolved ? null : (
-          <div className="mt-2 flex flex-col gap-2">
-            <Label htmlFor={`resolve-reason-${report.id}`}>
-              {copy.reports.resolve.reasonLabel}
-            </Label>
-            <Textarea
-              id={`resolve-reason-${report.id}`}
-              rows={3}
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              placeholder={copy.reports.resolve.reasonPlaceholder}
-            />
-            <p className="text-xs text-muted-foreground">
-              {copy.reports.resolve.confirmDescription}
-            </p>
-
-            {/* Stated BEFORE the click, not discovered after it: dismissing is
-                the one resolution that also moves the pet's trust score. */}
-            <div
-              className={cn(
-                "rounded-md border px-3 py-2 text-xs",
-                revertTone(report.revert) === "warn"
-                  ? "border-destructive/40 bg-destructive/5 text-foreground"
-                  : "border-border bg-muted/40 text-muted-foreground",
-              )}
-            >
-              <span className="font-medium">{copy.reports.revert.heading}</span>{" "}
-              <span>{revertMessage(report.revert)}</span>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground">
+              {copy.reports.detailDialog.description}
+            </DialogDescription>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <ReportStatusBadge status={report.status} />
+              <ReportReasonBadge reason={report.reason} />
+              <ReportScopeBadge scope={report.scope} />
             </div>
           </div>
-        )}
+        </DialogHeader>
 
-        {error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        ) : null}
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto p-5 md:p-6 space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Left Column: Reported Content & Notes */}
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  Reported Content & Media
+                </h3>
+                <div className="flex flex-col gap-3 rounded-xl border bg-card/60 p-3.5 shadow-2xs">
+                  <div className="flex gap-3.5 items-start">
+                    <ReportMediaReveal
+                      media={report.media}
+                      alt={report.reportedPetName ?? "Reported content"}
+                      size="md"
+                    />
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm truncate text-foreground">
+                          {report.reportedPetName ?? report.reportedPetId}
+                        </span>
+                      </div>
+                      {report.post ? (
+                        <div className="space-y-1 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-mono text-muted-foreground">
+                              Post ID: {report.post.id.slice(0, 8)}...
+                            </span>
+                            {report.post.deletedAt ? (
+                              <span className="text-[10px] text-destructive bg-destructive/10 px-1.5 py-0.5 rounded font-medium">
+                                Deleted
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded font-medium">
+                                Active
+                              </span>
+                            )}
+                          </div>
+                          {report.post.caption?.trim() ? (
+                            <p className="line-clamp-3 italic bg-muted/40 p-2 rounded text-foreground/90 text-xs">
+                              &ldquo;{report.post.caption}&rdquo;
+                            </p>
+                          ) : (
+                            <p className="italic text-muted-foreground text-[11px]">No caption provided</p>
+                          )}
+                          {report.post.createdAt && (
+                            <span className="text-[10px] text-muted-foreground block">
+                              Posted: {formatWhen(report.post.createdAt)}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">Pet Profile Reported</p>
+                      )}
+                    </div>
+                  </div>
 
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>
-            {copy.reports.detailDialog.close}
-          </DialogClose>
-          {isResolved
-            ? null
-            : REPORT_RESOLUTIONS.map((resolution) => (
-                <Button
-                  key={resolution}
-                  variant={resolution === "actioned" ? "destructive" : "secondary"}
-                  disabled={resolve.isPending || !reasonCheck.success}
-                  onClick={() => handleResolve(resolution)}
+                  {report.media?.contentType === "video" && report.media.url && (
+                    <div className="overflow-hidden rounded-lg border border-border/80 bg-black/95">
+                      <video
+                        src={report.media.url}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        className="max-h-56 w-full object-contain"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Reporter Note */}
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <AlertCircle className="size-3.5 text-amber-600" />
+                  {copy.reports.detailDialog.reporterNote}
+                </h3>
+                <div className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-3.5 text-xs dark:border-amber-900/50 dark:bg-amber-950/20">
+                  {report.details?.trim() ? (
+                    <p className="whitespace-pre-wrap text-foreground/90 font-normal leading-relaxed">
+                      {report.details}
+                    </p>
+                  ) : (
+                    <p className="italic text-muted-foreground">
+                      {copy.reports.detailDialog.noReporterNote}
+                    </p>
+                  )}
+                  <div className="mt-2.5 pt-2 border-t border-amber-200/50 dark:border-amber-900/40 text-[11px] text-muted-foreground flex items-center justify-between">
+                    <span>
+                      Filed by: <strong className="text-foreground">{report.reporterPetName ?? report.reporterPetId}</strong>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Account Standing & Trust Engine */}
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  Account Standing
+                </h3>
+                <div className="rounded-xl border bg-card/60 p-3.5 space-y-2.5 shadow-2xs text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Reported Pet</span>
+                    <span className="font-semibold text-foreground">
+                      {report.reportedPetName ?? report.reportedPetId}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Owner Account</span>
+                    {report.reportedOwnerAccountId ? (
+                      <Link
+                        href={`/users/${report.reportedOwnerAccountId}`}
+                        className="text-primary hover:underline font-medium truncate max-w-[190px]"
+                        title={report.reportedOwnerEmail ?? report.reportedOwnerAccountId}
+                      >
+                        {report.reportedOwnerEmail ?? copy.reports.detailDialog.openAccount}
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Total Reports Against Pet</span>
+                    <span className="inline-flex items-center gap-1.5 font-semibold text-foreground">
+                      {report.reportsAgainstPet}
+                      {report.reportsAgainstPet > 1 && (
+                        <span className="text-[10px] bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 px-2 py-0.5 rounded-full font-medium">
+                          Repeat Offender
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="pt-2 border-t flex justify-between items-center">
+                    <span className="text-muted-foreground">Trust Standing</span>
+                    <ReportTrustBadge trust={report.trust} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Trust Reversal Impact */}
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <ShieldCheck className="size-3.5 text-emerald-600" />
+                  Dismissal Consequence
+                </h3>
+                <div
+                  className={cn(
+                    "rounded-xl border p-3.5 text-xs leading-relaxed",
+                    revertTone(report.revert) === "warn"
+                      ? "border-destructive/40 bg-destructive/5 text-foreground"
+                      : "border-border/80 bg-muted/30 text-muted-foreground",
+                  )}
                 >
-                  {resolve.isPending
-                    ? copy.reports.resolve.submitting
-                    : copy.reports.resolve[resolution]}
-                </Button>
-              ))}
+                  <span className="font-semibold text-foreground">
+                    {copy.reports.revert.heading}:{" "}
+                  </span>
+                  <span>{revertMessage(report.revert)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Resolution Reason Form (if pending) */}
+          {!isResolved && (
+            <div className="space-y-2 rounded-xl border bg-muted/20 p-4">
+              <Label
+                htmlFor={`resolve-reason-${report.id}`}
+                className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+              >
+                {copy.reports.resolve.reasonLabel}
+              </Label>
+              <Textarea
+                id={`resolve-reason-${report.id}`}
+                rows={2}
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                placeholder={copy.reports.resolve.reasonPlaceholder}
+                className="bg-background resize-none text-sm"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                {copy.reports.resolve.confirmDescription}
+              </p>
+            </div>
+          )}
+
+          {error && (
+            <p role="alert" className="text-xs text-destructive font-medium">
+              {error}
+            </p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <DialogFooter className="mx-0 mb-0 rounded-none border-t bg-muted/40 px-6 py-4 flex flex-row items-center justify-between sm:justify-between w-full">
+          <DialogClose
+            render={
+              <Button variant="outline" size="sm" className="px-4 font-medium border-border/80 hover:bg-muted">
+                Cancel
+              </Button>
+            }
+          />
+
+          {!isResolved && (
+            <div className="flex items-center gap-2">
+              {REPORT_RESOLUTIONS.map((resolution) => {
+                const isActioned = resolution === "actioned";
+                const isDismissed = resolution === "dismissed";
+                return (
+                  <Button
+                    key={resolution}
+                    size="sm"
+                    variant={isActioned ? "destructive" : isDismissed ? "outline" : "secondary"}
+                    className={
+                      isDismissed
+                        ? "border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700"
+                        : undefined
+                    }
+                    disabled={resolve.isPending || !reasonCheck.success}
+                    onClick={() => handleResolve(resolution)}
+                  >
+                    {resolve.isPending
+                      ? copy.reports.resolve.submitting
+                      : copy.reports.resolve[resolution]}
+                  </Button>
+                );
+              })}
+            </div>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

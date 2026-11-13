@@ -143,6 +143,11 @@ export const certificatesQuerySchema = listQuerySchema.extend({
    * the `desc` default from `users-contract.ts` would silently invert it.
    */
   dir: z.enum(SORT_DIRECTIONS).catch("asc"),
+  /** When true, only certificates whose `expires_at` is in the past are returned. */
+  expiredOnly: z
+    .union([z.boolean(), z.string().transform((v) => v === "true")])
+    .default(false)
+    .catch(false),
 });
 export type CertificatesQuery = z.infer<typeof certificatesQuerySchema>;
 

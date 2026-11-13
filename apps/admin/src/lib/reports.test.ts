@@ -34,6 +34,8 @@ const baseQuery: ReportsQuery = {
   scope: "all",
   sort: "created_at",
   dir: "desc",
+  repeatOnly: false,
+  mediaType: "all",
 };
 
 const REPORT_ROW = {

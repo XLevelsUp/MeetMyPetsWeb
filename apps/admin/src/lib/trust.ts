@@ -154,9 +154,22 @@ export async function listTrustQueue(query: TrustQuery): Promise<TrustResult<Tru
     if (q) {
       const term = q.replace(/[,()"\\*]/g, "").trim();
       if (term) {
-        request = UUID_RE.test(term)
-          ? request.or(`id.eq.${term},owner_account_id.eq.${term}`)
-          : request.ilike("name", `%${term}%`);
+        if (UUID_RE.test(term)) {
+          request = request.or(`id.eq.${term},owner_account_id.eq.${term}`);
+        } else {
+          // Pre-resolve owner account IDs from identity.accounts so typing an email matches
+          const { data: accountData } = await from(TABLES.accounts)
+            .select("id")
+            .ilike("email", `%${term}%`)
+            .limit(500);
+          const accountIds = ((accountData ?? []) as { id: string }[]).map((r) => r.id);
+
+          if (accountIds.length > 0) {
+            request = request.or(`name.ilike.%${term}%,owner_account_id.in.(${accountIds.join(",")})`);
+          } else {
+            request = request.ilike("name", `%${term}%`);
+          }
+        }
       }
     }
 
@@ -262,7 +275,8 @@ export async function getTrustLedger(petId: string): Promise<TrustResult<TrustLe
     const { data, error } = await from(TABLES.events)
       .select("id,reason,delta,actor_pet_id,created_at")
       .eq("target_pet_id", petId)
-      .order("created_at", { ascending: false })
+      // Order oldest events first so the timeline reads chronologically
+      .order("created_at", { ascending: true })
       .limit(200);
     if (error) throw new Error(`pets.trust_score_events: ${error.message}`);
 

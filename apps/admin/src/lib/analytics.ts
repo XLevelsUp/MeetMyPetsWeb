@@ -8,6 +8,7 @@ import {
   type AnalyticsTimeseriesResponse,
   type MetricKey,
   type MetricValue,
+  type Operations,
 } from "@/lib/api-contract";
 import {
   bucketFor,
@@ -61,6 +62,10 @@ const TABLES = {
   verifications: { schema: "identity", table: "account_verifications" },
   swipes: { schema: "matching", table: "pet_likes" },
   reports: { schema: "matching", table: "pet_reports" },
+  /** The AI moderation queue — a newer schema, guarded by its own try/catch. */
+  aiDecisions: { schema: "moderation", table: "decisions" },
+  devices: { schema: "identity", table: "account_devices" },
+  settings: { schema: "identity", table: "account_settings" },
 } as const;
 
 type TableRef = { schema: string; table: string; createdColumn?: string };
@@ -232,6 +237,94 @@ export async function fetchAnalyticsSummary(
       .sort((a, b) => b.count - a.count);
   };
 
+  /**
+   * Standing facts, not window counts.
+   *
+   * Isolated in its own try/catch: `moderation.decisions` is a newer schema
+   * than the rest, and a missing grant there must degrade these three cards
+   * rather than blank the whole dashboard the way the `matched_at` column once
+   * did. Zeroes render as "—" in the UI.
+   */
+  const operations = async (): Promise<Operations> => {
+    const empty: Operations = {
+      aiQueue: 0,
+      openReports: 0,
+      oldestWaitingHours: null,
+      reachableAccounts: 0,
+      totalAccounts: 0,
+      devicesAndroid: 0,
+      devicesIos: 0,
+      accountsWithPet: 0,
+    };
+
+    try {
+      const [aiRows, reportRows, accountRows, deviceRows, settingRows, petOwnerRows] =
+        await Promise.all([
+        fromRef(TABLES.aiDecisions)
+          .select("created_at")
+          .eq("review_status", "pending")
+          .order("created_at", { ascending: true })
+          .limit(1000),
+        fromRef(TABLES.reports)
+          .select("created_at")
+          .eq("status", "pending")
+          .order("created_at", { ascending: true })
+          .limit(1000),
+        fromRef(TABLES.users).select("id", { count: "exact", head: true }),
+        fromRef(TABLES.devices).select("account_id,platform,status"),
+          fromRef(TABLES.settings).select("account_id,push_notifications_enabled"),
+          // Owner ids, not a count: one account may hold up to 20 pets, so the
+          // pet total says nothing about how many PEOPLE added one.
+          fromRef(TABLES.pets).select("owner_account_id"),
+        ]);
+
+      const ai = (aiRows.data ?? []) as { created_at: string }[];
+      const reports = (reportRows.data ?? []) as { created_at: string }[];
+      const devices = (deviceRows.data ?? []) as {
+        account_id: string;
+        platform: string | null;
+        status: string | null;
+      }[];
+      const settings = (settingRows.data ?? []) as {
+        account_id: string;
+        push_notifications_enabled: boolean | null;
+      }[];
+      const petOwners = (petOwnerRows.data ?? []) as { owner_account_id: string | null }[];
+
+      // The single oldest unreviewed item of either kind — a count says how
+      // much work there is, this says whether any of it has been forgotten.
+      const oldest = [ai[0]?.created_at, reports[0]?.created_at]
+        .filter(Boolean)
+        .map((value) => new Date(value as string).getTime())
+        .sort((a, b) => a - b)[0];
+
+      const live = devices.filter((device) => device.status === "active");
+      const disabled = new Set(
+        settings.filter((row) => row.push_notifications_enabled === false).map((r) => r.account_id),
+      );
+      // Reachable needs BOTH: a live device and notifications not switched off.
+      const reachable = new Set(
+        live.map((device) => device.account_id).filter((id) => !disabled.has(id)),
+      );
+
+      return {
+        aiQueue: ai.length,
+        openReports: reports.length,
+        oldestWaitingHours:
+          oldest === undefined ? null : Math.round((Date.now() - oldest) / 36e5),
+        reachableAccounts: reachable.size,
+        totalAccounts: accountRows.count ?? 0,
+        devicesAndroid: live.filter((d) => d.platform === "android").length,
+        devicesIos: live.filter((d) => d.platform === "ios").length,
+        accountsWithPet: new Set(
+          petOwners.map((row) => row.owner_account_id).filter(Boolean),
+        ).size,
+      };
+    } catch {
+      return empty;
+    }
+  };
+
   try {
     const [
       totalUsers,
@@ -242,6 +335,7 @@ export async function fetchAnalyticsSummary(
       openReports,
       likeRate,
       bySpecies,
+      ops,
     ] = await Promise.all([
       stockMetric(TABLES.users),
       stockMetric(TABLES.pets, (q) => q.eq("status", "active")),
@@ -255,6 +349,7 @@ export async function fetchAnalyticsSummary(
       queueMetric(TABLES.reports, "pending"),
       likeRateMetric(),
       speciesBreakdown(),
+      operations(),
     ]);
 
     const metrics: Record<MetricKey, MetricValue> = {
@@ -273,6 +368,7 @@ export async function fetchAnalyticsSummary(
         generatedAt: new Date().toISOString(),
         metrics,
         activePetsBySpecies: bySpecies,
+        operations: ops,
         from: range.from,
         to: range.to,
       },

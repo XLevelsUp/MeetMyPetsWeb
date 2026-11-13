@@ -423,7 +423,8 @@ describe("range maths", () => {
   });
 
   it("labels the comparison with the window length", () => {
-    expect(comparisonLabel({ from: "2026-07-19", to: "2026-08-17" })).toBe("vs previous 30 days");
-    expect(comparisonLabel({ from: "2026-08-17", to: "2026-08-17" })).toBe("vs previous day");
+    // Short form on purpose: the long one truncated at five cards per row.
+    expect(comparisonLabel({ from: "2026-07-19", to: "2026-08-17" })).toBe("vs prev. 30d");
+    expect(comparisonLabel({ from: "2026-08-17", to: "2026-08-17" })).toBe("vs prev. day");
   });
 });

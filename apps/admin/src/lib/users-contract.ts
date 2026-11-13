@@ -59,6 +59,7 @@ export const petSummarySchema = z.object({
   breed: z.string().nullable(),
   status: z.string().nullable(),
   ownerAccountId: z.string().nullable(),
+  ownerName: z.string().nullable().default(null),
   createdAt: z.string().nullable(),
   photoUrl: z.string().nullable(),
   restriction: restrictionSchema.nullable(),
@@ -70,6 +71,10 @@ export const petSummarySchema = z.object({
   trustScore: z.number().int().nullable(),
   /** Set while an automated 7-day ban window is open. */
   trustBannedUntil: z.string().nullable(),
+  /** Engagement counts, filled only when sorting by one of them — null otherwise. */
+  followers: z.number().int().nullable().default(null),
+  likes: z.number().int().nullable().default(null),
+  matches: z.number().int().nullable().default(null),
 });
 export type PetSummary = z.infer<typeof petSummarySchema>;
 
@@ -178,8 +183,23 @@ export const ACCOUNT_SORTS = [
 ] as const;
 export type AccountSort = (typeof ACCOUNT_SORTS)[number];
 
-export const PET_SORTS = ["created_at", "name", "trust_score"] as const;
+/**
+ * `followers`, `likes` and `matches` are computed, not columns: they are
+ * counted from `matching.*` the way `pet_count` is, and share its
+ * resolve-ids-then-slice path so paging stays correct across pages.
+ */
+export const PET_SORTS = [
+  "created_at",
+  "name",
+  "trust_score",
+  "followers",
+  "likes",
+  "matches",
+] as const;
 export type PetSort = (typeof PET_SORTS)[number];
+
+/** The computed ones, so the adapter and the UI agree on which need a scan. */
+export const PET_ENGAGEMENT_SORTS = ["followers", "likes", "matches"] as const;
 
 /**
  * Moved to `contract-shared.ts` when the verification queue became the third

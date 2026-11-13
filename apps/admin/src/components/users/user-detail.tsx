@@ -2,6 +2,7 @@
 
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { QueryErrorCard } from "@/components/shared/query-error-card";
@@ -10,6 +11,12 @@ import { ActionDialog } from "@/components/users/action-dialog";
 import { RestrictionBadge } from "@/components/users/restriction-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { copy } from "@/config/admin";
 import { useAccountAction, useAccountDetail } from "@/hooks/use-users";
@@ -88,13 +95,46 @@ function AccountActions({ account, role }: { account: AccountDetail; role: Admin
 
 export function UserDetail({ id, role }: { id: string; role: AdminRole }) {
   const account = useAccountDetail(id);
+  const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string } | null>(null);
 
   if (account.isPending) {
     return (
-      <div className="flex flex-col gap-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-40 w-full" />
-        <Skeleton className="h-40 w-full" />
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-3">
+          <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            <Skeleton className="h-4 w-28" />
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <Skeleton className="size-12 rounded-full" />
+              <div className="flex flex-col gap-1.5">
+                <Skeleton className="h-7 w-48" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-9 w-24 rounded-md" />
+            </div>
+          </div>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-32" />
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 9 }).map((_, i) => (
+                <div key={i} className="flex flex-col gap-1.5">
+                  <Skeleton className="h-3.5 w-20" />
+                  <Skeleton className="h-5 w-36" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -125,11 +165,45 @@ export function UserDetail({ id, role }: { id: string; role: AdminRole }) {
         </Button>
 
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <h1 className="font-display text-2xl font-semibold">
-              {data.displayName || data.email || data.id}
-            </h1>
-            <RestrictionBadge restriction={data.restriction} status={data.status} />
+          <div className="flex items-center gap-3.5">
+            {data.profile?.avatarUrl ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setPreviewPhoto({
+                    url: data.profile?.avatarUrl ?? "",
+                    title: `${data.displayName || data.email || "User"}'s Avatar`,
+                  })
+                }
+                className="group relative size-12 shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                title="Click to view full profile photo"
+              >
+                <img
+                  src={data.profile.avatarUrl}
+                  alt={data.displayName || "User avatar"}
+                  className="size-12 rounded-full border border-border/80 object-cover bg-muted transition-transform group-hover:scale-105"
+                />
+              </button>
+            ) : (
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-full border border-border/60 bg-muted text-lg font-semibold text-muted-foreground">
+                {(data.displayName || data.email || "U").charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2.5">
+                <h1 className="font-display text-2xl font-semibold">
+                  {data.displayName || data.email || data.id}
+                </h1>
+                <RestrictionBadge
+                  restriction={data.restriction}
+                  status={data.status}
+                  deletedAt={data.deletedAt}
+                />
+              </div>
+              {data.displayName && data.email ? (
+                <span className="text-xs text-muted-foreground">{data.email}</span>
+              ) : null}
+            </div>
           </div>
           <AccountActions account={data} role={role} />
         </div>
@@ -180,12 +254,37 @@ export function UserDetail({ id, role }: { id: string; role: AdminRole }) {
             <ul className="flex flex-col divide-y">
               {data.pets.map((pet) => (
                 <li key={pet.id} className="flex items-center justify-between gap-4 py-3">
-                  <div>
-                    <p className="text-sm font-medium">{pet.name || copy.dashboard.noData}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {[pet.species, pet.breed].filter(Boolean).join(" · ") ||
-                        copy.dashboard.noData}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    {pet.photoUrl ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewPhoto({
+                            url: pet.photoUrl ?? "",
+                            title: `${pet.name || "Pet"} (${[pet.species, pet.breed].filter(Boolean).join(" · ")})`,
+                          })
+                        }
+                        className="group relative size-10 shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        title="Click to view full photo"
+                      >
+                        <img
+                          src={pet.photoUrl}
+                          alt={pet.name || "Pet"}
+                          className="size-10 rounded-full border border-border/80 object-cover bg-muted transition-transform group-hover:scale-105"
+                        />
+                      </button>
+                    ) : (
+                      <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border/60 bg-muted text-xs font-semibold text-muted-foreground">
+                        {pet.name ? pet.name.charAt(0).toUpperCase() : "🐾"}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm font-medium">{pet.name || copy.dashboard.noData}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {[pet.species, pet.breed].filter(Boolean).join(" · ") ||
+                          copy.dashboard.noData}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <TrustCell pet={pet} />
@@ -236,6 +335,33 @@ export function UserDetail({ id, role }: { id: string; role: AdminRole }) {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={Boolean(previewPhoto)} onOpenChange={(open) => !open && setPreviewPhoto(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{previewPhoto?.title || "Photo"}</DialogTitle>
+          </DialogHeader>
+          {previewPhoto?.url ? (
+            <div className="relative flex flex-col items-center justify-center overflow-hidden rounded-lg bg-muted/40 p-2">
+              <img
+                src={previewPhoto.url}
+                alt={previewPhoto.title}
+                className="max-h-[65vh] w-auto max-w-full rounded-md object-contain shadow-sm"
+              />
+              <div className="mt-3 flex w-full justify-end text-xs">
+                <a
+                  href={previewPhoto.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline-offset-4 hover:underline"
+                >
+                  Open original ↗
+                </a>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

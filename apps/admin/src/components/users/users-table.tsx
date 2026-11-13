@@ -7,7 +7,10 @@ import { useCallback, type MouseEvent } from "react";
 
 import { Pagination } from "@/components/shared/pagination";
 import { QueryErrorCard } from "@/components/shared/query-error-card";
+import { ExportCsvButton } from "@/components/shared/export-csv-button";
+import { FetchingOverlay } from "@/components/shared/fetching-overlay";
 import { SortableHead } from "@/components/shared/sortable-head";
+import { ACCOUNT_CSV_COLUMNS } from "@/components/users/csv-columns";
 import { AccountFilters } from "@/components/users/account-filters";
 import { EmptyState } from "@/components/users/list-empty-state";
 import { ListToolbar } from "@/components/users/list-toolbar";
@@ -28,6 +31,7 @@ import { useAccounts } from "@/hooks/use-users";
 import {
   ACCOUNT_STATUS_FILTERS,
   DEFAULT_ACCOUNTS_QUERY,
+  accountsResponseSchema,
   type AccountsQuery,
 } from "@/lib/users-contract";
 
@@ -46,10 +50,12 @@ const COLUMN_COUNT = 7;
 export function UsersTable({
   initialQuery,
   active,
+  onViewUserPets,
 }: {
   initialQuery: AccountsQuery;
   /** Only the visible tab writes to the URL. */
   active: boolean;
+  onViewUserPets?: (ownerId: string) => void;
 }) {
   const router = useRouter();
   const [query, setQuery] = useUrlSyncedQuery(initialQuery, DEFAULT_ACCOUNTS_QUERY, { active });
@@ -114,14 +120,82 @@ export function UsersTable({
         onClear={clearFilters}
       >
         <AccountFilters query={query} onChange={applyFilters} />
+        <ExportCsvButton
+          endpoint="/api/v1/admin/users"
+          query={query}
+          filenamePrefix="users"
+          parse={(json) => accountsResponseSchema.parse(json)}
+          columns={ACCOUNT_CSV_COLUMNS}
+        />
       </ListToolbar>
+
+      {/* Quick Filter Chips for 1-click triage */}
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="font-medium text-muted-foreground">Quick filter:</span>
+        <button
+          type="button"
+          onClick={() => applyFilters({ status: "all", hasPets: "all" })}
+          className={`rounded-full border px-2.5 py-1 font-medium transition-colors ${
+            (!query.status || query.status === "all") && (!query.hasPets || query.hasPets === "all")
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border bg-muted/40 text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          All
+        </button>
+        <button
+          type="button"
+          onClick={() => applyFilters({ status: "active", hasPets: "all" })}
+          className={`rounded-full border px-2.5 py-1 font-medium transition-colors ${
+            query.status === "active"
+              ? "border-emerald-400 bg-emerald-100 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-200"
+              : "border-emerald-200/70 bg-emerald-50/70 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800/40 dark:bg-emerald-950/30 dark:text-emerald-300"
+          }`}
+        >
+          ✓ Active
+        </button>
+        <button
+          type="button"
+          onClick={() => applyFilters({ status: "suspended", hasPets: "all" })}
+          className={`rounded-full border px-2.5 py-1 font-medium transition-colors ${
+            query.status === "suspended"
+              ? "border-purple-400 bg-purple-100 text-purple-900 dark:border-purple-700 dark:bg-purple-950/70 dark:text-purple-200"
+              : "border-purple-200/70 bg-purple-50/70 text-purple-800 hover:bg-purple-100 dark:border-purple-800/40 dark:bg-purple-950/30 dark:text-purple-300"
+          }`}
+        >
+          ⏸ Suspended
+        </button>
+        <button
+          type="button"
+          onClick={() => applyFilters({ status: "banned", hasPets: "all" })}
+          className={`rounded-full border px-2.5 py-1 font-medium transition-colors ${
+            query.status === "banned"
+              ? "border-red-400 bg-red-100 text-red-900 dark:border-red-700 dark:bg-red-950/70 dark:text-red-200"
+              : "border-red-200/70 bg-red-50/70 text-red-800 hover:bg-red-100 dark:border-red-800/40 dark:bg-red-950/30 dark:text-red-300"
+          }`}
+        >
+          🚫 Banned
+        </button>
+        <button
+          type="button"
+          onClick={() => applyFilters({ hasPets: "yes" })}
+          className={`rounded-full border px-2.5 py-1 font-medium transition-colors ${
+            query.hasPets === "yes"
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border bg-muted/40 text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          🐾 Has Pets
+        </button>
+      </div>
 
       {accounts.isError ? (
         <QueryErrorCard message={accounts.error.message} onRetry={() => accounts.refetch()} />
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border">
-            <Table>
+          <FetchingOverlay isFetching={accounts.isFetching && !accounts.isPending}>
+          <div className="rounded-lg border bg-card">
+            <Table className="min-w-[56rem]">
               <TableHeader>
                 <TableRow>
                   <SortableHead
@@ -148,7 +222,7 @@ export function UsersTable({
                     align="end"
                     onSort={sortBy}
                   />
-                  <TableHead>{copy.users.columns.status}</TableHead>
+                  <TableHead className="w-32 min-w-[7.5rem]">{copy.users.columns.status}</TableHead>
                   <SortableHead
                     column="created_at"
                     label={copy.users.columns.joined}
@@ -208,8 +282,24 @@ export function UsersTable({
                           <span className="block text-xs">{account.phone}</span>
                         ) : null}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">{account.petCount}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {account.petCount > 0 ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onViewUserPets?.(account.id);
+                            }}
+                            className="inline-block rounded px-1.5 py-0.5 text-xs font-semibold text-primary underline-offset-4 hover:bg-muted hover:underline"
+                            title={`View ${account.displayName || "user"}'s ${account.petCount} pets on Pets tab`}
+                          >
+                            {account.petCount}
+                          </button>
+                        ) : (
+                          <span className="text-muted-foreground">0</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="w-32 min-w-[7.5rem]">
                         <RestrictionBadge
                           restriction={account.restriction}
                           status={account.status}
@@ -244,6 +334,7 @@ export function UsersTable({
               </TableBody>
             </Table>
           </div>
+          </FetchingOverlay>
 
           {accounts.data ? (
             <Pagination
