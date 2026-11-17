@@ -6,7 +6,7 @@ import type { z } from "zod";
 import {
   analyticsSummarySchema,
   analyticsTimeseriesSchema,
-  apiErrorSchema,
+  throwApiError,
   type AnalyticsRangeQuery,
 } from "@/lib/api-contract";
 import { queryToSearchParams } from "@/lib/contract-shared";
@@ -21,8 +21,7 @@ async function fetchJson<S extends z.ZodType>(url: string, schema: S): Promise<z
   const res = await fetch(url);
 
   if (!res.ok) {
-    const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
-    throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+    await throwApiError(res);
   }
 
   return schema.parse(await res.json());

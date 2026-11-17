@@ -5,6 +5,8 @@ import {
   analyticsSummarySchema,
   analyticsTimeseriesSchema,
   metricValueSchema,
+  SESSION_EXPIRED_MESSAGE,
+  throwApiError,
 } from "@/lib/api-contract";
 
 describe("metricValueSchema", () => {
@@ -159,5 +161,32 @@ describe("analyticsRangeQuerySchema", () => {
     expect(
       analyticsRangeQuerySchema.parse({ preset: "custom", from: "2026-07-01", to: "2026-07-31" }),
     ).toEqual({ preset: "custom", from: "2026-07-01", to: "2026-07-31" });
+  });
+});
+
+describe("throwApiError", () => {
+  const res = (status: number, body: unknown) =>
+    ({ status, json: async () => body }) as unknown as Response;
+
+  it("turns a 401 into a message that says what to do", async () => {
+    await expect(throwApiError(res(401, { error: "unauthorized", message: "Sign in required." })))
+      .rejects.toThrow(SESSION_EXPIRED_MESSAGE);
+  });
+
+  it("prefers the 401 wording over whatever the body said", async () => {
+    // The proxy sends "Sign in required", which reads as a prompt rather than
+    // an explanation of a session that has just ended.
+    await expect(throwApiError(res(401, { error: "unauthorized", message: "Sign in required." })))
+      .rejects.not.toThrow("Sign in required.");
+  });
+
+  it("passes a non-401 server message through unchanged", async () => {
+    await expect(throwApiError(res(422, { error: "invalid", message: "Pick a category." })))
+      .rejects.toThrow("Pick a category.");
+  });
+
+  it("falls back to the status when the body is not JSON", async () => {
+    const broken = { status: 500, json: async () => { throw new Error("not json"); } } as unknown as Response;
+    await expect(throwApiError(broken)).rejects.toThrow("Request failed (500).");
   });
 });

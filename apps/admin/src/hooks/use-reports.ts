@@ -2,7 +2,7 @@
 
 import { keepPreviousData, useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 
-import { apiErrorSchema } from "@/lib/api-contract";
+import { throwApiError } from "@/lib/api-contract";
 import { queryToSearchParams } from "@/lib/contract-shared";
 import type { ReportResolution } from "@/lib/report-constants";
 import {
@@ -22,8 +22,7 @@ export function useReports(query: ReportsQuery) {
 
       const res = await fetch(`/api/v1/admin/reports?${params.toString()}`);
       if (!res.ok) {
-        const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
-        throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+        await throwApiError(res);
       }
       return reportsResponseSchema.parse(await res.json());
     },
@@ -47,8 +46,7 @@ export function useResolveReport() {
         body: JSON.stringify({ resolution: input.resolution, reason: input.reason }),
       });
       if (!res.ok) {
-        const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
-        throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+        await throwApiError(res);
       }
       return reportActionResponseSchema.parse(await res.json());
     },

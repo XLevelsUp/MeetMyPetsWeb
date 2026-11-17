@@ -2,7 +2,7 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { apiErrorSchema } from "@/lib/api-contract";
+import { throwApiError } from "@/lib/api-contract";
 import type { RejectionReason } from "@/lib/certificate-constants";
 import { queryToSearchParams } from "@/lib/contract-shared";
 import {
@@ -23,8 +23,7 @@ export function useCertificates(query: CertificatesQuery) {
 
       const res = await fetch(`/api/v1/admin/verifications?${params.toString()}`);
       if (!res.ok) {
-        const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
-        throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+        await throwApiError(res);
       }
       return certificatesResponseSchema.parse(await res.json());
     },
@@ -46,8 +45,7 @@ export function useCertificateDocument(certificateId: string | null, enabled: bo
     queryFn: async () => {
       const res = await fetch(`/api/v1/admin/verifications/${certificateId}/document`);
       if (!res.ok) {
-        const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
-        throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+        await throwApiError(res);
       }
       return signedDocumentSchema.parse(await res.json());
     },
@@ -89,8 +87,7 @@ export function useDecideCertificate() {
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
-        throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+        await throwApiError(res);
       }
       return certificateActionResponseSchema.parse(await res.json());
     },

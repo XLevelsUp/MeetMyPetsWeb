@@ -19,21 +19,35 @@ export function useActionToast<TData, TError extends Error, TVariables>(
     loading: string;
     success: (data: TData) => string;
     error?: (error: TError) => string;
+    /** A 2xx that only half-landed; returns the message, or null when all is well. */
+    warning?: (data: TData) => string | null;
   },
 ) {
   const run = (variables: TVariables, onSuccess?: (data: TData) => void) => {
     const promise = mutation.mutateAsync(variables);
+    // Set during the toast's own success callback, read by the .then below.
+    let halfLanded: string | null = null;
 
     toast.promise(promise, {
       loading: messages.loading,
-      success: (data) => messages.success(data as TData),
+      success: (data) => {
+        halfLanded = messages.warning?.(data as TData) ?? null;
+        return messages.success(data as TData);
+      },
       error: (error) =>
         messages.error?.(error as TError) ?? (error as TError).message,
     });
 
     // Swallowed: toast.promise already surfaced it, and an unhandled rejection
     // here would reach the console as a crash the user has already been told about.
-    return promise.then(onSuccess).catch(() => undefined);
+    return promise
+      .then((data) => {
+        // Raised beside the success toast, and left up until dismissed: a save
+        // that only half-landed needs someone to act, not a message that fades.
+        if (halfLanded) toast.warning(halfLanded, { duration: Infinity, closeButton: true });
+        return onSuccess?.(data as TData);
+      })
+      .catch(() => undefined);
   };
 
   return { run, isPending: mutation.isPending };

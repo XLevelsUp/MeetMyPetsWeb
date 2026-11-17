@@ -2,7 +2,7 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { apiErrorSchema } from "@/lib/api-contract";
+import { throwApiError } from "@/lib/api-contract";
 import { auditResponseSchema, type AuditQuery } from "@/lib/audit-contract";
 
 /** React Query hook for the audit log. Responses are zod-parsed. */
@@ -22,8 +22,7 @@ export function useAuditLogs(query: AuditQuery) {
 
       const res = await fetch(`/api/v1/admin/audit?${params.toString()}`);
       if (!res.ok) {
-        const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
-        throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+        await throwApiError(res);
       }
       return auditResponseSchema.parse(await res.json());
     },
