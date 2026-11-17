@@ -4,7 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { toast } from "sonner";
 
 import { copy } from "@/config/admin";
-import { apiErrorSchema } from "@/lib/api-contract";
+import { throwApiError } from "@/lib/api-contract";
 import {
   blogCategoriesResponseSchema,
   blogCategorySchema,
@@ -26,8 +26,7 @@ const BASE = "/api/v1/admin/blogs";
 async function request(url: string, init?: RequestInit): Promise<unknown> {
   const res = await fetch(url, init);
   if (!res.ok) {
-    const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
-    throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+    await throwApiError(res);
   }
   return res.json();
 }

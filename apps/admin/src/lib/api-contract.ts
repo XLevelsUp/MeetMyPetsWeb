@@ -119,6 +119,16 @@ export const apiErrorSchema = z.object({
 });
 export type ApiError = z.infer<typeof apiErrorSchema>;
 
+/** The proxy's 401 body reads "Sign in required", which says nothing about why it just happened. */
+export const SESSION_EXPIRED_MESSAGE = "Your session expired. Sign in again.";
+
+/** Throws the message a moderator should read for any non-2xx response. */
+export async function throwApiError(res: Response): Promise<never> {
+  if (res.status === 401) throw new Error(SESSION_EXPIRED_MESSAGE);
+  const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
+  throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+}
+
 /**
  * The dashboard's range selection, as it travels in the query string.
  *

@@ -37,6 +37,9 @@ export const AI_REJECTION_CODES = [
 ] as const;
 export type AiRejectionCode = (typeof AI_REJECTION_CODES)[number];
 
+/** Used when a block carries no code: the unsure queue has none to inherit. */
+export const DEFAULT_REJECTION_CODE = "MOD_007" satisfies AiRejectionCode;
+
 /** Spec §5.2 verbatim. A moderator picking a rejection reason reads these. */
 export const AI_REJECTION_LABELS: Record<AiRejectionCode, string> = {
   MOD_001: "There is no pet in this",

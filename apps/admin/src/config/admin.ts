@@ -454,6 +454,9 @@ export const copy = {
       savingToast: "Saving your decision…",
       approvedToast: "Approved — now visible in the app",
       rejectedToast: "Rejected — hidden from the app",
+      savedToast: "Decision saved",
+      contentWriteFailed:
+        "Your decision was saved, but the post itself did not change — it is still as it was in the app. Tell an engineer.",
     },
     /**
      * An empty queue is the goal state, not an error — but an empty *filtered*

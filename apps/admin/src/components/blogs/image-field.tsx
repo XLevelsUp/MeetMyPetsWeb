@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { copy } from "@/config/admin";
 import { uploadBlogImage } from "@/hooks/use-blogs";
+import { SESSION_EXPIRED_MESSAGE } from "@/lib/api-contract";
 import { IMAGE_UPLOAD } from "@/lib/blog-contract";
 
 const f = copy.blogs.editor.fields;
@@ -71,6 +72,15 @@ export function ImageField({
       {error ? (
         <p role="alert" className="text-xs text-destructive">
           {error}
+          {/* Opens in a new tab so the unsaved article is not lost to the navigation. */}
+          {error === SESSION_EXPIRED_MESSAGE ? (
+            <>
+              {" "}
+              <a href="/login" target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-2">
+                Open sign-in
+              </a>
+            </>
+          ) : null}
         </p>
       ) : null}
       <input

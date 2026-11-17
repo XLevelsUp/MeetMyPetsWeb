@@ -11,6 +11,7 @@ import type {
   ResolveAiDecisionRequest,
 } from "@/lib/ai-moderation-contract";
 import { outcomeFor } from "@/lib/ai-moderation-contract";
+import { DEFAULT_REJECTION_CODE } from "@/lib/ai-moderation-constants";
 
 /** AI moderation queue adapter — `moderation.decisions`. OWNERSHIP: this table is NOT ours. */
 
@@ -325,19 +326,39 @@ export async function listAiDecisions(
  * Resolve
  * ---------------------------------------------------------------------- */
 
+/** Postgres constraint text tells a moderator nothing; anything unmapped keeps its own message. */
+function friendlyWriteError(message: string): string {
+  if (/decisions_final_rejected_has_code_check/.test(message)) {
+    return "This item needs a reason before it can be blocked. Pick one and submit again.";
+  }
+  if (/decisions_final_rejection_code_check/.test(message)) {
+    return "That reason is not one this queue accepts. Pick another and submit again.";
+  }
+  if (/42501|permission denied/i.test(message)) {
+    return "The panel is not allowed to write this yet. Tell an engineer the moderation grants are missing.";
+  }
+  if (/violates check constraint/.test(message)) {
+    return "The database rejected this decision. Tell an engineer what you were reviewing.";
+  }
+  return message;
+}
+
 /** Flips the content's own moderation_status so an approval or rejection reaches the app. */
 async function applyToContent(
   row: Pick<DecisionRow, "media_type" | "media_id" | "pet_id">,
   status: "approved" | "rejected",
   rejectionCode: string | null,
+  isAiGenerated: boolean,
 ): Promise<boolean> {
   const code = status === "rejected" ? rejectionCode : null;
 
+  // The moderator's answer, not the model's: `moderation.decisions.ai_generated` stays read-only.
   if (row.media_type === "pet_profile_photo") {
     const { error } = await from(TABLES.pets)
       .update({
         profile_photo_moderation_status: status,
         profile_photo_moderation_rejection_code: code,
+        profile_photo_is_ai_generated: isAiGenerated,
       })
       .eq("id", row.media_id);
     return !error;
@@ -345,7 +366,11 @@ async function applyToContent(
 
   const target = row.media_type === "post_media" ? TABLES.postMedia : TABLES.petMedia;
   const { error } = await from(target)
-    .update({ moderation_status: status, moderation_rejection_code: code })
+    .update({
+      moderation_status: status,
+      moderation_rejection_code: code,
+      is_ai_generated: isAiGenerated,
+    })
     .eq("id", row.media_id);
   return !error;
 }
@@ -395,8 +420,11 @@ export async function resolveAiDecision(
   const rejected = finalDecision === "REJECTED";
   const reviewedAt = new Date().toISOString();
 
-  // A code is only meaningful when the post ends up blocked.
-  const rejectionCode = rejected ? (body.finalRejectionCode ?? row.rejection_code ?? null) : null;
+  // A code is only meaningful when the post ends up blocked, and the database
+  // requires one on every block — an unsure row carries none to inherit.
+  const rejectionCode = rejected
+    ? (body.finalRejectionCode ?? row.rejection_code ?? DEFAULT_REJECTION_CODE)
+    : null;
 
   // Which retraining column the moderator's reason belongs in: the AI let
   // something through (missed) or flagged something innocent (incorrect).
@@ -424,9 +452,14 @@ export async function resolveAiDecision(
     })
     .eq("id", id);
 
-  if (error) return { ok: false, reason: "action_failed", message: error.message };
+  if (error) return { ok: false, reason: "action_failed", message: friendlyWriteError(error.message) };
 
-  const contentHidden = await applyToContent(row, rejected ? "rejected" : "approved", rejectionCode);
+  const contentHidden = await applyToContent(
+    row,
+    rejected ? "rejected" : "approved",
+    rejectionCode,
+    body.isAiGenerated,
+  );
 
   const audited = await writeAuditLog({
     action: rejected ? "ai_decision.reject" : "ai_decision.approve",

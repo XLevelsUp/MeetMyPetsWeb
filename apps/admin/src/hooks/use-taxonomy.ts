@@ -2,7 +2,7 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { apiErrorSchema } from "@/lib/api-contract";
+import { throwApiError } from "@/lib/api-contract";
 import {
   breedsResponseSchema,
   speciesResponseSchema,
@@ -22,8 +22,7 @@ async function postJson(url: string, body: unknown) {
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
-    throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+    await throwApiError(res);
   }
   return taxonomyActionResponseSchema.parse(await res.json());
 }
@@ -41,8 +40,7 @@ export function useSpecies(query: SpeciesQuery) {
 
       const res = await fetch(`/api/v1/admin/taxonomy/species?${params.toString()}`);
       if (!res.ok) {
-        const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
-        throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+        await throwApiError(res);
       }
       return speciesResponseSchema.parse(await res.json());
     },
@@ -65,8 +63,7 @@ export function useBreeds(query: BreedsQuery) {
 
       const res = await fetch(`/api/v1/admin/taxonomy/breeds?${params.toString()}`);
       if (!res.ok) {
-        const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
-        throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+        await throwApiError(res);
       }
       return breedsResponseSchema.parse(await res.json());
     },

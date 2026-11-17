@@ -2,7 +2,7 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { apiErrorSchema } from "@/lib/api-contract";
+import { throwApiError } from "@/lib/api-contract";
 import {
   trustActionResponseSchema,
   trustLedgerResponseSchema,
@@ -24,8 +24,7 @@ export function useTrustQueue(query: TrustQuery) {
 
       const res = await fetch(`/api/v1/admin/trust?${params.toString()}`);
       if (!res.ok) {
-        const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
-        throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+        await throwApiError(res);
       }
       return trustQueueResponseSchema.parse(await res.json());
     },
@@ -41,8 +40,7 @@ export function useTrustLedger(petId: string | null) {
     queryFn: async () => {
       const res = await fetch(`/api/v1/admin/trust/${petId}`);
       if (!res.ok) {
-        const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
-        throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+        await throwApiError(res);
       }
       return trustLedgerResponseSchema.parse(await res.json());
     },
@@ -68,8 +66,7 @@ export function useTrustAction() {
         body: JSON.stringify({ action: input.action, reason: input.reason }),
       });
       if (!res.ok) {
-        const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
-        throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+        await throwApiError(res);
       }
       return trustActionResponseSchema.parse(await res.json());
     },

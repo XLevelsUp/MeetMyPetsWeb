@@ -38,8 +38,15 @@ export function AiReviewForm({ decision }: { decision: AiDecisionSummary }) {
   // One toast covers the whole save: spinner on click, result in its place.
   const action = useActionToast(resolve, {
     loading: t.savingToast,
+    // Only claims the post moved when it actually did.
     success: (result) =>
-      result.finalDecision === "APPROVED" ? t.approvedToast : t.rejectedToast,
+      !result.contentHidden
+        ? t.savedToast
+        : result.finalDecision === "APPROVED"
+          ? t.approvedToast
+          : t.rejectedToast,
+    // The decision is saved either way; only the post's own visibility failed.
+    warning: (result) => (result.contentHidden ? null : t.contentWriteFailed),
   });
   const group = useId();
 

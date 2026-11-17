@@ -3,7 +3,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { z } from "zod";
 
-import { apiErrorSchema } from "@/lib/api-contract";
+import { throwApiError } from "@/lib/api-contract";
 import {
   accountDetailSchema,
   accountsResponseSchema,
@@ -26,8 +26,7 @@ import {
 async function fetchJson<S extends z.ZodType>(url: string, schema: S): Promise<z.infer<S>> {
   const res = await fetch(url);
   if (!res.ok) {
-    const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
-    throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+    await throwApiError(res);
   }
   return schema.parse(await res.json());
 }
@@ -43,8 +42,7 @@ async function postJson<S extends z.ZodType>(
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
-    throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+    await throwApiError(res);
   }
   return schema.parse(await res.json());
 }

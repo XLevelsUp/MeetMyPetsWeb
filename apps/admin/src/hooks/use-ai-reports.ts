@@ -2,7 +2,7 @@
 
 import { keepPreviousData, useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 
-import { apiErrorSchema } from "@/lib/api-contract";
+import { throwApiError } from "@/lib/api-contract";
 import { queryToSearchParams } from "@/lib/contract-shared";
 import {
   aiActionResponseSchema,
@@ -23,8 +23,7 @@ export function useAiReports(query: AiDecisionsQuery) {
 
       const res = await fetch(`/api/v1/admin/ai-reports?${params.toString()}`);
       if (!res.ok) {
-        const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
-        throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+        await throwApiError(res);
       }
       return aiDecisionsResponseSchema.parse(await res.json());
     },
@@ -54,8 +53,7 @@ export function useResolveAiDecision() {
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
-        throw new Error(parsed.success ? parsed.data.message : `Request failed (${res.status}).`);
+        await throwApiError(res);
       }
       return aiActionResponseSchema.parse(await res.json());
     },
