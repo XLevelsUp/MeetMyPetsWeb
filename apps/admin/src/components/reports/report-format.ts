@@ -1,5 +1,11 @@
 import { copy } from "@/config/admin";
-import type { TrustRevertPreview, TrustSignal } from "@/lib/reports-contract";
+import type {
+  ReportSummary,
+  TrustPenaltyResult,
+  TrustRevertPreview,
+  TrustSignal,
+} from "@/lib/reports-contract";
+import { reportPenaltyFor, trustStatusFor } from "@/lib/trust-constants";
 
 /** Shared formatting so the table row and the detail dialog never disagree. */
 
@@ -86,4 +92,32 @@ export function trustVariant(
   if (status === "permanently_banned" || status === "temporary_banned") return "destructive";
   if (status === "warning") return "secondary";
   return "outline";
+}
+
+/** What "Mark actioned" will take, from the app's own penalty size and the pet's current score. */
+export function penaltyPreview(report: ReportSummary): string {
+  const amount = reportPenaltyFor(report.scope);
+  const t = copy.reports.penalty;
+  if (report.trust.score === null) return t.previewNoScore.replace("{delta}", String(amount));
+  const after = report.trust.score - amount;
+  const band = trustStatusFor(after);
+  const text = t.preview
+    .replace("{delta}", String(amount))
+    .replace("{before}", String(report.trust.score))
+    .replace("{after}", String(after));
+  // Say it out loud when the penalty itself pushes the pet into a ban band.
+  return band === "temporary_banned" || band === "permanently_banned"
+    ? `${text} ${t.bansWarning.replace("{status}", trustLabel(band))}`
+    : text;
+}
+
+/** What "Mark actioned" did, for the toast after saving. */
+export function penaltyMessage(result: TrustPenaltyResult): string {
+  const t = copy.reports.penalty;
+  if (result.outcome === "penalized") {
+    return t.done
+      .replace("{delta}", String(Math.abs(result.delta ?? 0)))
+      .replace("{score}", String(result.scoreAfter ?? "—"));
+  }
+  return t[result.outcome];
 }

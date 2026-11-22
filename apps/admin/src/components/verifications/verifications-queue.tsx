@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { CalendarX2, FileWarning } from "lucide-react";
+import { FileWarning } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
 import { ExportCsvButton } from "@/components/shared/export-csv-button";
@@ -13,11 +13,8 @@ import { SortableHead } from "@/components/shared/sortable-head";
 import { ReviewPane } from "@/components/verifications/review-pane";
 import { CertificateStatusBadge, CertificateTypeBadge } from "@/components/verifications/verification-badges";
 import { VerificationFilters } from "@/components/verifications/verification-filters";
-import {
-  formatDate,
-  formatWhen,
-  isExpired,
-} from "@/components/verifications/verification-format";
+import { ExpiryDate } from "@/components/verifications/expiry-date";
+import { formatWhen } from "@/components/verifications/verification-format";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -93,7 +90,7 @@ export function VerificationsQueue({ initialQuery }: { initialQuery: Certificate
   }, [items, selected]);
 
   const isFiltered =
-    Boolean(query.q) || query.status !== "pending" || query.certificateType !== "all" || query.expiredOnly;
+    Boolean(query.q) || query.status !== "pending" || query.certificateType !== "all" || query.expiredOnly || query.expiringSoon;
 
   return (
     <div className="flex flex-col gap-4">
@@ -227,27 +224,8 @@ export function VerificationsQueue({ initialQuery }: { initialQuery: Certificate
                         <CertificateTypeBadge type={item.certificateType} />
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm">
-                        {/* `isExpired` is the same helper the review pane uses,
-                            so the list and the pane can never disagree about
-                            whether a certificate has lapsed. */}
-                        {item.claims.expiresAt ? (
-                          <span
-                            className={
-                              isExpired(item.claims.expiresAt)
-                                ? "flex items-center gap-1 text-destructive"
-                                : "text-muted-foreground"
-                            }
-                          >
-                            {isExpired(item.claims.expiresAt) ? (
-                              <CalendarX2 className="size-3.5 shrink-0" aria-hidden="true" />
-                            ) : null}
-                            {formatDate(item.claims.expiresAt)}
-                          </span>
-                        ) : (
-                          // Null means "no stated expiry", not "expires now" —
-                          // which is also why these sort last.
-                          <span className="text-muted-foreground">—</span>
-                        )}
+                        {/* Same expiryState helper as the review pane and the filters, so they never disagree. */}
+                        <ExpiryDate expiresAt={item.claims.expiresAt} />
                       </TableCell>
                       <TableCell>
                         {item.hasDocument ? (
@@ -280,6 +258,8 @@ export function VerificationsQueue({ initialQuery }: { initialQuery: Certificate
               pageSize={certificates.data.pageSize}
               total={certificates.data.total}
               onPageChange={(page) => setQuery((prev) => ({ ...prev, page }))}
+
+              onPageSizeChange={(pageSize) => setQuery((prev) => ({ ...prev, pageSize, page: 1 }))}
             />
           ) : null}
 

@@ -348,6 +348,8 @@ describe("resolveReport", () => {
       "public.admin_trust_reversals#select": { rows: [] },
       "public.admin_trust_reversals#insert": {},
       "pets.pets#update": { rows: [{ id: REPORTED_PET }] },
+      "public.admin_trust_penalties#select": { single: null },
+      "public.admin_trust_penalties#insert": {},
       ...overrides,
     });
   }
@@ -363,16 +365,21 @@ describe("resolveReport", () => {
     const mock = setupResolve();
 
     const result = await resolveReport(REPORT_ID, "actioned", "Flagged the pet as well", ACTOR);
-    // `actioned` means the report WAS legitimate, so trust is untouched.
-    expect(result).toEqual({ ok: true, revert: null });
+    // `actioned` confirms the report, so the app's −80 is applied again: 300 → 220.
+    expect(result).toEqual({
+      ok: true,
+      revert: null,
+      penalty: { outcome: "penalized", delta: -80, scoreAfter: 220 },
+    });
 
     const update = mock.calls.find((c) => c.op === "update");
     // The grant is column-scoped to `status`; sending anything else would be
     // rejected by Postgres, so the adapter must never build a wider payload.
     expect(update?.values).toEqual({ status: "actioned" });
 
-    const audit = mock.calls.find((c) => c.op === "insert");
-    expect(audit?.key).toBe("public.admin_audit_logs");
+    // By table: the penalty record is also an insert, and it comes before the audit row.
+    const audit = mock.calls.find((c) => c.op === "insert" && c.key === "public.admin_audit_logs");
+    expect(audit).toBeDefined();
     expect(mock.calls.indexOf(update!)).toBeLessThan(mock.calls.indexOf(audit!));
   });
 
@@ -408,6 +415,79 @@ describe("resolveReport", () => {
    * regardless of what was chained, so a row-based assertion would pass just as
    * happily against an adapter that credited the wrong pet, or every pet.
    */
+  describe("trust penalty on actioned", () => {
+    it("takes the app's penalty again with compare-and-swap, then records it", async () => {
+      const mock = setupResolve();
+      await resolveReport(REPORT_ID, "actioned", "Confirmed abusive profile", ACTOR);
+
+      const scoreUpdate = mock.calls.find((c) => c.op === "update" && c.key === "pets.pets");
+      expect(scoreUpdate?.values).toEqual({ trust_score: 220 });
+      expect(scoreUpdate?.filters).toContainEqual({ args: ["trust_score", 300], method: "eq" });
+      expect(scoreUpdate?.filters).toContainEqual({ args: ["id", REPORTED_PET], method: "eq" });
+
+      const record = mock.calls.find((c) => c.op === "insert" && c.key === "public.admin_trust_penalties");
+      expect(record?.values).toMatchObject({
+        report_id: REPORT_ID,
+        pet_id: REPORTED_PET,
+        delta: -80,
+        score_before: 300,
+        score_after: 220,
+        applied_by: ACTOR_ID,
+      });
+      // Recorded only after the score really moved.
+      expect(mock.calls.indexOf(scoreUpdate!)).toBeLessThan(mock.calls.indexOf(record!));
+      // Never touches the refund table.
+      expect(mock.calls.some((c) => c.key === "public.admin_trust_reversals")).toBe(false);
+
+      const audit = mock.calls.find((c) => c.op === "insert" && c.key === "public.admin_audit_logs");
+      expect((audit?.values as { metadata: unknown }).metadata).toMatchObject({
+        trustPenalty: "penalized",
+        trustDelta: -80,
+        trustScoreAfter: 220,
+      });
+    });
+
+    it("never penalises the same report twice", async () => {
+      const mock = setupResolve({ "public.admin_trust_penalties#select": { single: { id: "p1" } } });
+      const result = await resolveReport(REPORT_ID, "actioned", "Submitted the dialog again", ACTOR);
+      expect(result).toMatchObject({ ok: true, penalty: { outcome: "already_penalized", delta: null } });
+      expect(mock.calls.some((c) => c.op === "update" && c.key === "pets.pets")).toBe(false);
+    });
+
+    it("leaves the score alone when the penalties table is missing", async () => {
+      const mock = setupResolve({
+        "public.admin_trust_penalties#select": { error: { message: 'relation "admin_trust_penalties" does not exist' } },
+      });
+      const result = await resolveReport(REPORT_ID, "actioned", "Migration not applied yet", ACTOR);
+      expect(result).toMatchObject({ ok: true, penalty: { outcome: "unavailable" } });
+      expect(mock.calls.some((c) => c.op === "update" && c.key === "pets.pets")).toBe(false);
+    });
+
+    it("reports score_moved and records nothing when the score changed underneath", async () => {
+      const mock = setupResolve({ "pets.pets#update": { rows: [] } });
+      const result = await resolveReport(REPORT_ID, "actioned", "Concurrent change in flight", ACTOR);
+      expect(result).toMatchObject({ ok: true, penalty: { outcome: "score_moved" } });
+      expect(mock.calls.some((c) => c.op === "insert" && c.key === "public.admin_trust_penalties")).toBe(false);
+    });
+
+    it("uses the post penalty (−20) for a post report", async () => {
+      setupResolve({
+        "matching.pet_reports#select": {
+          single: { ...REPORT_ROW, context_entity_type: "post", context_entity_id: "44444444-4444-4444-4444-444444444444" },
+        },
+      });
+      const result = await resolveReport(REPORT_ID, "actioned", "Confirmed abusive post", ACTOR);
+      expect(result).toMatchObject({ ok: true, penalty: { outcome: "penalized", delta: -20, scoreAfter: 280 } });
+    });
+
+    it("does not touch trust for 'reviewed'", async () => {
+      const mock = setupResolve();
+      const result = await resolveReport(REPORT_ID, "reviewed", "Looked at it, no action", ACTOR);
+      expect(result).toEqual({ ok: true, revert: null, penalty: null });
+      expect(mock.calls.some((c) => c.op === "update" && c.key === "pets.pets")).toBe(false);
+    });
+  });
+
   describe("trust reversal on dismissal", () => {
     it("credits the deduction back and records the reversal", async () => {
       const mock = setupResolve();
@@ -416,6 +496,7 @@ describe("resolveReport", () => {
       expect(result).toEqual({
         ok: true,
         revert: { outcome: "reverted", delta: 80, scoreAfter: 380 },
+        penalty: null,
       });
 
       const scoreUpdate = mock.calls.find((c) => c.op === "update" && c.key === "pets.pets");

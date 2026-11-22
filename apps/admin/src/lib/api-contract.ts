@@ -81,6 +81,31 @@ export const analyticsSummarySchema = z.object({
 });
 export type AnalyticsSummaryResponse = z.infer<typeof analyticsSummarySchema>;
 
+const count = z.number().int().min(0);
+
+// Counts only — coordinates never leave the server; located + outsideIndia + unknown === totalAccounts.
+export const locationBreakdownSchema = z.object({
+  generatedAt: z.iso.datetime(),
+  /** Accounts not deleted. The denominator for every share on the card. */
+  totalAccounts: count,
+  /** Resolved to an Indian state, from GPS or from the typed state. */
+  located: count,
+  /** Profile says another country, or GPS falls outside India. */
+  outsideIndia: count,
+  /** No profile, no coordinates and no recognisable state. */
+  unknown: count,
+  /** How `located` was resolved: GPS is trusted over the typed state. */
+  fromCoordinates: count,
+  fromText: count,
+  /** Only states with at least one account, largest first. */
+  byState: z.array(z.object({ state: z.string(), count })),
+  /** Every district with an account, GPS-placed only; a state's shortfall vs byState had no GPS. */
+  byDistrict: z.array(z.object({ state: z.string(), district: z.string(), count })),
+  /** Top cities, largest first. `state` is null when the city could not be placed. */
+  byCity: z.array(z.object({ city: z.string(), state: z.string().nullable(), count })),
+});
+export type LocationBreakdown = z.infer<typeof locationBreakdownSchema>;
+
 export const timeseriesPointSchema = z.object({
   /** YYYY-MM-DD — the START of the bucket, whichever granularity is in play. */
   date: z.string(),

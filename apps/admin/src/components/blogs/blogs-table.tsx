@@ -262,6 +262,8 @@ export function BlogsTable({ initialQuery }: { initialQuery: BlogListQuery }) {
               pageSize={posts.data.pageSize}
               total={posts.data.total}
               onPageChange={(page) => setQuery((prev) => ({ ...prev, page }))}
+
+              onPageSizeChange={(pageSize) => setQuery((prev) => ({ ...prev, pageSize, page: 1 }))}
             />
           ) : null}
         </>

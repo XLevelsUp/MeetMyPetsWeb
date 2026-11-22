@@ -236,6 +236,8 @@ export const petsQuerySchema = listQuerySchema.extend({
   /** A species id, or "all". Not `.uuid()` — a stale id degrades to "all". */
   speciesId: z.string().catch("all"),
   trust: z.enum(PET_TRUST_FILTERS).catch("all"),
+  // Owner drill-down from the users tab; its own field so it never hides inside the search box.
+  ownerId: z.guid().optional().catch(undefined),
 });
 export type PetsQuery = z.infer<typeof petsQuerySchema>;
 

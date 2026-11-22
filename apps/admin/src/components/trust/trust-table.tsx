@@ -427,7 +427,9 @@ export function TrustTable({
               page={trust.data.page}
               pageSize={trust.data.pageSize}
               total={trust.data.total}
-              onPageChange={(page) => handleFilterChange({ page })}
+              onPageChange={(page) => setQuery((prev) => ({ ...prev, page }))}
+
+              onPageSizeChange={(pageSize) => setQuery((prev) => ({ ...prev, pageSize, page: 1 }))}
             />
           )}
         </>

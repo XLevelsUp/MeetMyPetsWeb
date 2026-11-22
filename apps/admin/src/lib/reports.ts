@@ -6,15 +6,18 @@ import { writeAuditLog } from "@/lib/audit";
 import type { AuditAction } from "@/lib/audit-actions";
 import type { AdminRole } from "@/lib/roles";
 import {
+  PENALIZES_TRUST,
   REVERTS_TRUST,
   type ReportResolution,
   type ReportScope,
   type ReportStatus,
   type TrustRevertOutcome,
 } from "@/lib/report-constants";
+import { REPEAT_OFFENDER_MIN } from "@/lib/report-constants";
 import {
   TRUST_RESTORE_SCORE,
   reportEventReason,
+  reportPenaltyFor,
   trustStatusFor,
 } from "@/lib/trust-constants";
 import type {
@@ -22,6 +25,7 @@ import type {
   ReportSummary,
   ReportsQuery,
   ReportsResponse,
+  TrustPenaltyResult,
   TrustRevertPreview,
 } from "@/lib/reports-contract";
 
@@ -54,7 +58,7 @@ export type ReportsResult<T> =
 
 /** Mirrors `users.ts` — `unaudited` means the status DID change but the audit write failed. */
 export type ReportActionResult =
-  | { ok: true; revert: TrustRevertPreview | null }
+  | { ok: true; revert: TrustRevertPreview | null; penalty: TrustPenaltyResult | null }
   | {
       ok: false;
       reason: "unconfigured" | "not_found" | "action_failed" | "unaudited";
@@ -71,6 +75,8 @@ const TABLES = {
   trustEvents: { schema: "pets", table: "trust_score_events" },
   /** Ours: the counter-entry their ledger will not let us write. */
   reversals: { schema: "public", table: "admin_trust_reversals" },
+  /** Ours: the extra penalty "Mark actioned" applies (migration 20261122000000). */
+  penalties: { schema: "public", table: "admin_trust_penalties" },
 } as const;
 
 type TableRef = { schema: string; table: string };
@@ -578,7 +584,7 @@ export async function listReports(query: ReportsQuery): Promise<ReportsResult<Re
       }
     }
 
-    // Repeat offenders pre-resolution: pets with 2+ reports against them
+    // Repeat offenders pre-resolution: pets with REPEAT_OFFENDER_MIN+ reports against them
     let repeatPetIds: string[] | null = null;
     if (repeatOnly) {
       const { data: allReports } = await from(TABLES.reports).select("reported_pet_id");
@@ -587,7 +593,7 @@ export async function listReports(query: ReportsQuery): Promise<ReportsResult<Re
         petCounts.set(r.reported_pet_id, (petCounts.get(r.reported_pet_id) ?? 0) + 1);
       }
       repeatPetIds = [...petCounts.entries()]
-        .filter(([, count]) => count >= 2)
+        .filter(([, count]) => count >= REPEAT_OFFENDER_MIN)
         .map(([id]) => id);
     }
 
@@ -913,6 +919,61 @@ async function applyRevert(
   }
 }
 
+/** Take the app's automatic penalty a second time when a moderator confirms the report; never throws or blocks the resolution. */
+async function applyPenalty(report: ReportIdentity, reason: string, actor: Actor): Promise<TrustPenaltyResult> {
+  const none = (outcome: TrustPenaltyResult["outcome"]): TrustPenaltyResult => ({
+    outcome,
+    delta: null,
+    scoreAfter: null,
+  });
+
+  // Checked BEFORE the score moves: it is both the double-penalty guard and the "is the table there" probe.
+  const { data: existing, error: existingError } = await from(TABLES.penalties)
+    .select("id")
+    .eq("report_id", report.id)
+    .maybeSingle();
+  if (existingError) return none("unavailable");
+  if (existing) return none("already_penalized");
+
+  try {
+    const { data, error } = await from(TABLES.pets)
+      .select("trust_score")
+      .eq("id", report.reportedPetId)
+      .maybeSingle();
+    if (error) throw new Error(`pets.pets: ${error.message}`);
+    const scoreBefore = (data as { trust_score: number | null } | null)?.trust_score ?? null;
+    if (scoreBefore === null) return none("no_score");
+
+    const delta = -reportPenaltyFor(report.scope);
+    const scoreAfter = scoreBefore + delta;
+
+    // Compare-and-swap, as in applyRevert: zero rows back means the score moved underneath us.
+    const { data: updated, error: updateError } = await from(TABLES.pets)
+      .update({ trust_score: scoreAfter })
+      .eq("id", report.reportedPetId)
+      .eq("trust_score", scoreBefore)
+      .select("id");
+    if (updateError) throw new Error(`pets.pets: ${updateError.message}`);
+    if ((updated ?? []).length === 0) return none("score_moved");
+
+    const { error: insertError } = await from(TABLES.penalties).insert({
+      report_id: report.id,
+      pet_id: report.reportedPetId,
+      delta,
+      score_before: scoreBefore,
+      score_after: scoreAfter,
+      applied_by: actor.userId,
+      reason,
+    });
+    if (insertError) throw new Error(`admin_trust_penalties: ${insertError.message}`);
+
+    return { outcome: "penalized", delta, scoreAfter };
+  } catch {
+    // The score may or may not have moved; "failed" sends the moderator to Trust review rather than guessing.
+    return none("failed");
+  }
+}
+
 export async function resolveReport(
   reportId: string,
   resolution: ReportResolution,
@@ -955,28 +1016,17 @@ export async function resolveReport(
       return { ok: false, reason: "not_found", message: "No report with that id." };
     }
 
-    /**
-     * Trust comes AFTER the status change, and only for a dismissal.
-     *
-     * A dismissal says the report was not legitimate, so the penalty it caused
-     * should not stand. `reviewed` and `actioned` both mean the report WAS
-     * legitimate — crediting there would undo a deduction the pet earned.
-     */
+    // Trust comes AFTER the status change: dismissed refunds the app's penalty, actioned applies it again, reviewed leaves it.
     const scope: ReportScope = before.context_entity_type === "post" ? "post" : "profile";
-    const revert =
-      resolution === REVERTS_TRUST
-        ? await applyRevert(
-            {
-              id: before.id,
-              reportedPetId: before.reported_pet_id,
-              reporterPetId: before.reporter_pet_id,
-              scope,
-              contextEntityId: before.context_entity_id,
-            },
-            reason,
-            actor,
-          )
-        : null;
+    const identity: ReportIdentity = {
+      id: before.id,
+      reportedPetId: before.reported_pet_id,
+      reporterPetId: before.reporter_pet_id,
+      scope,
+      contextEntityId: before.context_entity_id,
+    };
+    const revert = resolution === REVERTS_TRUST ? await applyRevert(identity, reason, actor) : null;
+    const penalty = resolution === PENALIZES_TRUST ? await applyPenalty(identity, reason, actor) : null;
 
     const result = await writeAuditLog({
       actorId: actor.userId,
@@ -997,6 +1047,9 @@ export async function resolveReport(
         ...(revert
           ? { trustRevert: revert.outcome, trustDelta: revert.delta, trustScoreAfter: revert.scoreAfter }
           : {}),
+        ...(penalty
+          ? { trustPenalty: penalty.outcome, trustDelta: penalty.delta, trustScoreAfter: penalty.scoreAfter }
+          : {}),
       },
     });
     if (!result.ok) {
@@ -1007,7 +1060,7 @@ export async function resolveReport(
       };
     }
 
-    return { ok: true, revert };
+    return { ok: true, revert, penalty };
   } catch (error) {
     return {
       ok: false,

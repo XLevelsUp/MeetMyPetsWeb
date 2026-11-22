@@ -109,8 +109,10 @@ export function queryToSearchParams(
  * Every destructive admin action carries one. The minimum length is
  * deliberate: "spam" is not an audit trail a reviewer can act on months later.
  */
+export const REASON_MIN_LENGTH = 10;
+
 export const reasonSchema = z
   .string()
   .trim()
-  .min(10, "Give a reason of at least 10 characters — it goes in the audit log.")
+  .min(REASON_MIN_LENGTH, `Give a reason of at least ${REASON_MIN_LENGTH} characters — it goes in the audit log.`)
   .max(500);

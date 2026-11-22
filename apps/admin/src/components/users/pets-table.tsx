@@ -1,7 +1,8 @@
 "use client";
 
+import { ArrowLeft, X } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { Pagination } from "@/components/shared/pagination";
@@ -74,13 +75,13 @@ export function PetsTable({
   role,
   initialQuery,
   active,
-  externalOwnerSearch,
+  onBackToUsers,
 }: {
   role: AdminRole;
   initialQuery: PetsQuery;
   /** Only the visible tab writes to the URL. */
   active: boolean;
-  externalOwnerSearch?: { id: string; timestamp: number } | null;
+  onBackToUsers?: () => void;
 }) {
   const [query, setQuery] = useUrlSyncedQuery(initialQuery, DEFAULT_PETS_QUERY, {
     active,
@@ -89,12 +90,11 @@ export function PetsTable({
   });
   const [previewPet, setPreviewPet] = useState<PetSummary | null>(null);
 
-  useEffect(() => {
-    if (externalOwnerSearch?.id) {
-      setQuery((prev) => ({ ...prev, q: externalOwnerSearch.id, page: 1 }));
-    }
-  }, [externalOwnerSearch, setQuery]);
   const pets = usePets(query);
+  // The owner's name rides on every pet row, so the chip needs no extra request.
+  const ownerName = query.ownerId
+    ? (pets.data?.items.find((p) => p.ownerAccountId === query.ownerId)?.ownerName ?? null)
+    : null;
   // Flag and unflag share an allowlist; a row shows whichever applies, so the
   // column is worth rendering if either is permitted.
   const showActions = canAct(role, "flag") || canAct(role, "unflag");
@@ -117,7 +117,8 @@ export function PetsTable({
     query.status !== DEFAULT_PETS_QUERY.status ||
     query.speciesId !== DEFAULT_PETS_QUERY.speciesId ||
     query.trust !== DEFAULT_PETS_QUERY.trust ||
-    Boolean(query.q);
+    Boolean(query.q) ||
+    Boolean(query.ownerId);
 
   const clearFilters = () =>
     setQuery((prev) => ({
@@ -147,6 +148,40 @@ export function PetsTable({
           columns={PET_CSV_COLUMNS}
         />
       </ListToolbar>
+
+      {query.ownerId ? (
+        // Said out loud: a list narrowed to one owner must never look like the whole pet base.
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-trust/30 bg-trust-soft px-3 py-2 text-sm"
+        >
+          <span className="text-trust-fg">
+            {copy.users.ownerFilter.showing}{" "}
+            <Link href={`/users/${query.ownerId}`} className="font-semibold underline-offset-4 hover:underline">
+              {ownerName || copy.users.ownerFilter.thisUser}
+            </Link>
+          </span>
+          <button
+            type="button"
+            onClick={() => applyFilters({ ownerId: undefined })}
+            className="inline-flex items-center gap-1 rounded-full border border-trust/40 bg-card px-2.5 py-0.5 text-xs font-medium text-trust-fg hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            aria-label={copy.users.ownerFilter.showAll}
+          >
+            <X className="size-3" aria-hidden />
+            {copy.users.ownerFilter.showAll}
+          </button>
+          {onBackToUsers ? (
+            <button
+              type="button"
+              onClick={onBackToUsers}
+              className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <ArrowLeft className="size-3.5" aria-hidden />
+              {copy.users.ownerFilter.back}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* Quick Filter Chips for 1-click triage */}
       <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -378,6 +413,8 @@ export function PetsTable({
               pageSize={pets.data.pageSize}
               total={pets.data.total}
               onPageChange={(page) => setQuery((prev) => ({ ...prev, page }))}
+
+              onPageSizeChange={(pageSize) => setQuery((prev) => ({ ...prev, pageSize, page: 1 }))}
             />
           ) : null}
 

@@ -163,6 +163,8 @@ export function SpeciesTable() {
               pageSize={species.data.pageSize}
               total={species.data.total}
               onPageChange={(page) => setQuery((prev) => ({ ...prev, page }))}
+
+              onPageSizeChange={(pageSize) => setQuery((prev) => ({ ...prev, pageSize, page: 1 }))}
             />
           ) : null}
         </>

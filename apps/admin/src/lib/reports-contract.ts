@@ -11,6 +11,7 @@ import {
   REPORT_RESOLUTIONS,
   REPORT_SCOPES,
   REPORT_STATUSES,
+  TRUST_PENALTY_OUTCOMES,
   TRUST_REVERT_OUTCOMES,
 } from "@/lib/report-constants";
 
@@ -150,7 +151,7 @@ export const reportsQuerySchema = listQuerySchema.extend({
    * defaults are deliberate; neither should be copied to the other.
    */
   dir: z.enum(SORT_DIRECTIONS).catch("desc"),
-  /** When true, only reports against pets with 2+ total reports are returned. */
+  /** When true, only reports against pets with REPEAT_OFFENDER_MIN+ total reports are returned. */
   repeatOnly: z
     .union([z.boolean(), z.string().transform((v) => v === "true")])
     .default(false)
@@ -183,7 +184,17 @@ export type ResolveReportRequest = z.infer<typeof resolveReportSchema>;
  * would hide whether the credit landed. `null` for non-dismissal resolutions,
  * which never touch trust.
  */
+// What "Mark actioned" did to the score: `delta` is negative, both numbers null unless it was penalized.
+export const trustPenaltyResultSchema = z.object({
+  outcome: z.enum(TRUST_PENALTY_OUTCOMES),
+  delta: z.number().int().nullable(),
+  scoreAfter: z.number().int().nullable(),
+});
+export type TrustPenaltyResult = z.infer<typeof trustPenaltyResultSchema>;
+
 export const reportActionResponseSchema = z.object({
   ok: z.literal(true),
   revert: trustRevertPreviewSchema.nullable(),
+  /** Set only for "actioned"; `.default(null)` keeps an older server's response parseable. */
+  penalty: trustPenaltyResultSchema.nullable().default(null),
 });

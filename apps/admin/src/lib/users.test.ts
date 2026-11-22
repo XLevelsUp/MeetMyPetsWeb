@@ -425,6 +425,15 @@ describe("listPets sorting and filters", () => {
     expect(page?.filters).toContainEqual({ method: "eq", args: ["species_id", speciesId] });
   });
 
+  it("filters to one owner as its own condition, never through the search box", async () => {
+    const mock = listable();
+    const ownerId = "00000000-0000-4000-b000-000000000011";
+    await listPets(petsQuery({ ownerId }));
+    const page = mock.calls.find((c) => c.key === "pets.pets");
+    expect(page?.filters).toContainEqual({ method: "eq", args: ["owner_account_id", ownerId] });
+    expect(page?.filters?.some((f) => f.method === "or")).toBe(false);
+  });
+
   it("ignores a species id that is not a uuid instead of sending it", async () => {
     const mock = listable();
     await listPets(petsQuery({ speciesId: "dog" }));

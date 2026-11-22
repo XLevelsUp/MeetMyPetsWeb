@@ -148,6 +148,11 @@ export const certificatesQuerySchema = listQuerySchema.extend({
     .union([z.boolean(), z.string().transform((v) => v === "true")])
     .default(false)
     .catch(false),
+  /** Not yet expired, but expiring within DAY_THRESHOLDS.countdown.amber days (the red + amber bands). */
+  expiringSoon: z
+    .union([z.boolean(), z.string().transform((v) => v === "true")])
+    .default(false)
+    .catch(false),
 });
 export type CertificatesQuery = z.infer<typeof certificatesQuerySchema>;
 

@@ -342,6 +342,8 @@ export function UsersTable({
               pageSize={accounts.data.pageSize}
               total={accounts.data.total}
               onPageChange={(page) => setQuery((prev) => ({ ...prev, page }))}
+
+              onPageSizeChange={(pageSize) => setQuery((prev) => ({ ...prev, pageSize, page: 1 }))}
             />
           ) : null}
         </>

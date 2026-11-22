@@ -105,8 +105,14 @@ describe("query URL round-trip", () => {
       dir: "asc",
       speciesId: "s1",
       trust: "at_risk",
+      ownerId: "00000000-0000-4000-b000-000000000011",
     });
     expect(searchParamsToQuery(petsQuerySchema, queryToSearchParams(query))).toEqual(query);
+  });
+
+  it("drops a malformed owner id instead of filtering on it", () => {
+    expect(petsQuerySchema.parse({ ownerId: "not-an-id" }).ownerId).toBeUndefined();
+    expect(petsQuerySchema.parse({}).ownerId).toBeUndefined();
   });
 
   it("leaves default values out of the address bar but still restores them", () => {

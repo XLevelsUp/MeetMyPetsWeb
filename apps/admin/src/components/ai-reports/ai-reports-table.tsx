@@ -298,6 +298,8 @@ export function AiReportsTable({ initialQuery }: { initialQuery: AiDecisionsQuer
               pageSize={decisions.data.pageSize}
               total={decisions.data.total}
               onPageChange={(page) => setQuery((prev) => ({ ...prev, page }))}
+
+              onPageSizeChange={(pageSize) => setQuery((prev) => ({ ...prev, pageSize, page: 1 }))}
             />
           ) : null}
         </>

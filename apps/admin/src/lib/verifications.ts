@@ -10,6 +10,7 @@ import type {
   CertificateStatus,
   RejectionReason,
 } from "@/lib/certificate-constants";
+import { DAY_THRESHOLDS } from "@/lib/day-thresholds";
 import type {
   CertificateSummary,
   CertificatesQuery,
@@ -189,7 +190,7 @@ export async function listCertificates(
   }
 
   try {
-    const { page, pageSize, q, status, certificateType, sort, dir, expiredOnly } = query;
+    const { page, pageSize, q, status, certificateType, sort, dir, expiredOnly, expiringSoon } = query;
     const offset = (page - 1) * pageSize;
 
     let request = from(TABLES.certificates).select(CERTIFICATE_COLUMNS, { count: "exact" });
@@ -253,6 +254,15 @@ export async function listCertificates(
     if (expiredOnly) {
       request = request
         .lt("expires_at", new Date().toISOString())
+        .not("expires_at", "is", null);
+    }
+
+    // Starts exactly where "expired" ends, so a certificate is never in both lists.
+    if (expiringSoon) {
+      const now = Date.now();
+      request = request
+        .gte("expires_at", new Date(now).toISOString())
+        .lte("expires_at", new Date(now + DAY_THRESHOLDS.countdown.amber * 86_400_000).toISOString())
         .not("expires_at", "is", null);
     }
 

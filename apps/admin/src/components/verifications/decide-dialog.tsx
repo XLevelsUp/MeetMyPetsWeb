@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { ReasonHint } from "@/components/shared/reason-hint";
 import { rejectionLabel } from "@/components/verifications/verification-format";
 import {
   AlertDialog,
@@ -109,7 +110,8 @@ export function DecideDialog({
                 }
               >
                 <SelectTrigger id="rejection-reason">
-                  <SelectValue />
+                  {/* Show the readable label, not the stored value ("illegible"). */}
+                  <SelectValue>{(value: string) => rejectionLabel(value)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {REJECTION_REASONS.map((value) => (
@@ -130,7 +132,9 @@ export function DecideDialog({
               value={reason}
               onChange={(event) => setReason(event.target.value)}
               placeholder={text.reasonPlaceholder}
+              aria-describedby="decide-reason-hint"
             />
+            <ReasonHint id="decide-reason-hint" reason={reason} />
           </div>
 
           {error ? (
@@ -143,7 +147,7 @@ export function DecideDialog({
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>{text.cancel}</AlertDialogCancel>
           <AlertDialogAction
-            variant={isReject ? "destructive" : "default"}
+            variant={isReject ? "reject" : "approve"}
             disabled={isPending || !reasonCheck.success}
             onClick={handleConfirm}
           >

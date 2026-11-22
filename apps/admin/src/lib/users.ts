@@ -695,7 +695,7 @@ export async function listPets(query: PetsQuery): Promise<UsersResult<PetsRespon
   }
 
   try {
-    const { page, pageSize, q, status, sort, dir, speciesId, trust } = query;
+    const { page, pageSize, q, status, sort, dir, speciesId, trust, ownerId } = query;
     const offset = (page - 1) * pageSize;
     const ascending = dir === "asc";
 
@@ -724,6 +724,8 @@ export async function listPets(query: PetsQuery): Promise<UsersResult<PetsRespon
     } else if (flaggedIds) {
       request = request.in("id", flaggedIds);
     }
+
+    if (ownerId && UUID_RE.test(ownerId)) request = request.eq("owner_account_id", ownerId);
 
     if (speciesId !== "all" && UUID_RE.test(speciesId)) {
       request = request.eq("species_id", speciesId);

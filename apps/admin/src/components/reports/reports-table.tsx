@@ -12,6 +12,7 @@ import {
   ReportReasonBadge,
   ReportScopeBadge,
   ReportStatusBadge,
+  BanEndsBadge,
   ReportTrustBadge,
 } from "@/components/reports/report-badges";
 import { formatWhen, revertMessage } from "@/components/reports/report-format";
@@ -237,7 +238,13 @@ export function ReportsTable({ initialQuery }: { initialQuery: ReportsQuery }) {
                         <ReportScopeBadge scope={report.scope} />
                       </TableCell>
                       <TableCell>
-                        <ReportTrustBadge trust={report.trust} />
+                        <div className="flex flex-col gap-1">
+                          <ReportTrustBadge trust={report.trust} />
+                          {/* Only for a live temporary ban: a stale end date on an unbanned pet means nothing. */}
+                          {report.trust.status === "temporary_banned" ? (
+                            <BanEndsBadge until={report.trust.bannedUntil} />
+                          ) : null}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <ReportStatusBadge status={report.status} />
@@ -292,6 +299,8 @@ export function ReportsTable({ initialQuery }: { initialQuery: ReportsQuery }) {
               pageSize={reports.data.pageSize}
               total={reports.data.total}
               onPageChange={(page) => setQuery((prev) => ({ ...prev, page }))}
+
+              onPageSizeChange={(pageSize) => setQuery((prev) => ({ ...prev, pageSize, page: 1 }))}
             />
           ) : null}
         </>
