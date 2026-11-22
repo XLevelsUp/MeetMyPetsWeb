@@ -1,21 +1,12 @@
 import type { MetadataRoute } from "next";
+import { connection } from "next/server";
 
 import { site } from "@/config/site";
 import { listPublishedPosts } from "@/lib/blog";
 
-/**
- * /sitemap.xml — regenerated from the published posts, not at build time.
- *
- * Cached like the blog pages (ISR, `blog` tag): the admin's revalidation call
- * expires it on every publish / edit / unpublish / delete, and `revalidate`
- * is the hourly fallback. Only posts the public can read are listed — the
- * query runs under RLS, so drafts, unpublished and deleted posts cannot
- * appear. Posts whose canonical URL points elsewhere are left out: a sitemap
- * lists canonical URLs only.
- */
-export const revalidate = 3600;
-
+// Built per request so it never freezes; posts still come from the hourly, "blog"-tagged fetch cache.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  await connection();
   const posts = await listPublishedPosts();
   const indexable = posts.filter(
     (post) =>
