@@ -314,6 +314,8 @@ export const copy = {
       trust: "Trust",
       trustAll: "Any",
       trustAtRisk: "Needs review",
+      trustTempBanned: "Temporarily banned",
+      trustPermBanned: "Permanently banned",
       trustNormal: "Normal",
       allSpecies: "All species",
     },
@@ -395,6 +397,20 @@ export const copy = {
     unauditedWarning:
       "The action was applied, but writing the audit log failed. Tell an engineer before doing anything else.",
     viewHistory: "View in audit log",
+    /** One-click chips above the Users and Pets tables. */
+    quick: {
+      label: "Quick filter",
+      all: "All",
+      active: "Active",
+      suspended: "Suspended",
+      banned: "Banned",
+      hasPets: "Has pets",
+      archived: "Archived",
+      flagged: "Flagged",
+      needsReview: "Needs review",
+      tempBanned: "Temp banned",
+      permBanned: "Banned",
+    },
     ownerFilter: {
       showing: "Showing only pets owned by",
       /** Used when the owner has no pets visible to read a name from. */

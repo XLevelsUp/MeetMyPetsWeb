@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, X } from "lucide-react";
+import { Archive, ArrowLeft, Ban, CircleCheck, Clock, Flag, TriangleAlert, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ import { ActionDialog } from "@/components/users/action-dialog";
 import { EmptyState } from "@/components/users/list-empty-state";
 import { ListToolbar } from "@/components/users/list-toolbar";
 import { PetFilters } from "@/components/users/pet-filters";
+import { QuickFilters } from "@/components/users/quick-filters";
 import { RestrictionBadge } from "@/components/users/restriction-badge";
 import { formatDate } from "@/components/users/users-format";
 import {
@@ -70,6 +71,8 @@ function PetActions({ pet, role }: { pet: PetSummary; role: AdminRole }) {
     />
   );
 }
+
+const quick = copy.users.quick;
 
 export function PetsTable({
   role,
@@ -183,54 +186,67 @@ export function PetsTable({
         </div>
       ) : null}
 
-      {/* Quick Filter Chips for 1-click triage */}
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="font-medium text-muted-foreground">Quick filter:</span>
-        <button
-          type="button"
-          onClick={() => applyFilters({ trust: "all", status: "all" })}
-          className={`rounded-full border px-2.5 py-1 font-medium transition-colors ${
-            (!query.trust || query.trust === "all") && (!query.status || query.status === "all")
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-border bg-muted/40 text-muted-foreground hover:bg-muted"
-          }`}
-        >
-          All
-        </button>
-        <button
-          type="button"
-          onClick={() => applyFilters({ trust: "at_risk", status: "all" })}
-          className={`rounded-full border px-2.5 py-1 font-medium transition-colors ${
-            query.trust === "at_risk"
-              ? "border-amber-400 bg-amber-100 text-amber-900 dark:border-amber-700 dark:bg-amber-950/70 dark:text-amber-200"
-              : "border-amber-200/70 bg-amber-50/70 text-amber-800 hover:bg-amber-100 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-300"
-          }`}
-        >
-          ⚠️ Needs Review
-        </button>
-        <button
-          type="button"
-          onClick={() => applyFilters({ status: "flagged", trust: "all" })}
-          className={`rounded-full border px-2.5 py-1 font-medium transition-colors ${
-            query.status === "flagged"
-              ? "border-red-400 bg-red-100 text-red-900 dark:border-red-700 dark:bg-red-950/70 dark:text-red-200"
-              : "border-red-200/70 bg-red-50/70 text-red-800 hover:bg-red-100 dark:border-red-800/40 dark:bg-red-950/30 dark:text-red-300"
-          }`}
-        >
-          🚩 Flagged
-        </button>
-        <button
-          type="button"
-          onClick={() => applyFilters({ status: "active", trust: "all" })}
-          className={`rounded-full border px-2.5 py-1 font-medium transition-colors ${
-            query.status === "active" && (!query.trust || query.trust === "all")
-              ? "border-emerald-400 bg-emerald-100 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-200"
-              : "border-emerald-200/70 bg-emerald-50/70 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800/40 dark:bg-emerald-950/30 dark:text-emerald-300"
-          }`}
-        >
-          ✓ Active
-        </button>
-      </div>
+      {/* Same chips as the Users tab, mirroring the Status filter plus the trust "needs review" band. */}
+      <QuickFilters
+        label={quick.label}
+        filters={[
+          {
+            key: "all",
+            label: quick.all,
+            tone: "neutral",
+            active: query.status === "all" && query.trust === "all",
+            onSelect: () => applyFilters({ status: "all", trust: "all" }),
+          },
+          {
+            key: "active",
+            label: quick.active,
+            icon: CircleCheck,
+            tone: "approved",
+            active: query.status === "active" && query.trust === "all",
+            onSelect: () => applyFilters({ status: "active", trust: "all" }),
+          },
+          {
+            key: "needs-review",
+            label: quick.needsReview,
+            icon: TriangleAlert,
+            tone: "waiting",
+            active: query.trust === "at_risk" && query.status === "all",
+            onSelect: () => applyFilters({ trust: "at_risk", status: "all" }),
+          },
+          {
+            key: "temp-banned",
+            label: quick.tempBanned,
+            icon: Clock,
+            tone: "tempBan",
+            active: query.trust === "temporary_banned" && query.status === "all",
+            onSelect: () => applyFilters({ trust: "temporary_banned", status: "all" }),
+          },
+          {
+            key: "perm-banned",
+            label: quick.permBanned,
+            icon: Ban,
+            tone: "rejected",
+            active: query.trust === "permanently_banned" && query.status === "all",
+            onSelect: () => applyFilters({ trust: "permanently_banned", status: "all" }),
+          },
+          {
+            key: "flagged",
+            label: quick.flagged,
+            icon: Flag,
+            tone: "rejected",
+            active: query.status === "flagged" && query.trust === "all",
+            onSelect: () => applyFilters({ status: "flagged", trust: "all" }),
+          },
+          {
+            key: "archived",
+            label: quick.archived,
+            icon: Archive,
+            tone: "muted",
+            active: query.status === "archived" && query.trust === "all",
+            onSelect: () => applyFilters({ status: "archived", trust: "all" }),
+          },
+        ]}
+      />
 
       {pets.isError ? (
         <QueryErrorCard message={pets.error.message} onRetry={() => pets.refetch()} />
@@ -238,7 +254,7 @@ export function PetsTable({
         <>
           <FetchingOverlay isFetching={pets.isFetching && !pets.isPending}>
           <div className="rounded-lg border bg-card">
-            <Table className="w-full">
+            <Table stackOnMobile className="w-full">
               <TableHeader>
                 <TableRow>
                   <SortableHead

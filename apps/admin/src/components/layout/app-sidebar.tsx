@@ -27,6 +27,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { adminNav, admin, copy, navForRole } from "@/config/admin";
 import type { AdminRole } from "@/lib/roles";
@@ -61,6 +62,11 @@ const icons: Record<(typeof adminNav)[number]["icon"], LucideIcon> = {
 export function AppSidebar({ role }: { role: AdminRole }) {
   const pathname = usePathname();
   const items = navForRole(role);
+  const { isMobile, setOpenMobile } = useSidebar();
+  // On phones the menu is an overlay: close it on tap, or it stays over the page it just opened.
+  const closeOnMobile = () => {
+    if (isMobile) setOpenMobile(false);
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -108,6 +114,7 @@ export function AppSidebar({ role }: { role: AdminRole }) {
                       }
                       tooltip={item.label}
                       render={<Link href={item.href} />}
+                      onClick={closeOnMobile}
                     >
                       <Icon />
                       <span>{item.label}</span>

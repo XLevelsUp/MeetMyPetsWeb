@@ -68,11 +68,22 @@ describe("petActionSchema", () => {
 });
 
 describe("list query coercion", () => {
-  it("defaults garbage paging to page 1", () => {
-    expect(listQuerySchema.parse({ page: "abc", pageSize: "9999" })).toMatchObject({
+  it("defaults garbage paging to page 1 and the default size", () => {
+    expect(listQuerySchema.parse({ page: "abc", pageSize: "xyz" })).toMatchObject({
       page: 1,
       pageSize: 25,
     });
+  });
+
+  it("caps an oversized page size at the maximum instead of dropping to the default", () => {
+    expect(listQuerySchema.parse({ pageSize: "500" }).pageSize).toBe(100);
+    expect(listQuerySchema.parse({ pageSize: "9999" }).pageSize).toBe(100);
+    expect(listQuerySchema.parse({ pageSize: "100" }).pageSize).toBe(100);
+    expect(listQuerySchema.parse({ pageSize: "50" }).pageSize).toBe(50);
+  });
+
+  it("still rejects zero, negative and fractional sizes to the default", () => {
+    for (const bad of ["0", "-5", "12.5"]) expect(listQuerySchema.parse({ pageSize: bad }).pageSize).toBe(25);
   });
 
   it("falls back to the 'all' status filter on an unknown value", () => {

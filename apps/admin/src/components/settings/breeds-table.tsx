@@ -102,7 +102,7 @@ export function BreedsTable() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="filter-row flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="breed-search" className="sr-only">
             {copy.settings.breeds.searchPlaceholder}
@@ -153,7 +153,7 @@ export function BreedsTable() {
       ) : (
         <>
           <div className="overflow-x-auto rounded-lg border">
-            <Table>
+            <Table stackOnMobile>
               <TableHeader>
                 <TableRow>
                   <TableHead>{copy.settings.breeds.columns.name}</TableHead>

@@ -64,7 +64,7 @@ export function AuditFilters({
         />
       </div>
 
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="filter-row flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="audit-action">{copy.audit.filters.action}</Label>
           <Select

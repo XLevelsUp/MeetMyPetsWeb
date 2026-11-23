@@ -7,6 +7,7 @@ import { Header } from "@/components/sections/header";
 import { Hero } from "@/components/sections/hero";
 import { HowItWorks } from "@/components/sections/how-it-works";
 import { LeaderboardTeaser } from "@/components/sections/leaderboard-teaser";
+import { MatchShowcase } from "@/components/sections/match-showcase";
 import { Problem } from "@/components/sections/problem";
 import { Reels } from "@/components/sections/reels";
 import { Solution } from "@/components/sections/solution";
@@ -28,6 +29,7 @@ export default function Home() {
         <Hero />
         <StatsBanner />
         <LeaderboardTeaser />
+        <MatchShowcase />
         <Ecosystem />
         <Problem />
         <Solution />

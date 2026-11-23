@@ -15,7 +15,7 @@ export function SearchStub() {
     <Tooltip>
       <TooltipTrigger
         render={
-          <div className="relative hidden w-full max-w-sm md:block">
+          <div className="relative hidden w-full max-w-sm lg:block">
             <Search
               aria-hidden
               className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"

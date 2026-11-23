@@ -119,7 +119,8 @@ function PhoneAppShowcase() {
               alt="Mochi the Golden Retriever"
               fill
               sizes="320px"
-              className="object-cover object-center"
+              // Anchored to the top: centring this tall photo cut the dog's head off.
+              className="object-cover object-top"
             />
             {/* Gradient Overlay for copy legibility */}
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/90 via-ink/40 to-transparent p-4 pt-16 text-white">

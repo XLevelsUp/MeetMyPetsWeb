@@ -55,8 +55,8 @@ export function vipBadgeText({ claimed, cap, remaining }: VipCount): string {
   // Nearly full: the number left is the whole story.
   if (filled >= SCARCITY_AT) return `Only ${spots(remaining)} left`;
 
-  // Early: lead with who is already here and say nothing about the empty rest.
-  if (filled < MOMENTUM_BELOW) return `${pets(claimed)} already in — VIP access is live`;
+  // Early: show the claimed count against the cap, so the limit itself creates the urgency.
+  if (filled < MOMENTUM_BELOW) return `${n(claimed)} of ${n(cap)} VIP spots already claimed — join now`;
 
   // Mid-range: both halves are substantial, so both earn their place.
   return `${pets(claimed)} in — ${spots(remaining)} left`;

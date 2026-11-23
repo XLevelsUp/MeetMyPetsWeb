@@ -238,6 +238,15 @@
     -webkit-text-size-adjust: 100%;
   }
 
+  /* Tailwind v4 dropped the pointer cursor on buttons; anything clickable should show it. */
+  button:not(:disabled):not([aria-disabled="true"]),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="radio"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  summary {
+    cursor: pointer;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-synthesis-weight: none;
@@ -323,5 +332,111 @@
   .animate-\[query-progress_1\.4s_ease-in-out_infinite\] {
     animation: none;
     transform: scaleX(1);
+  }
+}
+
+/* Narrow layout for tables marked stackOnMobile (components/ui/table.tsx): rows become labelled cards whenever the TABLE has under 48rem, so phones, tablets with the sidebar open and small laptops all get cards. */
+[data-slot="table-container"]:has(> table[data-stack-mobile]) {
+  container: stack-table / inline-size;
+}
+@container stack-table (width < 48rem) {
+  table[data-stack-mobile],
+  table[data-stack-mobile] > tbody {
+    display: block;
+  }
+  table[data-stack-mobile] {
+    width: 100%;
+    min-width: 0;
+  }
+  /* Only sortable headings survive, as a wrap of "sort by" buttons above the cards. */
+  table[data-stack-mobile] > thead {
+    display: block;
+  }
+  table[data-stack-mobile] > thead > tr {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.5rem;
+    padding: 0.5rem 0.75rem;
+  }
+  table[data-stack-mobile] > thead > tr > th {
+    display: block;
+    width: auto;
+    max-width: none;
+    height: auto;
+    padding: 0;
+  }
+  table[data-stack-mobile] > thead > tr > th:not(:has(button)) {
+    display: none;
+  }
+  table[data-stack-mobile] > thead > tr:not(:has(button)) {
+    display: none;
+  }
+  table[data-stack-mobile] > tbody > tr {
+    display: block;
+    padding: 0.5rem 0.75rem;
+  }
+  table[data-stack-mobile] > tbody > tr > td {
+    display: grid;
+    grid-template-columns: minmax(6rem, 34%) minmax(0, 1fr);
+    gap: 0 0.75rem;
+    align-items: start;
+    justify-items: start;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    padding: 0.3rem 0;
+    white-space: normal;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+  /* The label holds column 1 for the whole cell; everything the cell contains stacks in column 2. */
+  table[data-stack-mobile] > tbody > tr > td > * {
+    grid-column: 2;
+  }
+  table[data-stack-mobile] > tbody > tr > td::before {
+    grid-column: 1;
+    grid-row: 1 / span 12;
+    content: attr(data-label);
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.25rem;
+    color: var(--muted-foreground);
+  }
+  /* One-line truncation suits a table column, not a card: let long titles wrap. */
+  table[data-stack-mobile] > tbody > tr > td .truncate {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  /* Unlabelled cells (actions, full-width empty states) take the whole card width. */
+  table[data-stack-mobile] > tbody > tr > td:not([data-label]) {
+    display: block;
+  }
+  table[data-stack-mobile] > tbody > tr > td:not([data-label])::before {
+    content: none;
+  }
+}
+
+/* Phone layout for filter bars marked .filter-row: a two-column grid of full-width controls; sm and up keep each bar's own layout. */
+@media (width < 40rem) {
+  .filter-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    align-items: end;
+  }
+  .filter-row > * {
+    min-width: 0;
+  }
+  .filter-row > [data-filter-wide] {
+    grid-column: 1 / -1;
+  }
+  .filter-row [data-slot="select-trigger"],
+  .filter-row input:not([type="checkbox"]):not([type="radio"]) {
+    width: 100%;
+  }
+  .filter-row > button,
+  .filter-row > a {
+    width: 100%;
+    justify-content: center;
   }
 }

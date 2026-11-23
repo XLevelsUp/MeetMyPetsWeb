@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { pageItems } from "@/components/shared/pagination-items";
+import { clampPage, lastPage, pageItems, pageRange } from "@/components/shared/pagination-items";
 
 describe("pageItems", () => {
   it("shows nothing when there are no pages", () => {
@@ -39,5 +39,26 @@ describe("pageItems", () => {
         expect(pages.at(-1)).toBe(total);
       }
     }
+  });
+});
+
+describe("clampPage and pageRange", () => {
+  it("pulls a page past the end back to the last page that has rows", () => {
+    expect(clampPage(2, 25, 25)).toBe(1);
+    expect(clampPage(9, 43, 25)).toBe(2);
+    expect(clampPage(3, 0, 25)).toBe(1);
+    expect(clampPage(0, 43, 25)).toBe(1);
+  });
+
+  it("leaves an in-range page alone", () => {
+    expect(clampPage(2, 43, 25)).toBe(2);
+    expect(lastPage(100, 100)).toBe(1);
+    expect(lastPage(101, 100)).toBe(2);
+  });
+
+  it("never shows an impossible range like 26–25", () => {
+    expect(pageRange(2, 25, 25)).toEqual({ first: 1, last: 25 });
+    expect(pageRange(2, 43, 25)).toEqual({ first: 26, last: 43 });
+    expect(pageRange(5, 0, 25)).toEqual({ first: 0, last: 0 });
   });
 });

@@ -19,6 +19,8 @@ import type { PetsQuery } from "@/lib/users-contract";
 const TRUST_OPTIONS: readonly { value: PetsQuery["trust"]; label: string }[] = [
   { value: "all", label: copy.users.filters.trustAll },
   { value: "at_risk", label: copy.users.filters.trustAtRisk },
+  { value: "temporary_banned", label: copy.users.filters.trustTempBanned },
+  { value: "permanently_banned", label: copy.users.filters.trustPermBanned },
   { value: "normal", label: copy.users.filters.trustNormal },
 ];
 

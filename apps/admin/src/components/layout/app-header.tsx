@@ -14,14 +14,17 @@ import { UserMenu } from "./user-menu";
  */
 export function AppHeader({ email, role }: { email: string; role: AdminRole }) {
   return (
-    <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur">
-      <SidebarTrigger aria-label="Toggle sidebar" />
-      <Separator orientation="vertical" className="h-5" />
+    // Phones keep only menu, page name, theme and profile; the divider and role badge return from sm (the role is also in the profile menu).
+    <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-3 backdrop-blur sm:gap-3 sm:px-4">
+      <SidebarTrigger aria-label="Open menu" />
+      <Separator orientation="vertical" className="hidden h-5 sm:block" />
       <Breadcrumbs />
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
         <SearchStub />
-        <RoleBadge role={role} />
+        <span className="hidden sm:contents">
+          <RoleBadge role={role} />
+        </span>
         <ThemeToggle />
         <UserMenu email={email} role={role} />
       </div>

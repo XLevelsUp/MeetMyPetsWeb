@@ -32,16 +32,17 @@ export function Breadcrumbs() {
   ];
 
   return (
-    <Breadcrumb>
-      <BreadcrumbList>
+    // Phones show only the current page; the trail returns from sm up, so the header never wraps.
+    <Breadcrumb className="min-w-0 overflow-hidden">
+      <BreadcrumbList className="flex-nowrap whitespace-nowrap">
         {crumbs.map((crumb, i) => {
           const isLast = i === crumbs.length - 1;
           return (
             <Fragment key={crumb.href}>
-              {i > 0 ? <BreadcrumbSeparator /> : null}
-              <BreadcrumbItem>
+              {i > 0 ? <BreadcrumbSeparator className="hidden sm:block" /> : null}
+              <BreadcrumbItem className={isLast ? "min-w-0" : "hidden sm:inline-flex"}>
                 {isLast ? (
-                  <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                  <BreadcrumbPage className="truncate">{crumb.label}</BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink href={crumb.href}>{crumb.label}</BreadcrumbLink>
                 )}

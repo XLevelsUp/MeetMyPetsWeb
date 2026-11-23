@@ -94,9 +94,12 @@ export function VerificationsQueue({ initialQuery }: { initialQuery: Certificate
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-2">
-        <VerificationFilters query={query} onChange={handleFilterChange} />
-        <div className="shrink-0 pt-0.5">
+      {/* Phones stack filters above a full-width Export button; sm and up put them side by side. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+        <div className="min-w-0 flex-1">
+          <VerificationFilters query={query} onChange={handleFilterChange} />
+        </div>
+        <div className="shrink-0 pt-0.5 max-sm:[&>button]:w-full">
           <ExportCsvButton
             endpoint="/api/v1/admin/verifications"
             query={query}
@@ -116,7 +119,7 @@ export function VerificationsQueue({ initialQuery }: { initialQuery: Certificate
         <>
           <FetchingOverlay isFetching={certificates.isFetching && !certificates.isPending}>
           <div className="overflow-x-auto rounded-lg border">
-            <Table>
+            <Table stackOnMobile>
               <TableHeader>
                 <TableRow>
                   <SortableHead

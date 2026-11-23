@@ -38,7 +38,13 @@ export type Paginated<T> = {
  */
 export const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).catch(1),
-  pageSize: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).catch(DEFAULT_PAGE_SIZE),
+  // Too big is capped at the maximum (a typed ?pageSize=500 means "as many as allowed"); garbage still falls back to the default.
+  pageSize: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .transform((n) => Math.min(n, MAX_PAGE_SIZE))
+    .catch(DEFAULT_PAGE_SIZE),
   /** Free-text search; the adapter decides which columns it applies to. */
   q: z.string().trim().max(200).optional().catch(undefined),
 });

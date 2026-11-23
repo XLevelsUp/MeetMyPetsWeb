@@ -234,7 +234,7 @@ export function TrustTable({
         </div>
 
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="filter-row flex flex-wrap items-end gap-3">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="trust-status">{copy.trust.filters.status}</Label>
               <Select
@@ -310,7 +310,7 @@ export function TrustTable({
         <>
           <FetchingOverlay isFetching={trust.isFetching && !trust.isPending}>
             <div className="overflow-x-auto rounded-lg border bg-card">
-              <Table>
+              <Table stackOnMobile>
                 <TableHeader>
                   <TableRow>
                     <TableHead>{copy.trust.columns.pet}</TableHead>

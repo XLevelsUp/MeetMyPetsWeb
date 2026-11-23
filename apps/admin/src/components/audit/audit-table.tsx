@@ -73,7 +73,7 @@ export function AuditTable({ initialTargetId }: { initialTargetId?: string }) {
       ) : (
         <>
           <div className="overflow-x-auto rounded-lg border">
-            <Table>
+            <Table stackOnMobile>
               <TableHeader>
                 <TableRow>
                   <TableHead>{copy.audit.columns.when}</TableHead>

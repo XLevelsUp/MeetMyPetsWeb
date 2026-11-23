@@ -59,7 +59,7 @@ export function VerificationFilters({
         />
       </div>
 
-<div className="flex flex-wrap items-end gap-3">
+<div className="filter-row flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="verification-status">{copy.verifications.filters.status}</Label>
           <Select
@@ -107,7 +107,7 @@ export function VerificationFilters({
         </div>
 
         {/* Expiry quick filters: mutually exclusive, since the two windows never overlap. */}
-        <div className="flex flex-wrap items-end gap-2 pb-0.5">
+        <div className="flex flex-wrap items-end gap-2 pb-0.5" data-filter-wide>
           <button
             type="button"
             onClick={() => onChange({ expiredOnly: !query.expiredOnly, expiringSoon: false })}

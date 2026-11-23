@@ -25,3 +25,20 @@ export function pageItems(page: number, totalPages: number, siblings = 1): PageI
   items.push(totalPages);
   return items;
 }
+
+/** The last page that has rows; 1 when the list is empty. */
+export function lastPage(total: number, pageSize: number): number {
+  return Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
+}
+
+/** A page past the end (rows resolved away, or an old link) is pulled back to the last real page. */
+export function clampPage(page: number, total: number, pageSize: number): number {
+  return Math.min(Math.max(1, page), lastPage(total, pageSize));
+}
+
+/** "Showing first–last" for a page, computed on the clamped page so it can never read "26–25". */
+export function pageRange(page: number, total: number, pageSize: number): { first: number; last: number } {
+  if (total <= 0) return { first: 0, last: 0 };
+  const shown = clampPage(page, total, pageSize);
+  return { first: (shown - 1) * pageSize + 1, last: Math.min(shown * pageSize, total) };
+}
