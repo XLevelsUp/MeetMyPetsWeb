@@ -207,8 +207,8 @@ export const PET_ENGAGEMENT_SORTS = ["followers", "likes", "matches"] as const;
  */
 export { SORT_DIRECTIONS };
 
-/** `all` = every pet; `at_risk` = anything the trust ladder does not call normal. */
-export const PET_TRUST_FILTERS = ["all", "at_risk", "normal"] as const;
+/** `all` = every pet; `at_risk` = anything not normal; the two ban values match trustStatusFor exactly. */
+export const PET_TRUST_FILTERS = ["all", "at_risk", "temporary_banned", "permanently_banned", "normal"] as const;
 
 /** YYYY-MM-DD, inclusive. Mirrors the audit log's date filters. */
 const dateFilter = z
@@ -236,6 +236,8 @@ export const petsQuerySchema = listQuerySchema.extend({
   /** A species id, or "all". Not `.uuid()` — a stale id degrades to "all". */
   speciesId: z.string().catch("all"),
   trust: z.enum(PET_TRUST_FILTERS).catch("all"),
+  // Owner drill-down from the users tab; its own field so it never hides inside the search box.
+  ownerId: z.guid().optional().catch(undefined),
 });
 export type PetsQuery = z.infer<typeof petsQuerySchema>;
 

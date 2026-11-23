@@ -91,8 +91,8 @@ export function BlogsTable({ initialQuery }: { initialQuery: BlogListQuery }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="relative min-w-60 flex-1">
+      <div className="filter-row flex flex-wrap items-end gap-3">
+        <div className="relative min-w-60 flex-1" data-filter-wide>
           <Search
             className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden="true"
@@ -139,7 +139,7 @@ export function BlogsTable({ initialQuery }: { initialQuery: BlogListQuery }) {
             {text.filters.clear}
           </Button>
         ) : null}
-        <Button className="ml-auto" render={<Link href="/blogs/new" />}>
+        <Button className="ml-auto" data-filter-wide render={<Link href="/blogs/new" />}>
           <Plus className="mr-1 size-4" aria-hidden="true" />
           {text.create}
         </Button>
@@ -150,7 +150,7 @@ export function BlogsTable({ initialQuery }: { initialQuery: BlogListQuery }) {
       ) : (
         <>
           <div className="overflow-x-auto rounded-lg border">
-            <Table>
+            <Table stackOnMobile>
               <TableHeader>
                 <TableRow>
                   <SortableHead
@@ -262,6 +262,8 @@ export function BlogsTable({ initialQuery }: { initialQuery: BlogListQuery }) {
               pageSize={posts.data.pageSize}
               total={posts.data.total}
               onPageChange={(page) => setQuery((prev) => ({ ...prev, page }))}
+
+              onPageSizeChange={(pageSize) => setQuery((prev) => ({ ...prev, pageSize, page: 1 }))}
             />
           ) : null}
         </>

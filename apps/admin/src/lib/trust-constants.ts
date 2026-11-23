@@ -61,10 +61,13 @@ export const TRUST_PERMANENT_BAN_SCORE = 0;
  * `< 100` and be treated as merely temporarily banned — i.e. more leniently
  * than a pet at 50.
  */
+// Scores below this (and above TRUST_PERMANENT_BAN_SCORE) are a temporary ban; shared by the ladder and the pets filter.
+export const TRUST_TEMP_BAN_BELOW = 100;
+
 export function trustStatusFor(score: number | null): TrustStatus | null {
   if (score === null) return null;
-  if (score <= 0) return "permanently_banned";
-  if (score < 100) return "temporary_banned";
+  if (score <= TRUST_PERMANENT_BAN_SCORE) return "permanently_banned";
+  if (score < TRUST_TEMP_BAN_BELOW) return "temporary_banned";
   if (score <= 250) return "warning";
   return "normal";
 }

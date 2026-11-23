@@ -37,6 +37,10 @@ export default async function UsersPage({
     else if (Array.isArray(value) && value[0]) params.set(key, value[0]);
   }
 
+  // The tabs share one query string, so only the visible tab may read it; the other starts clean.
+  const tab = params.get("tab") === "pets" ? "pets" : "users";
+  const empty = new URLSearchParams();
+
   return (
     <main className="flex-1 p-4 md:p-6">
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4">
@@ -46,11 +50,11 @@ export default async function UsersPage({
         </div>
         {/* key: a ?tab= link remounts the tabs rather than syncing in an effect. */}
         <UsersTabs
-          key={params.get("tab") === "pets" ? "pets" : "users"}
+          key={tab}
           role={session.role}
-          initialTab={params.get("tab") === "pets" ? "pets" : "users"}
-          initialAccountsQuery={searchParamsToQuery(accountsQuerySchema, params)}
-          initialPetsQuery={searchParamsToQuery(petsQuerySchema, params)}
+          initialTab={tab}
+          initialAccountsQuery={searchParamsToQuery(accountsQuerySchema, tab === "users" ? params : empty)}
+          initialPetsQuery={searchParamsToQuery(petsQuerySchema, tab === "pets" ? params : empty)}
         />
       </div>
     </main>

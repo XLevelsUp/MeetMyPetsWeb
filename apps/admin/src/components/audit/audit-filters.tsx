@@ -3,6 +3,9 @@
 import { Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { actionLabel, actionTone, targetTypeLabel, TONE_DOT } from "@/components/audit/audit-format";
+import { ExportCsvButton } from "@/components/shared/export-csv-button";
+import { AUDIT_CSV_COLUMNS } from "@/components/users/csv-columns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { copy } from "@/config/admin";
 import { AUDIT_ACTIONS } from "@/lib/audit-actions";
-import { AUDIT_TARGET_TYPES, type AuditQuery } from "@/lib/audit-contract";
+import { AUDIT_TARGET_TYPES, auditResponseSchema, type AuditQuery } from "@/lib/audit-contract";
 
 /**
  * Action / target / date-range / free-text filters.
@@ -61,7 +64,7 @@ export function AuditFilters({
         />
       </div>
 
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="filter-row flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="audit-action">{copy.audit.filters.action}</Label>
           <Select
@@ -71,12 +74,13 @@ export function AuditFilters({
             }
           >
             <SelectTrigger id="audit-action" className="w-52">
-              <SelectValue />
+              <SelectValue>{(value: string) => (value === "all" ? copy.audit.filters.all : actionLabel(value))}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{copy.audit.filters.all}</SelectItem>
               {AUDIT_ACTIONS.map((action) => (
                 <SelectItem key={action} value={action}>
+                  <span className={`size-2 shrink-0 rounded-full ${TONE_DOT[actionTone(action)]}`} aria-hidden="true" />
                   {copy.audit.actionLabels[action]}
                 </SelectItem>
               ))}
@@ -93,7 +97,7 @@ export function AuditFilters({
             }
           >
             <SelectTrigger id="audit-target" className="w-36">
-              <SelectValue />
+              <SelectValue>{(value: string) => (value === "all" ? copy.audit.filters.all : targetTypeLabel(value))}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{copy.audit.filters.all}</SelectItem>
@@ -127,6 +131,15 @@ export function AuditFilters({
             onChange={(event) => onChange({ to: event.target.value || undefined })}
           />
         </div>
+
+        {/* Exports every row matching the current filters, not just this page. */}
+        <ExportCsvButton
+          endpoint="/api/v1/admin/audit"
+          query={query}
+          filenamePrefix="audit-log"
+          parse={(json) => auditResponseSchema.parse(json)}
+          columns={AUDIT_CSV_COLUMNS}
+        />
 
         {hasFilters ? (
           <Button

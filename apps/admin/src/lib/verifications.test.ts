@@ -13,6 +13,7 @@ vi.mock("@/lib/supabase/reference", () => ({
   isSupabaseConfigured: () => holder.configured,
 }));
 
+import { DAY_THRESHOLDS } from "@/lib/day-thresholds";
 import { decideCertificate, listCertificates } from "@/lib/verifications";
 import {
   certificatesQuerySchema,
@@ -35,6 +36,7 @@ const baseQuery: CertificatesQuery = {
   sort: "created_at",
   dir: "asc",
   expiredOnly: false,
+  expiringSoon: false,
 };
 
 const CERT_ROW = {
@@ -248,6 +250,30 @@ describe("listCertificates", () => {
 
       expect(ltFilter?.args[0]).toBe("expires_at");
       expect(notNullFilter).toEqual({ method: "not", args: ["expires_at", "is", null] });
+    });
+
+    it("applies expiringSoon as now through now + DAY_THRESHOLDS.countdown.amber", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-11-21T00:00:00Z"));
+      try {
+        const mock = setup({ "pets.pet_certificates": { rows: [CERT_ROW], count: 1 } });
+        await listCertificates({ ...baseQuery, expiringSoon: true });
+
+        const filters = mock.calls.find((c) => c.key === "pets.pet_certificates")?.filters ?? [];
+        const end = new Date(Date.parse("2026-11-21T00:00:00Z") + DAY_THRESHOLDS.countdown.amber * 86_400_000);
+        expect(filters).toContainEqual({ method: "gte", args: ["expires_at", "2026-11-21T00:00:00.000Z"] });
+        expect(filters).toContainEqual({ method: "lte", args: ["expires_at", end.toISOString()] });
+        expect(filters).toContainEqual({ method: "not", args: ["expires_at", "is", null] });
+        // Never overlaps "expired": no upper-bound-in-the-past filter is added.
+        expect(filters.some((f) => f.method === "lt")).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("parses expiringSoon from the query string and defaults it off", () => {
+      expect(certificatesQuerySchema.parse({ expiringSoon: "true" }).expiringSoon).toBe(true);
+      expect(certificatesQuerySchema.parse({}).expiringSoon).toBe(false);
     });
 
     it("pre-resolves pet name and owner email on free text search", async () => {

@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -35,6 +35,7 @@ export function ChartFrame({
   bucket,
   series,
   isFetching,
+  actions,
   children,
 }: {
   title: string;
@@ -43,6 +44,8 @@ export function ChartFrame({
   /** One entry per plotted series — the table gets a column for each. */
   series: ChartSeries[];
   isFetching: boolean;
+  /** Header controls, e.g. the chart-type picker. */
+  actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [showTable, setShowTable] = useState(false);
@@ -68,6 +71,7 @@ export function ChartFrame({
         <CardDescription>
           {description} · {copy.dashboard.charts.perBucket[bucket]}
         </CardDescription>
+        {actions ? <CardAction>{actions}</CardAction> : null}
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <div

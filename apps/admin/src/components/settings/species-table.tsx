@@ -91,7 +91,7 @@ export function SpeciesTable() {
       ) : (
         <>
           <div className="overflow-x-auto rounded-lg border">
-            <Table>
+            <Table stackOnMobile>
               <TableHeader>
                 <TableRow>
                   <TableHead>{copy.settings.species.columns.name}</TableHead>
@@ -163,6 +163,8 @@ export function SpeciesTable() {
               pageSize={species.data.pageSize}
               total={species.data.total}
               onPageChange={(page) => setQuery((prev) => ({ ...prev, page }))}
+
+              onPageSizeChange={(pageSize) => setQuery((prev) => ({ ...prev, pageSize, page: 1 }))}
             />
           ) : null}
         </>

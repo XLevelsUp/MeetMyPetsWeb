@@ -103,7 +103,19 @@ export const copy = {
     exportEmpty: "Nothing to export with these filters.",
     exportFailed: "Export failed",
     retry: "Retry",
-    pagination: { previous: "Previous", next: "Next", showing: "Showing" },
+    /** Under a reason box while its buttons are still disabled; `{count}` / `{min}` are characters. */
+    reasonHint: "Write a reason to continue — {count}/{min} characters",
+    pagination: {
+      previous: "Previous",
+      next: "Next",
+      showing: "Showing",
+      of: "of",
+      rowsPerPage: "Rows per page",
+      page: "Page",
+      label: "Pagination",
+      /** Read out for a gap: "More pages". */
+      morePages: "More pages",
+    },
   },
   searchPlaceholder: "Search users, pets, reports…",
   /** System status is a config-driven stub in Phase 1 — no live probe yet. */
@@ -142,9 +154,6 @@ export const copy = {
       reach: "Can be reached",
       of: "of",
       accounts: "accounts",
-      noPet: "Signed up, no pet",
-      ofSignups: "of all sign-ups",
-      devices: "Phones registered",
       android: "Android",
       iphone: "iPhone",
     },
@@ -157,12 +166,66 @@ export const copy = {
       swipeLikes: "Liked",
       swipePasses: "Passed",
       speciesTitle: "Active pets by species",
+      speciesDescription: "Pets currently listed",
+      petsTitle: "Accounts with a pet",
+      petsDescription: "Everyone who signed up",
+      withPet: "Has a pet",
+      withoutPet: "No pet yet",
+      devicesTitle: "Phones registered",
+      devicesDescription: "Active devices, not people — some own several",
+      unitAccounts: "accounts",
+      unitPhones: "phones",
+      unitPets: "pets",
       /** Appended to a description, e.g. "New sign-ups · per week". */
       perBucket: { day: "per day", week: "per week", month: "per month" },
       showData: "Show data",
       hideData: "Hide data",
       tableDate: "Period",
       tableValue: "Value",
+    },
+    chartTypes: {
+      /** Prefixes the chart name for screen readers: "Chart type for New sign-ups". */
+      label: "Chart type for",
+      area: "Area",
+      line: "Line",
+      bar: "Bar",
+      horizontal: "Horizontal bar",
+      donut: "Donut",
+    },
+    location: {
+      title: "Where users are",
+      description: "All accounts · not affected by the date range",
+      mapLabel: "Map of India shaded by number of accounts per state",
+      /** `{state}` is the state's name. */
+      stateMapLabel: "Map of {state} shaded by number of accounts per district",
+      viewIndia: "All India",
+      viewState: "By state",
+      pickState: "State",
+      clickToOpen: "Click to see its districts",
+      indiaHint: "Click a state to see its districts.",
+      backToIndia: "Back to all India",
+      /** `{count}` users, `{share}` percent of all accounts. */
+      stateTotal: "{count} users · {share}% of all accounts",
+      noDistrict: "Placed by typed state, no GPS",
+      stateEmpty: "No account is located in this state yet.",
+      districtsLoading: "Loading districts…",
+      topStates: "Top states",
+      topDistricts: "Top districts",
+      topCities: "Top cities",
+      tableDistrict: "District",
+      users: "users",
+      /** `{located}` of `{total}` accounts placed on the map. */
+      coverage: "{located} of {total} accounts placed on the map",
+      outsideIndia: "Outside India",
+      unknown: "No location",
+      fromGps: "from GPS",
+      fromText: "from typed state",
+      noLocations: "No account has a location yet.",
+      tableState: "State",
+      tableCity: "City",
+      tableUsers: "Users",
+      tableShare: "Share",
+      mapFailed: "The map could not be drawn. The lists beside it are still accurate.",
     },
     /**
      * The one time control. `month`/`year` are TRAILING windows, not
@@ -251,6 +314,8 @@ export const copy = {
       trust: "Trust",
       trustAll: "Any",
       trustAtRisk: "Needs review",
+      trustTempBanned: "Temporarily banned",
+      trustPermBanned: "Permanently banned",
       trustNormal: "Normal",
       allSpecies: "All species",
     },
@@ -332,6 +397,27 @@ export const copy = {
     unauditedWarning:
       "The action was applied, but writing the audit log failed. Tell an engineer before doing anything else.",
     viewHistory: "View in audit log",
+    /** One-click chips above the Users and Pets tables. */
+    quick: {
+      label: "Quick filter",
+      all: "All",
+      active: "Active",
+      suspended: "Suspended",
+      banned: "Banned",
+      hasPets: "Has pets",
+      archived: "Archived",
+      flagged: "Flagged",
+      needsReview: "Needs review",
+      tempBanned: "Temp banned",
+      permBanned: "Banned",
+    },
+    ownerFilter: {
+      showing: "Showing only pets owned by",
+      /** Used when the owner has no pets visible to read a name from. */
+      thisUser: "this user",
+      showAll: "Show all pets",
+      back: "Back to users",
+    },
   },
   audit: {
     title: "Audit Logs",
@@ -371,6 +457,15 @@ export const copy = {
     emptyFiltered: "No actions match these filters.",
     viewAccount: "Open account",
     details: "Details",
+    /** Colour key above the table; one entry per group in `audit-format.ts`. */
+    tones: {
+      legend: "Colour key",
+      restrict: "Restricts or removes",
+      restore: "Approves or restores",
+      caution: "Takes down",
+      content: "Edits content",
+      neutral: "Reviewed only",
+    },
     detailDialog: {
       title: "Audit entry",
       description: "The full record as written. Audit rows can never be edited or deleted.",
@@ -593,6 +688,13 @@ export const copy = {
       warning: "Warning",
       normal: "Normal",
     },
+    banEnds: {
+      /** `{left}` is e.g. "in 2d". */
+      label: "Ban ends {left}",
+      ended: "Ban ended",
+      title: "Temporary ban lifts on {date}",
+      endedTitle: "Ban end date {date} has passed — the score may still need a review",
+    },
     /**
      * Trust is the backend's automated signal. The panel used to only display
      * it; that stopped being true when the trust review queue shipped, and
@@ -652,6 +754,21 @@ export const copy = {
         "The score changed while this was being saved, so nothing was returned. Check Trust review.",
       failed: "The report was dismissed, but the trust credit failed. Check Trust review.",
     },
+    /** "Mark actioned" applies the app's automatic penalty again (−80 profile, −20 post). */
+    penalty: {
+      heading: "If marked actioned",
+      preview: "Takes −{delta} more from this pet: {before} → {after}.",
+      previewNoScore: "Takes −{delta} more from this pet.",
+      bansWarning: "That moves the pet into the “{status}” band.",
+      done: "Took −{delta} from this pet. Now {score}.",
+      penalized: "Trust penalty applied.",
+      already_penalized: "This report already took its penalty — nothing more was deducted.",
+      no_score: "This pet has no trust score, so nothing was deducted.",
+      score_moved: "The score changed while this was being saved, so nothing was deducted. Check Trust review.",
+      unavailable:
+        "Report marked actioned, but the trust penalty is not set up yet (database migration pending). Nothing was deducted.",
+      failed: "The report was actioned, but the trust penalty failed. Check Trust review.",
+    },
   },
   verifications: {
     title: "Verifications",
@@ -662,6 +779,14 @@ export const copy = {
       type: "Type",
       all: "All",
       clear: "Clear filters",
+      expiredOnly: "Expired only",
+      /** `{days}` comes from DAY_THRESHOLDS.countdown.amber. */
+      expiringSoon: "Expiring in {days} days",
+    },
+    expiry: {
+      /** `{left}` is e.g. "in 5d". */
+      leftTitle: "Expires {left}",
+      expiredTitle: "Already expired",
     },
     columns: {
       submitted: "Submitted",

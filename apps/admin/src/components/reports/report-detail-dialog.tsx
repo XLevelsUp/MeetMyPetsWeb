@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
-import { AlertCircle, ShieldCheck } from "lucide-react";
+import { AlertCircle, ShieldAlert, ShieldCheck } from "lucide-react";
 
 import {
+  BanEndsBadge,
   ReportReasonBadge,
   ReportScopeBadge,
   ReportStatusBadge,
@@ -13,10 +14,13 @@ import {
 } from "@/components/reports/report-badges";
 import {
   formatWhen,
+  penaltyMessage,
+  penaltyPreview,
   revertMessage,
   revertTone,
 } from "@/components/reports/report-format";
 import { ReportMediaReveal } from "@/components/reports/report-media-reveal";
+import { ReasonHint } from "@/components/shared/reason-hint";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -32,7 +36,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { copy } from "@/config/admin";
 import { useResolveReport } from "@/hooks/use-reports";
 import { reasonSchema } from "@/lib/contract-shared";
-import { REPORT_RESOLUTIONS, type ReportResolution } from "@/lib/report-constants";
+import { REPEAT_OFFENDER_MIN, REPORT_RESOLUTIONS, type ReportResolution } from "@/lib/report-constants";
 import type { ReportSummary } from "@/lib/reports-contract";
 import { cn } from "@/lib/utils";
 
@@ -65,6 +69,11 @@ export function ReportDetailDialog({ report }: { report: ReportSummary }) {
       if (result.revert) {
         const message = revertMessage(result.revert, "did");
         if (result.revert.outcome === "reverted") toast.success(message);
+        else toast.warning(message);
+      }
+      if (result.penalty) {
+        const message = penaltyMessage(result.penalty);
+        if (result.penalty.outcome === "penalized") toast.success(message);
         else toast.warning(message);
       }
       setOpen(false);
@@ -236,7 +245,7 @@ export function ReportDetailDialog({ report }: { report: ReportSummary }) {
                     <span className="text-muted-foreground">Total Reports Against Pet</span>
                     <span className="inline-flex items-center gap-1.5 font-semibold text-foreground">
                       {report.reportsAgainstPet}
-                      {report.reportsAgainstPet > 1 && (
+                      {report.reportsAgainstPet >= REPEAT_OFFENDER_MIN && (
                         <span className="text-[10px] bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 px-2 py-0.5 rounded-full font-medium">
                           Repeat Offender
                         </span>
@@ -245,7 +254,12 @@ export function ReportDetailDialog({ report }: { report: ReportSummary }) {
                   </div>
                   <div className="pt-2 border-t flex justify-between items-center">
                     <span className="text-muted-foreground">Trust Standing</span>
-                    <ReportTrustBadge trust={report.trust} />
+                    <div className="flex flex-col items-end gap-1">
+                      <ReportTrustBadge trust={report.trust} />
+                      {report.trust.status === "temporary_banned" ? (
+                        <BanEndsBadge until={report.trust.bannedUntil} />
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -270,6 +284,19 @@ export function ReportDetailDialog({ report }: { report: ReportSummary }) {
                   <span>{revertMessage(report.revert)}</span>
                 </div>
               </div>
+
+              {/* What "Mark actioned" would take, so the second penalty is never a surprise. */}
+              {!isResolved ? (
+                <div>
+                  <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                    <ShieldAlert className="size-3.5 text-rejected" />
+                    {copy.reports.penalty.heading}
+                  </h3>
+                  <div className="rounded-xl border border-rejected/30 bg-rejected-soft/40 p-3.5 text-xs leading-relaxed text-foreground">
+                    {penaltyPreview(report)}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -289,7 +316,9 @@ export function ReportDetailDialog({ report }: { report: ReportSummary }) {
                 onChange={(event) => setReason(event.target.value)}
                 placeholder={copy.reports.resolve.reasonPlaceholder}
                 className="bg-background resize-none text-sm"
+                aria-describedby={`resolve-reason-hint-${report.id}`}
               />
+              <ReasonHint id={`resolve-reason-hint-${report.id}`} reason={reason} />
               <p className="text-[11px] text-muted-foreground">
                 {copy.reports.resolve.confirmDescription}
               </p>
@@ -316,18 +345,14 @@ export function ReportDetailDialog({ report }: { report: ReportSummary }) {
           {!isResolved && (
             <div className="flex items-center gap-2">
               {REPORT_RESOLUTIONS.map((resolution) => {
-                const isActioned = resolution === "actioned";
-                const isDismissed = resolution === "dismissed";
+                // Red acts against the pet, green clears it, neutral just closes the report.
+                const variant =
+                  resolution === "actioned" ? "reject" : resolution === "dismissed" ? "approve" : "outline";
                 return (
                   <Button
                     key={resolution}
                     size="sm"
-                    variant={isActioned ? "destructive" : isDismissed ? "outline" : "secondary"}
-                    className={
-                      isDismissed
-                        ? "border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700"
-                        : undefined
-                    }
+                    variant={variant}
                     disabled={resolve.isPending || !reasonCheck.success}
                     onClick={() => handleResolve(resolution)}
                   >

@@ -246,7 +246,7 @@ export function AiReportsTable({ initialQuery }: { initialQuery: AiDecisionsQuer
               but that row is already removed optimistically and its own button spins. */}
           <FetchingOverlay isFetching={decisions.isFetching && !decisions.isPending && !isMutating}>
           <div className="overflow-x-auto rounded-lg border">
-            <Table>
+            <Table stackOnMobile>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[8.5rem]">{copy.aiReports.columns.media}</TableHead>
@@ -298,6 +298,8 @@ export function AiReportsTable({ initialQuery }: { initialQuery: AiDecisionsQuer
               pageSize={decisions.data.pageSize}
               total={decisions.data.total}
               onPageChange={(page) => setQuery((prev) => ({ ...prev, page }))}
+
+              onPageSizeChange={(pageSize) => setQuery((prev) => ({ ...prev, pageSize, page: 1 }))}
             />
           ) : null}
         </>

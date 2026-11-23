@@ -601,6 +601,29 @@ export const sharedLink = {
 // internal term used — the page is world readable and must not leak it.
 // Public rankings. The metric is called POPULARITY here and the internal term
 // is never used — the page is world readable and must not leak it.
+// Live data only (lib/match-count.ts): two counts and the latest real match between two pets in good standing.
+export const matchShowcase = {
+  eyebrow: "Something cute just happened",
+  // Stays on one line at every width.
+  title: "It’s a Pawty of Two! 🎉",
+  // Shown instead of the title when no recent match qualifies; the counts still render.
+  fallbackTitle: "Friendships are already forming.",
+  intro: "Two pets found each other on MeetMyPets. Curious who’s waiting for yours?",
+  // Before the two names: "Meet Rio & Bubloo", followed by a heart.
+  namesPrefix: "Meet",
+  // {date} is the day the match happened, e.g. "21 Nov 2026".
+  matchedOn: "This connection happened on {date}",
+  stats: {
+    matches: "matches made",
+    pets: "pets have found a playmate",
+  },
+  // Below this many matched pets the section stays hidden rather than showing a number that undersells.
+  minPets: 20,
+  note: "The latest match between two pets in good standing, shown a day after it happens.",
+  cta: "Who’s Waiting for My Pet?",
+  ctaHref: "#get-the-app",
+} as const;
+
 export const leaderboard = {
   eyebrow: "The Pack",
   title: "Trending In The Pack.",

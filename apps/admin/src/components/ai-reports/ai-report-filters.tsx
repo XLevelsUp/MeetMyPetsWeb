@@ -65,7 +65,7 @@ export function AiReportFilters({
         />
       </div>
 
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="filter-row flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="ai-review">{copy.aiReports.filters.review}</Label>
           <Select

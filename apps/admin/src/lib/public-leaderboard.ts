@@ -53,7 +53,7 @@ export type PublicResult<T> =
   | { ok: false; reason: "unconfigured" | "query_failed"; message: string };
 
 /** Below this band a pet is in warning, temporary or permanent ban. */
-const MIN_TRUST = 250;
+export const MIN_TRUST = 250;
 /** Three per category, as the marketing page shows a podium of three. */
 const PER_CATEGORY = 3;
 /** Generous ceiling on relation scans — the largest table today holds ~1,100 rows. */
@@ -70,7 +70,7 @@ type Pet = {
  * Supabase Storage public URLs are already absolute. A bare object path is
  * resolved against the project's public bucket instead, so both shapes work.
  */
-function resolvePhoto(value: unknown): string | null {
+export function resolvePhoto(value: unknown): string | null {
   if (typeof value !== "string" || value.trim() === "") return null;
   const raw = value.trim();
   if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
@@ -79,7 +79,7 @@ function resolvePhoto(value: unknown): string | null {
   return `${base}/storage/v1/object/public/${raw.replace(/^\/+/, "")}`;
 }
 
-function pickString(row: Record<string, unknown>, keys: string[]): string | null {
+export function pickString(row: Record<string, unknown>, keys: string[]): string | null {
   for (const key of keys) {
     const value = row[key];
     if (typeof value === "string" && value.trim() !== "") return value.trim();

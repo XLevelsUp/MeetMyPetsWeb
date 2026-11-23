@@ -1,3 +1,6 @@
+import { actionLabel, actionTone, targetTypeLabel } from "@/components/audit/audit-format";
+import { copy } from "@/config/admin";
+import type { AuditEntry } from "@/lib/audit-contract";
 import type { CsvColumn } from "@/lib/csv";
 import type { ReportSummary } from "@/lib/reports-contract";
 import type { TrustQueueEntry } from "@/lib/trust-contract";
@@ -91,4 +94,19 @@ export const TRUST_CSV_COLUMNS: readonly CsvColumn<TrustQueueEntry>[] = [
   { header: "Ban Started", value: (e) => e.banStartedAt ?? "" },
   { header: "Reports Count", value: (e) => e.reportCount },
   { header: "Warning Acknowledged", value: (e) => (e.warningAcknowledged ? "yes" : "no") },
+];
+
+// Full audit trail: raw ids and codes beside the readable labels, and metadata as JSON so nothing is lost.
+export const AUDIT_CSV_COLUMNS: readonly CsvColumn<AuditEntry>[] = [
+  { header: "When (UTC)", value: (e) => e.createdAt },
+  { header: "Actor email", value: (e) => e.actorEmail },
+  { header: "Actor role", value: (e) => e.actorRole },
+  { header: "Actor ID", value: (e) => e.actorId },
+  { header: "Action", value: (e) => actionLabel(e.action) },
+  { header: "Action code", value: (e) => e.action },
+  { header: "Colour group", value: (e) => copy.audit.tones[actionTone(e.action)] },
+  { header: "Target type", value: (e) => targetTypeLabel(e.targetType) },
+  { header: "Target ID", value: (e) => e.targetId },
+  { header: "Reason", value: (e) => e.reason },
+  { header: "Details (JSON)", value: (e) => (Object.keys(e.metadata).length ? JSON.stringify(e.metadata) : "") },
 ];

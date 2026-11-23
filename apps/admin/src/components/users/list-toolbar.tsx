@@ -76,7 +76,7 @@ export function ListToolbar({
         />
       </div>
 
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="filter-row flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="list-status">{copy.users.statusLabel}</Label>
           {/* Base UI hands back `string | null`; the filter always has a value. */}

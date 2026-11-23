@@ -1,39 +1,55 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+"use client";
+
+import { CategoryChart } from "@/components/dashboard/category-chart";
 import { copy } from "@/config/admin";
-import type { SpeciesCount } from "@/lib/api-contract";
+import type { Operations, SpeciesCount } from "@/lib/api-contract";
 
-/**
- * Horizontal proportion bars — at ≤10 species a table-with-bars reads
- * faster than a pie chart at desk-density.
- */
+const c = copy.dashboard.charts;
+
+// Horizontal by default: at up to ten species, labelled bars read faster than a pie at desk density.
 export function SpeciesBreakdown({ data }: { data: SpeciesCount[] }) {
-  const max = Math.max(1, ...data.map((d) => d.count));
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{copy.dashboard.charts.speciesTitle}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2.5">
-        {data.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{copy.dashboard.noData}</p>
-        ) : (
-          data.map((row) => (
-            <div key={row.species} className="flex items-center gap-3">
-              <span className="w-24 shrink-0 truncate text-sm capitalize">{row.species}</span>
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-brand"
-                  style={{ width: `${(row.count / max) * 100}%` }}
-                />
-              </div>
-              <span className="w-12 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
-                {row.count.toLocaleString("en-IN")}
-              </span>
-            </div>
-          ))
-        )}
-      </CardContent>
-    </Card>
+    <CategoryChart
+      chartId="species"
+      title={c.speciesTitle}
+      description={c.speciesDescription}
+      unit={c.unitPets}
+      defaultType="horizontal"
+      items={data.map((row) => ({ label: row.species, count: row.count }))}
+    />
+  );
+}
+
+// People, not pets: one owner may hold up to 20, so this splits ACCOUNTS by whether they added one.
+export function PetOwnershipChart({ ops }: { ops: Operations }) {
+  const withPet = Math.min(ops.accountsWithPet, ops.totalAccounts);
+  return (
+    <CategoryChart
+      chartId="pet-ownership"
+      title={c.petsTitle}
+      description={c.petsDescription}
+      unit={c.unitAccounts}
+      defaultType="donut"
+      items={[
+        { label: c.withPet, count: withPet, color: "var(--chart-3)" },
+        { label: c.withoutPet, count: Math.max(0, ops.totalAccounts - withPet), color: "var(--chart-4)" },
+      ]}
+    />
+  );
+}
+
+export function DeviceChart({ ops }: { ops: Operations }) {
+  return (
+    <CategoryChart
+      chartId="devices"
+      title={c.devicesTitle}
+      description={c.devicesDescription}
+      unit={c.unitPhones}
+      defaultType="bar"
+      items={[
+        { label: copy.dashboard.operations.android, count: ops.devicesAndroid, color: "var(--chart-2)" },
+        { label: copy.dashboard.operations.iphone, count: ops.devicesIos, color: "var(--chart-1)" },
+      ]}
+    />
   );
 }

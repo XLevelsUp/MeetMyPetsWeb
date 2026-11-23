@@ -69,7 +69,7 @@ export function ExportCsvButton<TQuery extends object, TRow>({
   };
 
   return (
-    <Button variant="outline" onClick={run} disabled={busy} nativeButton className="gap-2">
+    <Button variant="outline" onClick={run} disabled={busy} nativeButton className="gap-2 max-sm:w-full">
       {busy ? <Spinner /> : <Download className="size-4" aria-hidden="true" />}
       {busy ? copy.common.exporting : copy.common.exportCsv}
     </Button>

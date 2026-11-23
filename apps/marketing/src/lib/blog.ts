@@ -29,7 +29,7 @@
 import type { BlogDoc } from "@/lib/blog-content";
 
 export const BLOG_TAG = "blog";
-/** Must match the literal `revalidate` exports in the blog routes and sitemap. */
+/** Must match the literal `revalidate` exports in the blog routes. */
 export const BLOG_REVALIDATE_SECONDS = 3600;
 
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;

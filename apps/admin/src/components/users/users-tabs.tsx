@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { PetsTable } from "@/components/users/pets-table";
@@ -11,14 +12,10 @@ import type { AccountsQuery, PetsQuery } from "@/lib/users-contract";
 
 export type UsersTab = "users" | "pets";
 
-/**
- * `role` comes from the DAL-verified session in the page, never the client.
- *
- * The tab is part of the URL too, so a link can point at the Pets tab. Each
- * table keeps its own state across a tab switch and republishes it to the URL
- * when it becomes visible — see `useUrlSyncedQuery`, which is also why only one
- * of them writes at a time.
- */
+// Set when a pet count opened the owner view, so "Back to users" can return to the exact list left behind.
+let openedFromUsersList = false;
+
+// Switching tabs changes ?tab=, which remounts this from the URL: the tab you open always starts unfiltered.
 export function UsersTabs({
   role,
   initialTab,
@@ -30,20 +27,34 @@ export function UsersTabs({
   initialAccountsQuery: AccountsQuery;
   initialPetsQuery: PetsQuery;
 }) {
+  const router = useRouter();
   // Keyed on initialTab by the page, so a link to ?tab=pets remounts here and
   // picks it up — syncing in an effect would cascade an extra render instead.
   const [tab, setTab] = useState<UsersTab>(initialTab);
-  const [petOwnerSearch, setPetOwnerSearch] = useState<{ id: string; timestamp: number } | null>(
-    null,
-  );
 
+  // A real navigation (push), so the browser's Back button also returns to the users list.
   const handleViewUserPets = (ownerId: string) => {
-    setPetOwnerSearch({ id: ownerId, timestamp: Date.now() });
-    setTab("pets");
+    openedFromUsersList = true;
+    router.push(`/users?tab=pets&ownerId=${encodeURIComponent(ownerId)}`, { scroll: false });
+  };
+
+  const handleBackToUsers = () => {
+    if (openedFromUsersList) {
+      openedFromUsersList = false;
+      router.back();
+    } else {
+      setTab("users");
+    }
   };
 
   return (
-    <Tabs value={tab} onValueChange={(value) => setTab((value as UsersTab) ?? "users")}>
+    <Tabs
+      value={tab}
+      onValueChange={(value) => {
+        openedFromUsersList = false;
+        setTab((value as UsersTab) ?? "users");
+      }}
+    >
       <TabsList>
         <TabsTrigger value="users">{copy.users.tabs.users}</TabsTrigger>
         <TabsTrigger value="pets">{copy.users.tabs.pets}</TabsTrigger>
@@ -60,7 +71,7 @@ export function UsersTabs({
           role={role}
           initialQuery={initialPetsQuery}
           active={tab === "pets"}
-          externalOwnerSearch={petOwnerSearch}
+          onBackToUsers={handleBackToUsers}
         />
       </TabsContent>
     </Tabs>

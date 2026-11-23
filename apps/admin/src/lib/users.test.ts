@@ -13,6 +13,7 @@ vi.mock("@/lib/supabase/reference", () => ({
   isSupabaseConfigured: () => true,
 }));
 
+import { trustStatusFor } from "@/lib/trust-constants";
 import { flagPet, listAccounts, listPets, restoreAccount, suspendAccount } from "@/lib/users";
 import {
   accountsQuerySchema,
@@ -425,6 +426,15 @@ describe("listPets sorting and filters", () => {
     expect(page?.filters).toContainEqual({ method: "eq", args: ["species_id", speciesId] });
   });
 
+  it("filters to one owner as its own condition, never through the search box", async () => {
+    const mock = listable();
+    const ownerId = "00000000-0000-4000-b000-000000000011";
+    await listPets(petsQuery({ ownerId }));
+    const page = mock.calls.find((c) => c.key === "pets.pets");
+    expect(page?.filters).toContainEqual({ method: "eq", args: ["owner_account_id", ownerId] });
+    expect(page?.filters?.some((f) => f.method === "or")).toBe(false);
+  });
+
   it("ignores a species id that is not a uuid instead of sending it", async () => {
     const mock = listable();
     await listPets(petsQuery({ speciesId: "dog" }));
@@ -441,6 +451,25 @@ describe("listPets sorting and filters", () => {
     const page = mock.calls.find((c) => c.key === "pets.pets");
     // 250 is TRUST_REVIEW_SCORE_CEILING — the boundary lives in one file.
     expect(page?.filters).toContainEqual({ method, args: ["trust_score", 250] });
+  });
+
+  it("filters temporarily banned pets to scores 1–99, the same band trustStatusFor calls a temporary ban", async () => {
+    const mock = listable();
+    await listPets(petsQuery({ trust: "temporary_banned" }));
+    const page = mock.calls.find((c) => c.key === "pets.pets");
+    expect(page?.filters).toContainEqual({ method: "gt", args: ["trust_score", 0] });
+    expect(page?.filters).toContainEqual({ method: "lt", args: ["trust_score", 100] });
+    expect(trustStatusFor(1)).toBe("temporary_banned");
+    expect(trustStatusFor(99)).toBe("temporary_banned");
+    expect(trustStatusFor(100)).toBe("warning");
+  });
+
+  it("filters permanently banned pets to scores of 0 and below", async () => {
+    const mock = listable();
+    await listPets(petsQuery({ trust: "permanently_banned" }));
+    const page = mock.calls.find((c) => c.key === "pets.pets");
+    expect(page?.filters).toContainEqual({ method: "lte", args: ["trust_score", 0] });
+    expect(trustStatusFor(0)).toBe("permanently_banned");
   });
 });
 

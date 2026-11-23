@@ -1,4 +1,5 @@
 import { copy } from "@/config/admin";
+import { countdownTone, DAY_THRESHOLDS, type CountdownTone } from "@/lib/day-thresholds";
 
 /** Shared formatting so the queue row and the review pane never disagree. */
 
@@ -85,6 +86,20 @@ export function expiryNote(expiresAt: string | null): string | null {
   // Only warn when it is close: a certificate valid for a year is not news.
   if (days <= 30) return `Expires in ${days}d`;
   return null;
+}
+
+/** Expiry on the shared countdown scale; same instant comparison as isExpired and the server filters. */
+export function expiryState(expiresAt: string | null, now: number = Date.now()): CountdownTone | null {
+  return countdownTone(expiresAt, now);
+}
+
+export type WaitingTone = "fresh" | "aging" | "overdue";
+
+/** Green under DAY_THRESHOLDS.waiting.amber days, amber until .red, red from then on. */
+export function waitingTone(days: number): WaitingTone {
+  if (days >= DAY_THRESHOLDS.waiting.red) return "overdue";
+  if (days >= DAY_THRESHOLDS.waiting.amber) return "aging";
+  return "fresh";
 }
 
 /** How long this has sat unreviewed, so a forgotten queue looks wrong. */

@@ -18,6 +18,11 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
+        // Solid decision buttons: green says "yes, approve", red says "reject / act against" at a glance.
+        approve:
+          "bg-approved text-white hover:bg-approved/90 focus-visible:ring-approved/30 dark:text-background",
+        reject:
+          "bg-rejected text-white hover:bg-rejected/90 focus-visible:ring-rejected/30 dark:text-background",
       },
       size: {
         default:

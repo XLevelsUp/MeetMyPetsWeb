@@ -5,7 +5,11 @@ import { createReferenceClient, isSupabaseConfigured } from "@/lib/supabase/refe
 import { writeAuditLog, type AuditAction } from "@/lib/audit";
 import { liftRestrictions, insertRestriction as writeRestriction } from "@/lib/restrictions";
 import type { AdminRole } from "@/lib/roles";
-import { TRUST_REVIEW_SCORE_CEILING } from "@/lib/trust-constants";
+import {
+  TRUST_PERMANENT_BAN_SCORE,
+  TRUST_REVIEW_SCORE_CEILING,
+  TRUST_TEMP_BAN_BELOW,
+} from "@/lib/trust-constants";
 import type {
   AccountDetail,
   AccountSummary,
@@ -695,7 +699,7 @@ export async function listPets(query: PetsQuery): Promise<UsersResult<PetsRespon
   }
 
   try {
-    const { page, pageSize, q, status, sort, dir, speciesId, trust } = query;
+    const { page, pageSize, q, status, sort, dir, speciesId, trust, ownerId } = query;
     const offset = (page - 1) * pageSize;
     const ascending = dir === "asc";
 
@@ -725,6 +729,8 @@ export async function listPets(query: PetsQuery): Promise<UsersResult<PetsRespon
       request = request.in("id", flaggedIds);
     }
 
+    if (ownerId && UUID_RE.test(ownerId)) request = request.eq("owner_account_id", ownerId);
+
     if (speciesId !== "all" && UUID_RE.test(speciesId)) {
       request = request.eq("species_id", speciesId);
     }
@@ -734,6 +740,11 @@ export async function listPets(query: PetsQuery): Promise<UsersResult<PetsRespon
     // `trustStatusFor` remains the only place the full ladder lives.
     if (trust === "at_risk") request = request.lte("trust_score", TRUST_REVIEW_SCORE_CEILING);
     if (trust === "normal") request = request.gt("trust_score", TRUST_REVIEW_SCORE_CEILING);
+    // The two ban bands, on the same boundaries as trustStatusFor.
+    if (trust === "temporary_banned") {
+      request = request.gt("trust_score", TRUST_PERMANENT_BAN_SCORE).lt("trust_score", TRUST_TEMP_BAN_BELOW);
+    }
+    if (trust === "permanently_banned") request = request.lte("trust_score", TRUST_PERMANENT_BAN_SCORE);
 
     /**
      * Engagement sorts take the `pet_count` path: resolve every matching id,

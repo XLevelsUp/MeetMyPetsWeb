@@ -11,7 +11,9 @@ import {
   formatDate,
   formatWhen,
   expiryNote,
+  expiryState,
   waitingNote,
+  waitingTone,
   statusLabel,} from "@/components/verifications/verification-format";
 import { Spinner } from "@/components/shared/spinner";
 import { Button } from "@/components/ui/button";
@@ -21,20 +23,24 @@ import { useDecideCertificate } from "@/hooks/use-verifications";
 import type { RejectionReason } from "@/lib/certificate-constants";
 import type { CertificateSummary } from "@/lib/verifications-contract";
 
-/** A boxed set of related claims; `alert` tints the box when something inside is wrong. */
+/** A boxed set of related claims; `alert` (expired or nearly) and `warn` (expiring soon) tint the box. */
 function ClaimGroup({
   title,
   tone,
   children,
 }: {
   title?: string;
-  tone?: "alert";
+  tone?: "alert" | "warn";
   children: React.ReactNode;
 }) {
   return (
     <section
       className={`rounded-lg border px-3 py-2.5 ${
-        tone === "alert" ? "border-rejected/30 bg-rejected-soft/40" : "bg-card"
+        tone === "alert"
+          ? "border-rejected/30 bg-rejected-soft/40"
+          : tone === "warn"
+            ? "border-waiting/30 bg-waiting-soft/40"
+            : "bg-card"
       }`}
     >
       {title ? (
@@ -67,7 +73,17 @@ function LevelPill({ label, done }: { label: string; done: boolean | null }) {
   );
 }
 
-function Claim({ label, value, flag }: { label: string; value: string | null; flag?: string }) {
+function Claim({
+  label,
+  value,
+  flag,
+  flagTone = "alert",
+}: {
+  label: string;
+  value: string | null;
+  flag?: string;
+  flagTone?: "alert" | "warn" | "info";
+}) {
   return (
     <div className="flex flex-col gap-0.5">
       <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
@@ -76,7 +92,17 @@ function Claim({ label, value, flag }: { label: string; value: string | null; fl
           <>
             {value}
             {flag ? (
-              <span className="ml-2 text-xs font-medium text-destructive">{flag}</span>
+              <span
+                className={`ml-2 text-xs font-medium ${
+                  flagTone === "alert"
+                    ? "text-destructive"
+                    : flagTone === "warn"
+                      ? "text-waiting-fg"
+                      : "text-muted-foreground"
+                }`}
+              >
+                {flag}
+              </span>
             ) : null}
           </>
         ) : (
@@ -136,7 +162,8 @@ export function ReviewPane({
   }
 
   const { claims } = certificate;
-  const expiredFlag = expiryNote(claims.expiresAt) ?? undefined;
+  const expiryFlag = expiryNote(claims.expiresAt) ?? undefined;
+  const expiry = expiryState(claims.expiresAt);
   const waiting = certificate.status === "pending" ? waitingNote(certificate.createdAt) : null;
 
   return (
@@ -147,13 +174,13 @@ export function ReviewPane({
         <div className="flex flex-wrap items-center gap-2">
           <CertificateStatusBadge status={certificate.status} />
           <CertificateTypeBadge type={certificate.certificateType} />
-          {/* Green under 3 days, amber under a week, red beyond: a date alone never shows neglect. */}
+          {/* Waiting colours follow DAY_THRESHOLDS.waiting: a date alone never shows neglect. */}
           {waiting ? (
             <span
               className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-                waiting.days >= 7
+                waitingTone(waiting.days) === "overdue"
                   ? "border-rejected/30 bg-rejected-soft text-rejected-fg"
-                  : waiting.days >= 3
+                  : waitingTone(waiting.days) === "aging"
                     ? "border-waiting/30 bg-waiting-soft text-waiting-fg"
                     : "border-approved/25 bg-approved-soft text-approved-fg"
               }`}
@@ -190,11 +217,17 @@ export function ReviewPane({
           </div>
 
           {/* One box, not three: the groups cost more height than they saved in scanning. */}
-          <ClaimGroup tone={expiredFlag ? "alert" : undefined}>
+          {/* Countdown scale: red once lapsed or within DAY_THRESHOLDS.countdown.red, amber within .amber, else neutral. */}
+          <ClaimGroup tone={expiry === "past" || expiry === "red" ? "alert" : expiry === "amber" ? "warn" : undefined}>
             <Claim label="Title" value={claims.title} />
             <Claim label="Certificate no." value={claims.certificateNumber} />
             <Claim label="Issued on" value={formatDate(claims.issuedAt)} />
-            <Claim label="Expires" value={formatDate(claims.expiresAt)} flag={expiredFlag} />
+            <Claim
+              label="Expires"
+              value={formatDate(claims.expiresAt)}
+              flag={expiryFlag}
+              flagTone={expiry === "past" || expiry === "red" ? "alert" : expiry === "amber" ? "warn" : "info"}
+            />
             <Claim label="Next due" value={formatDate(claims.nextDueAt)} />
             <Claim label="Issued by" value={claims.issuedBy} />
             <Claim label="Veterinarian" value={claims.veterinarian} />

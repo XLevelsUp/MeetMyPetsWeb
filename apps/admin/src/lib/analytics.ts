@@ -6,6 +6,7 @@ import {
   analyticsTimeseriesSchema,
   type AnalyticsSummaryResponse,
   type AnalyticsTimeseriesResponse,
+  type LocationBreakdown,
   type MetricKey,
   type MetricValue,
   type Operations,
@@ -17,6 +18,11 @@ import {
   type ResolvedRange,
   type SwipeType,
 } from "@/lib/analytics-constants";
+import {
+  buildLocationBreakdown,
+  type LocationAccountRow,
+  type LocationProfileRow,
+} from "@/lib/geo/location-breakdown";
 
 /**
  * Analytics query adapter — the ONE file that knows the database schema.
@@ -66,6 +72,7 @@ const TABLES = {
   aiDecisions: { schema: "moderation", table: "decisions" },
   devices: { schema: "identity", table: "account_devices" },
   settings: { schema: "identity", table: "account_settings" },
+  profiles: { schema: "identity", table: "account_profiles" },
 } as const;
 
 type TableRef = { schema: string; table: string; createdColumn?: string };
@@ -440,6 +447,52 @@ export async function fetchAnalyticsTimeseries(
     }
 
     return { ok: true, data: parsed.data };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: "query_failed",
+      message: error instanceof Error ? error.message : "Unknown query failure.",
+    };
+  }
+}
+
+const LOCATION_PAGE_SIZE = 1000;
+
+/** Where accounts are, by state and city; coordinates are read and resolved here, never returned. */
+export async function fetchLocationBreakdown(): Promise<AnalyticsResult<LocationBreakdown>> {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, reason: "unconfigured", message: "Supabase env vars are not set." };
+  }
+
+  const supabase = createAdminClient();
+
+  // PostgREST caps each response at max-rows (1000 by default), so page until a short page.
+  const readAll = async <T>(ref: TableRef, columns: string, orderBy: string): Promise<T[]> => {
+    const rows: T[] = [];
+    for (let offset = 0; ; offset += LOCATION_PAGE_SIZE) {
+      const { data, error } = await supabase
+        .schema(ref.schema)
+        .from(ref.table)
+        .select(columns)
+        .order(orderBy, { ascending: true })
+        .range(offset, offset + LOCATION_PAGE_SIZE - 1);
+      if (error) throw new Error(`${ref.schema}.${ref.table}: ${error.message}`);
+      const page = (data ?? []) as T[];
+      rows.push(...page);
+      if (page.length < LOCATION_PAGE_SIZE) return rows;
+    }
+  };
+
+  try {
+    const [accounts, profiles] = await Promise.all([
+      readAll<LocationAccountRow>(TABLES.users, "id,deleted_at", "id"),
+      readAll<LocationProfileRow>(
+        TABLES.profiles,
+        "account_id,country,state,city,latitude,longitude",
+        "account_id",
+      ),
+    ]);
+    return { ok: true, data: await buildLocationBreakdown(accounts, profiles) };
   } catch (error) {
     return {
       ok: false,

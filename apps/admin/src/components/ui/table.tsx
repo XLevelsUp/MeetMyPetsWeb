@@ -4,14 +4,44 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+// `stackOnMobile`: below md each row becomes a labelled card (see [data-stack-mobile] in globals.css).
+function Table({
+  className,
+  stackOnMobile = false,
+  ...props
+}: React.ComponentProps<"table"> & { stackOnMobile?: boolean }) {
+  const ref = React.useRef<HTMLTableElement>(null)
+
+  // Copies each column heading onto its cells as data-label; runs every render because rows change.
+  React.useEffect(() => {
+    const table = ref.current
+    if (!stackOnMobile || !table) return
+    const headings = [...table.querySelectorAll("thead tr:first-child > th")].flatMap((th) => {
+      const label = (th.textContent ?? "").trim()
+      const span = (th as HTMLTableCellElement).colSpan || 1
+      return Array.from({ length: span }, () => label)
+    })
+    for (const row of table.querySelectorAll("tbody tr")) {
+      let col = 0
+      for (const cell of row.children) {
+        const td = cell as HTMLTableCellElement
+        const label = td.colSpan > 1 ? "" : headings[col]
+        if (label) td.setAttribute("data-label", label)
+        else td.removeAttribute("data-label")
+        col += td.colSpan || 1
+      }
+    }
+  })
+
   return (
     <div
       data-slot="table-container"
       className="relative w-full overflow-x-auto"
     >
       <table
+        ref={ref}
         data-slot="table"
+        data-stack-mobile={stackOnMobile ? "" : undefined}
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
       />

@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarX2, Search } from "lucide-react";
+import { CalendarClock, CalendarX2, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { statusLabel, typeLabel } from "@/components/verifications/verification-format";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { copy } from "@/config/admin";
 import { CERTIFICATE_STATUSES, CERTIFICATE_TYPES } from "@/lib/certificate-constants";
+import { DAY_THRESHOLDS } from "@/lib/day-thresholds";
 import type { CertificatesQuery } from "@/lib/verifications-contract";
 
 /** Status / type / free-text filters. Debounce mirrors the other queues. */
@@ -40,7 +41,7 @@ export function VerificationFilters({
 
   // "pending" is the default, so it is not itself evidence of a filtered view.
   const hasFilters =
-    Boolean(query.q) || query.status !== "pending" || query.certificateType !== "all" || Boolean(query.expiredOnly);
+    Boolean(query.q) || query.status !== "pending" || query.certificateType !== "all" || Boolean(query.expiredOnly) || Boolean(query.expiringSoon);
 
   return (
     <div className="flex flex-col gap-3">
@@ -58,7 +59,7 @@ export function VerificationFilters({
         />
       </div>
 
-<div className="flex flex-wrap items-end gap-3">
+<div className="filter-row flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="verification-status">{copy.verifications.filters.status}</Label>
           <Select
@@ -105,11 +106,11 @@ export function VerificationFilters({
           </Select>
         </div>
 
-        {/* Expired-only quick filter */}
-        <div className="flex items-end pb-0.5">
+        {/* Expiry quick filters: mutually exclusive, since the two windows never overlap. */}
+        <div className="flex flex-wrap items-end gap-2 pb-0.5" data-filter-wide>
           <button
             type="button"
-            onClick={() => onChange({ expiredOnly: !query.expiredOnly })}
+            onClick={() => onChange({ expiredOnly: !query.expiredOnly, expiringSoon: false })}
             className={
               query.expiredOnly
                 ? "inline-flex items-center gap-1.5 rounded-full border border-red-400 bg-red-100 px-2.5 py-1.5 text-xs font-medium text-red-900 transition-colors dark:border-red-600 dark:bg-red-950 dark:text-red-200"
@@ -118,7 +119,20 @@ export function VerificationFilters({
             aria-pressed={query.expiredOnly}
           >
             <CalendarX2 className="size-3.5 shrink-0" aria-hidden="true" />
-            Expired only
+            {copy.verifications.filters.expiredOnly}
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange({ expiringSoon: !query.expiringSoon, expiredOnly: false })}
+            className={
+              query.expiringSoon
+                ? "inline-flex items-center gap-1.5 rounded-full border border-waiting/40 bg-waiting-soft px-2.5 py-1.5 text-xs font-medium text-waiting-fg transition-colors"
+                : "inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+            }
+            aria-pressed={query.expiringSoon}
+          >
+            <CalendarClock className="size-3.5 shrink-0" aria-hidden="true" />
+            {copy.verifications.filters.expiringSoon.replace("{days}", String(DAY_THRESHOLDS.countdown.amber))}
           </button>
         </div>
 
@@ -129,7 +143,7 @@ export function VerificationFilters({
             onClick={() => {
               setDraft("");
               committed.current = "";
-              onChange({ q: undefined, status: "pending", certificateType: "all", expiredOnly: false });
+              onChange({ q: undefined, status: "pending", certificateType: "all", expiredOnly: false, expiringSoon: false });
             }}
           >
             {copy.verifications.filters.clear}

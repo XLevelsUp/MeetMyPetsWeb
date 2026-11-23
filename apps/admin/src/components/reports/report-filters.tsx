@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { copy } from "@/config/admin";
-import { REPORT_REASONS, REPORT_SCOPES, REPORT_STATUSES } from "@/lib/report-constants";
+import { REPEAT_OFFENDER_MIN, REPORT_REASONS, REPORT_SCOPES, REPORT_STATUSES } from "@/lib/report-constants";
 import type { ReportsQuery } from "@/lib/reports-contract";
 
 /** Status / reason / scope / free-text filters. Debounce mirrors AuditFilters. */
@@ -64,7 +64,7 @@ export function ReportFilters({
         />
       </div>
 
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="filter-row flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="report-status">{copy.reports.filters.status}</Label>
           <Select
@@ -161,7 +161,7 @@ export function ReportFilters({
             aria-pressed={query.repeatOnly}
           >
             <Flame className="size-3.5 shrink-0 text-purple-600 dark:text-purple-400" aria-hidden="true" />
-            Repeat offenders (2+)
+            Repeat offenders ({REPEAT_OFFENDER_MIN}+)
           </button>
         </div>
 

@@ -6,6 +6,7 @@ import type { z } from "zod";
 import {
   analyticsSummarySchema,
   analyticsTimeseriesSchema,
+  locationBreakdownSchema,
   throwApiError,
   type AnalyticsRangeQuery,
 } from "@/lib/api-contract";
@@ -40,6 +41,17 @@ export function useAnalyticsSummary(range: AnalyticsRangeQuery) {
     placeholderData: keepPreviousData,
     staleTime: 30_000,
     refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
+}
+
+// Locations move slowly and ignore the range, so this refetches far less often than the cards.
+export function useLocationBreakdown() {
+  return useQuery({
+    queryKey: ["analytics", "locations"],
+    queryFn: () => fetchJson("/api/v1/admin/analytics/locations", locationBreakdownSchema),
+    staleTime: 5 * 60_000,
+    refetchInterval: 10 * 60_000,
     refetchOnWindowFocus: true,
   });
 }

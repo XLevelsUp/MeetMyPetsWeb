@@ -313,6 +313,22 @@ readable by the service key after the `pet_likes` grant). The swipe-volume
 blocker is resolved; live-verified the rpc returns real data (e.g. 272
 swipes on 2026-08-06).
 
+**Location map (verified live 2026-11-21).** `identity.account_profiles` has
+`country`, `state`, `city`, `latitude`, `longitude` (numbers) and at most one
+row per account; 68 profiles for 92 accounts, 49 with coordinates, all inside
+India. The typed text is unreliable (`INDA`, `TN`, `NCR`, `CBE`, reverse-geocoded
+wards like `Coimbatore North` / `Chennai Corporation`), so
+`fetchLocationBreakdown` resolves the state from GPS by point-in-polygon and
+only falls back to normalised text. Coordinates never leave the server; the
+`/api/v1/admin/analytics/locations` payload is counts only. The boundary file
+(`src/lib/geo/india-states.topo.json`, udit-001/india-maps-data, MIT) must
+**not** be simplified: simplification folds Puducherry and Chandigarh into the
+state around them. Districts (`src/lib/geo/districts/*.json`, one file per
+state, same source, 726 districts) are assigned from GPS only; a typed state
+gives no district. Known gaps in that data: Tamil Nadu has 37 of 38 districts
+(no Mayiladuthurai, carved out in 2020, so it reads as Nagapattinam), and
+Andhra Pradesh still has its pre-2022 13 districts.
+
 ## 🚨 Security findings (advisors + live probe)
 
 1. **P0 — public PII exposure. `anon` half FIXED 2026-08-06; `authenticated`
@@ -541,6 +557,19 @@ Verified after applying:
 | Full path, in a rolled-back transaction | dedup-key lookup → CAS matched 1 row → score 675→755 → reversal row inserted |
 | Double refund | **blocked by the unique constraint**, not by application logic |
 | Nothing persisted | reversals 0 rows, no pet at 755, no dismissed reports |
+
+## ⚠️ NOT YET APPLIED — trust penalties on "actioned" (written 2026-11-22)
+
+`supabase/migrations/20261122000000_admin_trust_penalties.sql` creates
+`public.admin_trust_penalties`, the mirror image of `admin_trust_reversals`.
+"Mark actioned" now takes the app's own automatic penalty a second time
+(−80 profile, −20 post, from `reportPenaltyFor`) with the same compare-and-swap
+on `pets.pets.trust_score`, and records it here; `report_id` is UNIQUE, so a
+report can only be penalised once. Until the migration is applied, the adapter
+probes the table first and returns `unavailable` **without touching the score**
+(verified live 2026-11-22: PGRST205, table missing). Like reversals, these rows
+are not yet merged into the Trust review ledger, so a penalised pet's score
+sits below what `trust_score_events` alone implies.
 
 ## Applied 2026-08-17 — ranged analytics
 

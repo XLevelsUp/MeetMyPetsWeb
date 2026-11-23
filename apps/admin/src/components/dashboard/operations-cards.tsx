@@ -1,6 +1,6 @@
 "use client";
 
-import { BellRing, Clock, PawPrint, Smartphone, type LucideIcon } from "lucide-react";
+import { BellRing, Clock, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,13 +21,6 @@ function ageTone(hours: number | null) {
 function reachTone(pct: number) {
   if (pct < 25) return "text-rejected-fg";
   if (pct < 60) return "text-waiting-fg";
-  return "text-approved-fg";
-}
-
-/** Signing up without adding a pet is the drop-off; above 40% is a real problem. */
-function noPetTone(pct: number) {
-  if (pct > 40) return "text-rejected-fg";
-  if (pct > 20) return "text-waiting-fg";
   return "text-approved-fg";
 }
 
@@ -74,19 +67,16 @@ function OpsCard({
 }
 
 /**
- * Three standing facts the metric cards cannot carry.
+ * Two standing facts the metric cards cannot carry.
  *
  * None has a period delta: they describe the world now, not a count over the
- * selected window. The first two link straight to the queue they describe —
+ * selected window. The queue card links straight to the queue it describes —
  * seeing "30 waiting" and then hunting for the page is a wasted click.
  */
 export function OperationsCards({ ops }: { ops: Operations }) {
   const waiting = ops.aiQueue + ops.openReports;
   const reachPct =
     ops.totalAccounts === 0 ? 0 : Math.round((ops.reachableAccounts / ops.totalAccounts) * 100);
-  const devices = ops.devicesAndroid + ops.devicesIos;
-  const noPet = Math.max(0, ops.totalAccounts - ops.accountsWithPet);
-  const noPetPct = ops.totalAccounts === 0 ? 0 : Math.round((noPet / ops.totalAccounts) * 100);
 
   return (
     <>
@@ -129,45 +119,6 @@ export function OperationsCards({ ops }: { ops: Operations }) {
         </div>
       </OpsCard>
 
-      {/* Counts PEOPLE without a pet, not missing pets: one account may hold up to 20. */}
-      <OpsCard icon={PawPrint} label={t.noPet}>
-        <span className={`font-heading text-2xl font-semibold tabular-nums ${noPetTone(noPetPct)}`}>
-          {noPet}
-        </span>
-        <span className="text-xs text-muted-foreground">
-          {noPetPct}% {t.ofSignups}
-        </span>
-        <div className="mt-auto h-1.5 overflow-hidden rounded-full bg-muted">
-          <div
-            className={`h-full rounded-full ${
-              noPetPct > 40 ? "bg-rejected" : noPetPct > 20 ? "bg-waiting" : "bg-approved"
-            }`}
-            style={{ width: `${Math.max(noPetPct, 2)}%` }}
-          />
-        </div>
-      </OpsCard>
-
-      <OpsCard icon={Smartphone} label={t.devices}>
-        <span className="font-heading text-2xl font-semibold tabular-nums">{devices}</span>
-        <span className="text-xs text-muted-foreground">
-          {t.android} {ops.devicesAndroid} · {t.iphone} {ops.devicesIos}
-        </span>
-        {/* Share of registered phones, not of users — some accounts own several. */}
-        <div className="mt-auto flex h-1.5 overflow-hidden rounded-full bg-muted">
-          {devices > 0 && (
-            <>
-              <div
-                className="bg-trust"
-                style={{ width: `${(ops.devicesAndroid / devices) * 100}%` }}
-              />
-              <div
-                className="bg-brand"
-                style={{ width: `${(ops.devicesIos / devices) * 100}%` }}
-              />
-            </>
-          )}
-        </div>
-      </OpsCard>
     </>
   );
 }

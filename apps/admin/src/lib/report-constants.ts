@@ -57,6 +57,20 @@ export type TrustRevertOutcome = (typeof TRUST_REVERT_OUTCOMES)[number];
 /** Only a dismissal credits anything back. */
 export const REVERTS_TRUST: ReportResolution = "dismissed";
 
+/** Only "actioned" takes an extra penalty: the app's own automatic amount, applied again on confirmation. */
+export const PENALIZES_TRUST: ReportResolution = "actioned";
+
+export const TRUST_PENALTY_OUTCOMES = [
+  "penalized",
+  "already_penalized",
+  "no_score",
+  "score_moved",
+  // The admin_trust_penalties migration has not been applied, so the score was left alone.
+  "unavailable",
+  "failed",
+] as const;
+export type TrustPenaltyOutcome = (typeof TRUST_PENALTY_OUTCOMES)[number];
+
 export const REPORT_REASONS = [
   "spam",
   "harassment",
@@ -76,3 +90,6 @@ export type ReportReason = (typeof REPORT_REASONS)[number];
  */
 export const REPORT_SCOPES = ["profile", "post"] as const;
 export type ReportScope = (typeof REPORT_SCOPES)[number];
+
+// A pet with at least this many reports against it counts as a repeat offender (filter, chip label and detail tag).
+export const REPEAT_OFFENDER_MIN = 3;

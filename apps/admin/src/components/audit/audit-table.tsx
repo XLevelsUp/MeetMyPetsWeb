@@ -5,10 +5,17 @@ import { useCallback, useState } from "react";
 
 import { AuditDetailDialog } from "@/components/audit/audit-detail-dialog";
 import { AuditFilters } from "@/components/audit/audit-filters";
-import { actionLabel, formatWhen } from "@/components/audit/audit-format";
+import {
+  actionLabel,
+  actionTone,
+  formatWhen,
+  targetTypeLabel,
+  TONE_CLASSES,
+  TONE_DOT,
+  TONE_ORDER,
+} from "@/components/audit/audit-format";
 import { Pagination } from "@/components/shared/pagination";
 import { QueryErrorCard } from "@/components/shared/query-error-card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -50,12 +57,23 @@ export function AuditTable({ initialTargetId }: { initialTargetId?: string }) {
     <div className="flex flex-col gap-4">
       <AuditFilters query={query} onChange={handleFilterChange} />
 
+      {/* The key, so a colour is never the only thing carrying meaning. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+        <span className="font-medium">{copy.audit.tones.legend}:</span>
+        {TONE_ORDER.map((tone) => (
+          <span key={tone} className="inline-flex items-center gap-1.5">
+            <span className={`size-2 rounded-full ${TONE_DOT[tone]}`} aria-hidden="true" />
+            {copy.audit.tones[tone]}
+          </span>
+        ))}
+      </div>
+
       {logs.isError ? (
         <QueryErrorCard message={logs.error.message} onRetry={() => logs.refetch()} />
       ) : (
         <>
           <div className="overflow-x-auto rounded-lg border">
-            <Table>
+            <Table stackOnMobile>
               <TableHeader>
                 <TableRow>
                   <TableHead>{copy.audit.columns.when}</TableHead>
@@ -99,7 +117,11 @@ export function AuditTable({ initialTargetId }: { initialTargetId?: string }) {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{actionLabel(entry.action)}</Badge>
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${TONE_CLASSES[actionTone(entry.action)]}`}
+                        >
+                          {actionLabel(entry.action)}
+                        </span>
                       </TableCell>
                       <TableCell>
                         {entry.targetType === "account" ? (
@@ -110,8 +132,9 @@ export function AuditTable({ initialTargetId }: { initialTargetId?: string }) {
                             {copy.audit.viewAccount}
                           </Link>
                         ) : (
+                          // Each target named for what it is; it used to read "Pet" for reports, blogs and the rest.
                           <span className="text-sm text-muted-foreground">
-                            {copy.audit.targetTypes.pet}
+                            {targetTypeLabel(entry.targetType)}
                           </span>
                         )}
                       </TableCell>
@@ -134,6 +157,8 @@ export function AuditTable({ initialTargetId }: { initialTargetId?: string }) {
               pageSize={logs.data.pageSize}
               total={logs.data.total}
               onPageChange={(page) => setQuery((prev) => ({ ...prev, page }))}
+
+              onPageSizeChange={(pageSize) => setQuery((prev) => ({ ...prev, pageSize, page: 1 }))}
             />
           ) : null}
         </>

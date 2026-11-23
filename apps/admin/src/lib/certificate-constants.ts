@@ -53,3 +53,4 @@ export type RejectionReason = (typeof REJECTION_REASONS)[number];
  * their trigger does. Verified live: approving moved a pet 575 → 1075.
  */
 export const CERTIFICATE_APPROVAL_TRUST_DELTA = 500;
+

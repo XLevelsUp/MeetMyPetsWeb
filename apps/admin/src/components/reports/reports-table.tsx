@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useCallback } from "react";
-import { CheckCircle2, Eye, MoreHorizontal } from "lucide-react";
-import { toast } from "sonner";
+// import { CheckCircle2, Eye, MoreHorizontal } from "lucide-react";
+// import { toast } from "sonner";
 
 import { ReportDetailDialog } from "@/components/reports/report-detail-dialog";
 import { ReportFilters } from "@/components/reports/report-filters";
@@ -12,9 +12,10 @@ import {
   ReportReasonBadge,
   ReportScopeBadge,
   ReportStatusBadge,
+  BanEndsBadge,
   ReportTrustBadge,
 } from "@/components/reports/report-badges";
-import { formatWhen, revertMessage } from "@/components/reports/report-format";
+import { formatWhen /* , revertMessage */ } from "@/components/reports/report-format";
 import { ExportCsvButton } from "@/components/shared/export-csv-button";
 import { FetchingOverlay } from "@/components/shared/fetching-overlay";
 import { Pagination } from "@/components/shared/pagination";
@@ -22,13 +23,13 @@ import { WaitingBadge } from "@/components/shared/waiting-badge";
 import { QueryErrorCard } from "@/components/shared/query-error-card";
 import { SortableHead } from "@/components/shared/sortable-head";
 import { REPORT_CSV_COLUMNS } from "@/components/users/csv-columns";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+// import { Button } from "@/components/ui/button";
+// import {
+//   DropdownMenu,
+//   DropdownMenuContent,
+//   DropdownMenuItem,
+//   DropdownMenuTrigger,
+// } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -40,7 +41,7 @@ import {
 } from "@/components/ui/table";
 import { copy } from "@/config/admin";
 import { useUrlSyncedQuery } from "@/hooks/use-url-query";
-import { useReports, useResolveReport } from "@/hooks/use-reports";
+import { useReports /* , useResolveReport */ } from "@/hooks/use-reports";
 import {
   DEFAULT_REPORTS_QUERY,
   reportsResponseSchema,
@@ -73,30 +74,31 @@ export function ReportsTable({ initialQuery }: { initialQuery: ReportsQuery }) {
   );
 
   const reports = useReports(query);
-  const resolve = useResolveReport();
-
-  const handleQuickResolve = useCallback(
-    async (reportId: string, resolution: "dismissed" | "reviewed") => {
-      try {
-        const res = await resolve.mutateAsync({
-          id: reportId,
-          resolution,
-          reason:
-            resolution === "dismissed"
-              ? "Quick dismissed by moderator"
-              : "Quick reviewed by moderator",
-        });
-        if (res.revert) {
-          toast.success(revertMessage(res.revert, "did"));
-        } else {
-          toast.success(`Report ${resolution}.`);
-        }
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to resolve report.");
-      }
-    },
-    [resolve],
-  );
+  // Quick actions menu is hidden; uncomment with the menu JSX below to restore it.
+  // const resolve = useResolveReport();
+  //
+  // const handleQuickResolve = useCallback(
+  //   async (reportId: string, resolution: "dismissed" | "reviewed") => {
+  //     try {
+  //       const res = await resolve.mutateAsync({
+  //         id: reportId,
+  //         resolution,
+  //         reason:
+  //           resolution === "dismissed"
+  //             ? "Quick dismissed by moderator"
+  //             : "Quick reviewed by moderator",
+  //       });
+  //       if (res.revert) {
+  //         toast.success(revertMessage(res.revert, "did"));
+  //       } else {
+  //         toast.success(`Report ${resolution}.`);
+  //       }
+  //     } catch (err) {
+  //       toast.error(err instanceof Error ? err.message : "Failed to resolve report.");
+  //     }
+  //   },
+  //   [resolve],
+  // );
 
   const isFiltered =
     Boolean(query.q) ||
@@ -127,7 +129,7 @@ export function ReportsTable({ initialQuery }: { initialQuery: ReportsQuery }) {
         <>
           <FetchingOverlay isFetching={reports.isFetching && !reports.isPending}>
           <div className="overflow-x-auto rounded-lg border">
-            <Table>
+            <Table stackOnMobile>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-16">Media</TableHead>
@@ -237,7 +239,13 @@ export function ReportsTable({ initialQuery }: { initialQuery: ReportsQuery }) {
                         <ReportScopeBadge scope={report.scope} />
                       </TableCell>
                       <TableCell>
-                        <ReportTrustBadge trust={report.trust} />
+                        <div className="flex flex-col gap-1">
+                          <ReportTrustBadge trust={report.trust} />
+                          {/* Only for a live temporary ban: a stale end date on an unbanned pet means nothing. */}
+                          {report.trust.status === "temporary_banned" ? (
+                            <BanEndsBadge until={report.trust.bannedUntil} />
+                          ) : null}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <ReportStatusBadge status={report.status} />
@@ -245,6 +253,7 @@ export function ReportsTable({ initialQuery }: { initialQuery: ReportsQuery }) {
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
                           <ReportDetailDialog report={report} />
+                          {/* Quick actions (⋯) menu hidden on request; Review covers both actions.
                           {report.status === "pending" ? (
                             <DropdownMenu>
                               <DropdownMenuTrigger
@@ -276,6 +285,7 @@ export function ReportsTable({ initialQuery }: { initialQuery: ReportsQuery }) {
                               </DropdownMenuContent>
                             </DropdownMenu>
                           ) : null}
+                          */}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -292,6 +302,8 @@ export function ReportsTable({ initialQuery }: { initialQuery: ReportsQuery }) {
               pageSize={reports.data.pageSize}
               total={reports.data.total}
               onPageChange={(page) => setQuery((prev) => ({ ...prev, page }))}
+
+              onPageSizeChange={(pageSize) => setQuery((prev) => ({ ...prev, pageSize, page: 1 }))}
             />
           ) : null}
         </>

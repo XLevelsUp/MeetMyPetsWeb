@@ -13,10 +13,15 @@ import {
 
 import { AcquisitionChart } from "@/components/dashboard/acquisition-chart";
 import { ChartSkeleton, MetricGridSkeleton } from "@/components/dashboard/dashboard-skeleton";
+import { LocationSection } from "@/components/dashboard/location-section";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { OperationsCards } from "@/components/dashboard/operations-cards";
 import { RangeFilter } from "@/components/dashboard/range-filter";
-import { SpeciesBreakdown } from "@/components/dashboard/species-breakdown";
+import {
+  DeviceChart,
+  PetOwnershipChart,
+  SpeciesBreakdown,
+} from "@/components/dashboard/species-breakdown";
 import { SwipeVolumeChart } from "@/components/dashboard/swipe-volume-chart";
 import { QueryErrorCard } from "@/components/shared/query-error-card";
 import { copy } from "@/config/admin";
@@ -96,7 +101,12 @@ export function MetricGrid({ initialRange }: { initialRange: AnalyticsRangeQuery
               ))}
             </div>
           </div>
-          <SpeciesBreakdown data={summary.data.activePetsBySpecies} />
+          {/* Breakdowns that were once single cards, now charts each viewer can switch type on. */}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <SpeciesBreakdown data={summary.data.activePetsBySpecies} />
+            <PetOwnershipChart ops={summary.data.operations} />
+            <DeviceChart ops={summary.data.operations} />
+          </div>
         </>
       )}
 
@@ -131,6 +141,9 @@ export function MetricGrid({ initialRange }: { initialRange: AnalyticsRangeQuery
           ) : null}
         </>
       )}
+
+      {/* Own query and own error card: a location failure must not blank the metrics above. */}
+      <LocationSection />
     </div>
   );
 }

@@ -23,6 +23,8 @@ import {
   statusLabel,
   trustLabel,
 } from "@/components/reports/report-format";
+import { copy } from "@/config/admin";
+import { COUNTDOWN_CLASSES, countdownLabel, countdownTone, daysLeft } from "@/lib/day-thresholds";
 import type { TrustSignal } from "@/lib/reports-contract";
 
 interface BadgeStyle {
@@ -198,6 +200,28 @@ export function ReportScopeBadge({
     >
       <Icon className="size-3.5 shrink-0" aria-hidden="true" />
       <span>{scopeLabel(scope)}</span>
+    </span>
+  );
+}
+
+/** When a temporary ban lifts, on the shared countdown scale: red when imminent, amber soon, green well ahead. */
+export function BanEndsBadge({ until }: { until: string | null }) {
+  const tone = countdownTone(until);
+  if (!until || !tone) return null;
+  const date = new Date(until).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  const left = countdownLabel(daysLeft(until));
+  const text =
+    tone === "past"
+      ? copy.reports.banEnds.ended
+      : copy.reports.banEnds.label.replace("{left}", left);
+
+  return (
+    <span
+      title={tone === "past" ? copy.reports.banEnds.endedTitle.replace("{date}", date) : copy.reports.banEnds.title.replace("{date}", date)}
+      className={`inline-flex w-fit items-center gap-1 rounded-full border px-1.5 py-px text-[0.6875rem] font-medium whitespace-nowrap ${COUNTDOWN_CLASSES[tone]}`}
+    >
+      <Clock className="size-3 shrink-0" aria-hidden="true" />
+      {text}
     </span>
   );
 }
