@@ -22,6 +22,8 @@ export const AUDIT_TARGET_TYPES = [
   "blog_post",
   "blog_category",
   "ai_decision",
+  // Written by the backend's chat.team_admin_* functions.
+  "team_message",
 ] as const;
 
 export const auditEntrySchema = z.object({

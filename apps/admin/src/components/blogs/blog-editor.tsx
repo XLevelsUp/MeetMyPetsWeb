@@ -2,7 +2,7 @@
 
 import { ArrowLeft, ExternalLink, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { BlogActionDialog } from "@/components/blogs/blog-action-dialog";
@@ -10,7 +10,9 @@ import { BlogStatusBadge } from "@/components/blogs/blog-format";
 import { FaqEditor } from "@/components/blogs/faq-editor";
 import { ImageField } from "@/components/blogs/image-field";
 import { RichTextEditor } from "@/components/blogs/rich-text-editor";
+import { useConfirmLeave, useUnsavedChanges } from "@/components/providers/dialog-provider";
 import { QueryErrorCard } from "@/components/shared/query-error-card";
+import { TimePicker } from "@/components/shared/time-picker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -201,14 +203,9 @@ function EditorForm({ post }: { post: BlogPost | null }) {
   const dirty = JSON.stringify(toBody(draft)) !== saved;
   const words = useMemo(() => wordCount(draft.content), [draft.content]);
 
-  // Closing the tab with unsaved work asks first. In-app links are covered by
-  // the explicit back button's confirm.
-  useEffect(() => {
-    if (!dirty) return;
-    const handler = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [dirty]);
+  // Unsaved work: in-app links open the app modal; reload/close keeps the browser's own box.
+  useUnsavedChanges(dirty);
+  const confirmLeave = useConfirmLeave();
 
   function set<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((prev) => {
@@ -283,7 +280,7 @@ function EditorForm({ post }: { post: BlogPost | null }) {
           variant="ghost"
           size="sm"
           onClick={() => {
-            if (!dirty || window.confirm(text.editor.leaveWarning)) router.push("/blogs");
+            void confirmLeave().then((ok) => ok && router.push("/blogs"));
           }}
         >
           <ArrowLeft className="mr-1 size-4" aria-hidden="true" />
@@ -497,11 +494,11 @@ function EditorForm({ post }: { post: BlogPost | null }) {
 
               {/* Empty stamps the publish moment; a value back- or post-dates it. */}
               <Field id="blog-published-at" label={f.publishedAt} hint={f.publishedAtHint}>
-                <Input
+                <TimePicker
                   id="blog-published-at"
-                  type="datetime-local"
                   value={draft.publishedAt}
-                  onChange={(event) => set("publishedAt", event.target.value)}
+                  onChange={(next) => set("publishedAt", next)}
+                  clearable
                 />
               </Field>
             </CardContent>

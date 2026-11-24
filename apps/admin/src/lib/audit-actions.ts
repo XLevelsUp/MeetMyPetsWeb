@@ -34,6 +34,9 @@ export const AUDIT_ACTIONS = [
   "blog_category.create",
   "ai_decision.approve",
   "ai_decision.reject",
+  // Written by the backend's chat.team_admin_* functions, not by this panel (seen on Staging 2026-11-24).
+  "team_message.send",
+  "team_message.schedule",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

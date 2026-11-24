@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Nunito_Sans } from "next/font/google";
 
+import { DialogProvider } from "@/components/providers/dialog-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -47,7 +48,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <QueryProvider>
             {/* Inside QueryProvider: it reads the client's in-flight count. */}
             <QueryProgress />
-            <TooltipProvider>{children}</TooltipProvider>
+            <TooltipProvider>
+              <DialogProvider>{children}</DialogProvider>
+            </TooltipProvider>
             {/* closeButton so a long save can be dismissed; 4s is long enough to read one line. */}
             <Toaster richColors closeButton position="top-right" duration={4000} />
           </QueryProvider>

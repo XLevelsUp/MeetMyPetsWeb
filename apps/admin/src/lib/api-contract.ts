@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { PERSON_AGE_BUCKETS, PET_AGE_BUCKETS } from "@/lib/age-demographics";
 import { BUCKETS, DEFAULT_RANGE_PRESET, RANGE_PRESETS } from "@/lib/analytics-constants";
 
 /**
@@ -70,10 +71,17 @@ export const operationsSchema = z.object({
 });
 export type Operations = z.infer<typeof operationsSchema>;
 
+// Age bands as counts only; every band present, in order. Keys map to copy.dashboard.charts.ages.
+export const petAgeCountSchema = z.object({ key: z.enum(PET_AGE_BUCKETS), count: z.number().int().min(0) });
+export const personAgeCountSchema = z.object({ key: z.enum(PERSON_AGE_BUCKETS), count: z.number().int().min(0) });
+
 export const analyticsSummarySchema = z.object({
   generatedAt: z.iso.datetime(),
   metrics: z.record(z.enum(METRIC_KEYS), metricValueSchema),
   activePetsBySpecies: z.array(speciesCountSchema),
+  // `.default([])` so an older server response still parses during a deploy.
+  activePetsByAge: z.array(petAgeCountSchema).default([]),
+  accountsByAge: z.array(personAgeCountSchema).default([]),
   operations: operationsSchema,
   /** The window the deltas were computed over, echoed for the card labels. */
   from: z.string(),

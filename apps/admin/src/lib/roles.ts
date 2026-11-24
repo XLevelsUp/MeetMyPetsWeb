@@ -56,6 +56,9 @@ export const TRUST_ROLES: readonly AdminRole[] = ["super_admin", "moderator"];
  */
 export const BLOG_ROLES: readonly AdminRole[] = ["super_admin", "moderator"];
 
+/** Send, edit and delete "MeetMyPets Team" messages; the backend also refuses support. */
+export const TEAM_MESSAGE_ROLES: readonly AdminRole[] = ["super_admin", "moderator"];
+
 /** Settings and admin-role management. */
 export const SETTINGS_ROLES: readonly AdminRole[] = ["super_admin"];
 

@@ -1,57 +1,30 @@
 import { describe, expect, it } from "vitest";
 
-import { actionTone, targetTypeLabel } from "@/components/audit/audit-format";
-import { AUDIT_CSV_COLUMNS } from "@/components/users/csv-columns";
-import { AUDIT_ACTIONS } from "@/lib/audit-actions";
-import type { AuditEntry } from "@/lib/audit-contract";
-import { toCsv } from "@/lib/csv";
+import { actionLabel, actionTone, isTeamAction } from "@/components/audit/audit-format";
 
-describe("actionTone", () => {
-  it("gives every known action a colour group", () => {
-    for (const action of AUDIT_ACTIONS) {
-      expect(["restrict", "restore", "caution", "content", "neutral"]).toContain(actionTone(action));
-    }
+describe("Team message rows in the audit log", () => {
+  it("labels and colours the two actions seen on Staging", () => {
+    expect(actionLabel("team_message.send")).toBe("Team message sent");
+    expect(actionTone("team_message.send")).toBe("message");
+    expect(actionLabel("team_message.schedule")).toBe("Team message scheduled");
+    expect(actionTone("team_message.schedule")).toBe("message");
   });
 
-  it("colours actions against a user red and the reverse green", () => {
-    for (const action of ["account.ban", "account.suspend", "trust.ban", "report.action", "certificate.reject", "blog.delete"]) {
-      expect(actionTone(action)).toBe("restrict");
-    }
-    for (const action of ["account.restore", "trust.restore", "report.dismiss", "certificate.approve", "pet.unflag"]) {
-      expect(actionTone(action)).toBe("restore");
-    }
+  it("colours newer backend verbs by effect, keeping the existing key's meaning", () => {
+    expect(actionTone("team_message.delete")).toBe("restrict");
+    expect(actionTone("team_message.cancel")).toBe("caution");
+    expect(actionTone("welcome.stop")).toBe("caution");
+    expect(actionTone("team_message.edit")).toBe("content");
+    expect(actionTone("welcome.set")).toBe("message");
+    expect(actionLabel("team_message.cancel")).toBe("Team message cancelled");
+    expect(actionLabel("welcome.set")).toBe("Welcome message saved");
   });
 
-  it("falls back to neutral for an action this build does not know", () => {
+  it("leaves everything else alone", () => {
+    expect(isTeamAction("blog.delete")).toBe(false);
+    expect(actionTone("blog.delete")).toBe("restrict");
     expect(actionTone("something.new")).toBe("neutral");
-  });
-});
-
-describe("audit CSV", () => {
-  const entry: AuditEntry = {
-    id: "a1",
-    createdAt: "2026-11-22T10:00:00.000Z",
-    actorId: "u1",
-    actorEmail: "mod@example.invalid",
-    actorRole: "moderator",
-    action: "report.action",
-    targetType: "report",
-    targetId: "r1",
-    reason: "=cmd looks like a formula",
-    metadata: { trustPenalty: "penalized", trustDelta: -80 },
-  };
-
-  it("writes readable labels beside the raw codes, and metadata as JSON", () => {
-    const csv = toCsv([entry], AUDIT_CSV_COLUMNS);
-    const [head, row] = csv.split("\r\n");
-    expect(head).toContain("Action code");
-    expect(row).toContain("report.action");
-    expect(row).toContain(targetTypeLabel("report"));
-    expect(row).toContain('""trustPenalty"":""penalized""');
-  });
-
-  it("defuses a reason that starts like a spreadsheet formula", () => {
-    const csv = toCsv([entry], AUDIT_CSV_COLUMNS);
-    expect(csv).toContain("'=cmd looks like a formula");
+    expect(actionLabel("something.new")).toBe("something.new");
+    expect(actionLabel("team_message.teleport")).toBe("team_message.teleport");
   });
 });

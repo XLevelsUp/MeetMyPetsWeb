@@ -22,6 +22,7 @@ import {
   PetOwnershipChart,
   SpeciesBreakdown,
 } from "@/components/dashboard/species-breakdown";
+import { PeopleAgeChart, PetAgeChart } from "@/components/dashboard/age-charts";
 import { SwipeVolumeChart } from "@/components/dashboard/swipe-volume-chart";
 import { QueryErrorCard } from "@/components/shared/query-error-card";
 import { copy } from "@/config/admin";
@@ -106,6 +107,11 @@ export function MetricGrid({ initialRange }: { initialRange: AnalyticsRangeQuery
             <SpeciesBreakdown data={summary.data.activePetsBySpecies} />
             <PetOwnershipChart ops={summary.data.operations} />
             <DeviceChart ops={summary.data.operations} />
+          </div>
+          {/* Age demographics: own row, two wide cards, because age bands need horizontal room for their labels. */}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <PetAgeChart data={summary.data.activePetsByAge} />
+            <PeopleAgeChart data={summary.data.accountsByAge} />
           </div>
         </>
       )}

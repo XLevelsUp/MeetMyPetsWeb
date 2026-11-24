@@ -26,6 +26,63 @@ const pct = (n: number, of: number) => (of === 0 ? 0 : Math.round((n / of) * 100
 // CSS custom-property names cannot hold spaces, so "Small Pet" becomes "small-pet".
 const cssKey = (label: string, i: number) => `c${i}-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 
+// ~px per character at the 12px axis font; deliberately generous so a wrap happens before an overlap does.
+const CHAR_PX = 6.6;
+const MAX_LINES = 2;
+
+// Greedy word-wrap into at most two lines; the last line ends in "…" if the label still doesn't fit.
+export function wrapLabel(label: string, maxChars: number): string[] {
+  const limit = Math.max(3, maxChars);
+  const lines: string[] = [];
+  let current = "";
+  for (const word of label.split(/\s+/).filter(Boolean)) {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length <= limit) {
+      current = next;
+      continue;
+    }
+    if (current) lines.push(current);
+    current = word;
+    if (lines.length === MAX_LINES) break;
+  }
+  if (current && lines.length < MAX_LINES) lines.push(current);
+  const usedWords = lines.join(" ").split(/\s+/).length;
+  const truncated = usedWords < label.split(/\s+/).filter(Boolean).length || lines.some((l) => l.length > limit);
+  return lines.map((line, i) => {
+    const isLast = i === lines.length - 1;
+    if (line.length > limit) return `${line.slice(0, limit - 1)}…`;
+    if (isLast && truncated) return line.length + 1 > limit ? `${line.slice(0, limit - 1)}…` : `${line}…`;
+    return line;
+  });
+}
+
+type TickProps = {
+  x?: number;
+  y?: number;
+  payload?: { value?: unknown };
+  width?: number;
+  visibleTicksCount?: number;
+};
+
+// Every label is shown (interval 0), so each one must fit its own slot instead of spilling into the next.
+function WrappedTick({ x = 0, y = 0, payload, width = 0, visibleTicksCount = 1 }: TickProps) {
+  const label = String(payload?.value ?? "");
+  const slot = width / Math.max(1, visibleTicksCount);
+  const lines = wrapLabel(label, Math.floor((slot - 6) / CHAR_PX));
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <title>{label}</title>
+      <text textAnchor="middle" className="fill-muted-foreground text-xs">
+        {lines.map((line, i) => (
+          <tspan key={i} x={0} dy={i === 0 ? "0.9em" : "1.15em"}>
+            {line}
+          </tspan>
+        ))}
+      </text>
+    </g>
+  );
+}
+
 /** Parts of a whole (devices, pet owners, species), switchable between bar, horizontal bar and donut. */
 export function CategoryChart({
   chartId,
@@ -162,7 +219,7 @@ export function CategoryChart({
               <ChartContainer config={config} className="h-56 w-full">
                 <BarChart data={rows} margin={{ left: -20, right: 4, top: 20 }}>
                   <CartesianGrid vertical={false} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} height={40} tick={<WrappedTick />} />
                   <YAxis tickLine={false} axisLine={false} allowDecimals={false} width={52} />
                   <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
                   <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={64}>
