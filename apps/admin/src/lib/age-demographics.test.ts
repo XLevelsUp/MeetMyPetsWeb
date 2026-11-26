@@ -6,8 +6,6 @@ import {
   PERSON_AGE_BUCKETS,
   personAgeBucket,
   personDobs,
-  PET_AGE_BUCKETS,
-  petAgeBucket,
 } from "@/lib/age-demographics";
 
 const now = new Date(2026, 10, 24);
@@ -28,13 +26,6 @@ describe("ageInYears", () => {
 });
 
 describe("buckets", () => {
-  it("puts pets in the right band at each edge", () => {
-    expect([0, 1, 2, 3, 6, 7, 10, 11, 27].map(petAgeBucket)).toEqual([
-      "under1", "1to2", "1to2", "3to6", "3to6", "7to10", "7to10", "11plus", "11plus",
-    ]);
-    expect(petAgeBucket(null)).toBe("unknown");
-  });
-
   it("puts people in the right band at each edge", () => {
     expect([16, 18, 24, 25, 34, 35, 44, 45, 54, 55, 84].map(personAgeBucket)).toEqual([
       "under18", "18to24", "18to24", "25to34", "25to34", "35to44", "35to44", "45to54", "45to54", "55plus", "55plus",
@@ -42,12 +33,12 @@ describe("buckets", () => {
   });
 
   it("returns every band in order, zeros included", () => {
-    const result = countByBucket(PET_AGE_BUCKETS, ["2026-01-01", null, "2015-01-01"], petAgeBucket, now);
-    expect(result.map((r) => r.key)).toEqual([...PET_AGE_BUCKETS]);
-    expect(result.find((r) => r.key === "under1")?.count).toBe(1);
-    expect(result.find((r) => r.key === "11plus")?.count).toBe(1);
+    const result = countByBucket(PERSON_AGE_BUCKETS, ["2012-01-01", null, "1960-01-01"], personAgeBucket, now);
+    expect(result.map((r) => r.key)).toEqual([...PERSON_AGE_BUCKETS]);
+    expect(result.find((r) => r.key === "under18")?.count).toBe(1);
+    expect(result.find((r) => r.key === "55plus")?.count).toBe(1);
     expect(result.find((r) => r.key === "unknown")?.count).toBe(1);
-    expect(result.find((r) => r.key === "3to6")?.count).toBe(0);
+    expect(result.find((r) => r.key === "35to44")?.count).toBe(0);
   });
 });
 

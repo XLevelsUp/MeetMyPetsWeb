@@ -1,11 +1,10 @@
 import { z } from "zod";
 
-import { reasonSchema } from "@/lib/contract-shared";
+import { paginated, reasonSchema } from "@/lib/contract-shared";
+import { HISTORY_PAGE_SIZE } from "@/lib/team-history";
 import {
   TEAM_AUDIENCES,
   TEAM_BODY_MAX,
-  TEAM_LIST_DEFAULT,
-  TEAM_LIST_MAX,
   TEAM_MAX_PEOPLE,
   TEAM_MAX_PETS,
   TEAM_MAX_PLACES_PER_LIST,
@@ -77,12 +76,21 @@ export const messageActionBodySchema = z.discriminatedUnion("action", [
 ]);
 export type MessageActionRequest = z.infer<typeof messageActionBodySchema>;
 
-export const listQuerySchema = z.object({
-  state: z.enum(TEAM_STATES).optional().catch(undefined),
-  before: z.iso.datetime({ offset: true }).optional().catch(undefined),
-  limit: z.coerce.number().int().min(1).transform((n) => Math.min(n, TEAM_LIST_MAX)).catch(TEAM_LIST_DEFAULT),
+// History page: one tab, an optional From/To day range in the viewer's zone, more filters, numbered pages.
+export const historyQuerySchema = z.object({
+  state: z.enum(TEAM_STATES).catch("sent"),
+  // Inclusive "YYYY-MM-DD" days in the viewer's zone; either may be left open.
+  from: z.iso.date().optional().catch(undefined),
+  to: z.iso.date().optional().catch(undefined),
+  page: z.coerce.number().int().min(1).catch(1),
+  pageSize: z.coerce.number().int().min(1).transform((n) => Math.min(n, 100)).catch(HISTORY_PAGE_SIZE),
+  tz: z.coerce.number().int().min(-840).max(840).catch(0),
+  // Sender email (any case) or "system"; audience type; free text matched against the message.
+  sender: z.string().trim().min(1).max(320).optional().catch(undefined),
+  audience: z.enum(TEAM_AUDIENCES).optional().catch(undefined),
+  q: z.string().trim().min(1).max(200).optional().catch(undefined),
 });
-export type TeamListQuery = z.infer<typeof listQuerySchema>;
+export type TeamHistoryQuery = z.infer<typeof historyQuerySchema>;
 
 export const audienceCountsSchema = z.object({
   pets: z.number(),
@@ -129,12 +137,15 @@ export const teamMessageSchema = z.object({
 });
 export type TeamMessage = z.infer<typeof teamMessageSchema>;
 
-export const teamListResponseSchema = z.object({
-  items: z.array(teamMessageSchema),
-  // Pass back as ?before= for the next page; null when this page was the last.
-  nextBefore: z.string().nullable(),
+// `truncated`: the tab had more than HISTORY_SCAN_LIMIT messages, so only the newest were filtered and paged.
+// `senders`: everyone who sent on this tab (before filtering), for the "Sent by" dropdown.
+export const teamHistoryResponseSchema = paginated(teamMessageSchema).extend({
+  truncated: z.boolean(),
+  senders: z
+    .array(z.object({ value: z.string(), email: z.string().nullable(), role: z.string().nullable(), count: z.number() }))
+    .default([]),
 });
-export type TeamListResponse = z.infer<typeof teamListResponseSchema>;
+export type TeamHistoryResponse = z.infer<typeof teamHistoryResponseSchema>;
 
 export const placeOptionSchema = z.object({ value: z.string(), people: z.number() });
 export type PlaceOption = z.infer<typeof placeOptionSchema>;

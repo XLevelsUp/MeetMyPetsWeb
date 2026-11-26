@@ -245,7 +245,7 @@ export function AiReportsTable({ initialQuery }: { initialQuery: AiDecisionsQuer
           {/* Only a filter or page change veils the table. A submit refetches too,
               but that row is already removed optimistically and its own button spins. */}
           <FetchingOverlay isFetching={decisions.isFetching && !decisions.isPending && !isMutating}>
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="overflow-clip rounded-lg border">
             <Table stackOnMobile>
               <TableHeader>
                 <TableRow>

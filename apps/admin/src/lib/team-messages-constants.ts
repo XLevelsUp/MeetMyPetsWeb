@@ -32,18 +32,24 @@ export function isStaffKind(kind: string): boolean {
 export const WELCOME_BODY_MAX = 2000;
 export const PLACEHOLDERS = { userName: "{user_name}", petName: "{pet_name}" } as const;
 
-export type WelcomeProblem = "body_empty" | "body_too_long" | "user_name_missing" | "pet_name_missing" | "pet_name_not_allowed";
+export type WelcomeProblem = "body_empty" | "body_too_long" | "pet_name_not_allowed";
+export type WelcomeTip = "add_user_name" | "add_pet_name";
 
-// Mirrors the backend's checks so staff see the problem while typing, not after pressing Save.
+// Mirrors the backend: since 2026-11-26 the name placeholders are optional; {pet_name} is still refused in "welcome".
 export function welcomeProblems(kind: WelcomeKind, body: string): WelcomeProblem[] {
   const problems: WelcomeProblem[] = [];
   if (!body.trim()) problems.push("body_empty");
   if (body.length > WELCOME_BODY_MAX) problems.push("body_too_long");
-  if (!body.includes(PLACEHOLDERS.userName)) problems.push("user_name_missing");
-  const hasPet = body.includes(PLACEHOLDERS.petName);
-  if (kind === "pet_welcome" && !hasPet) problems.push("pet_name_missing");
-  if (kind === "welcome" && hasPet) problems.push("pet_name_not_allowed");
+  if (kind === "welcome" && body.includes(PLACEHOLDERS.petName)) problems.push("pet_name_not_allowed");
   return problems;
+}
+
+// Suggestions only — never block Save.
+export function welcomeTips(kind: WelcomeKind, body: string): WelcomeTip[] {
+  const tips: WelcomeTip[] = [];
+  if (!body.includes(PLACEHOLDERS.userName)) tips.push("add_user_name");
+  if (kind === "pet_welcome" && !body.includes(PLACEHOLDERS.petName)) tips.push("add_pet_name");
+  return tips;
 }
 
 export const TEAM_ERROR_CODES = [

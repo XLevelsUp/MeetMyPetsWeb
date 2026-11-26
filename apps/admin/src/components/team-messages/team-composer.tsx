@@ -10,6 +10,7 @@ import { useUnsavedChanges } from "@/components/providers/dialog-provider";
 import { TimePicker } from "@/components/shared/time-picker";
 import { EntityPicker, NoPetPeopleList, type PickedEntity } from "@/components/team-messages/entity-picker";
 import { InlineError } from "@/components/team-messages/inline-error";
+import { LinkTextarea } from "@/components/team-messages/link-textarea";
 import { NearbyPicker, type NearbySelection } from "@/components/team-messages/nearby-picker";
 import { PlacePicker, type PlaceSelection } from "@/components/team-messages/place-picker";
 import { ReachSummary } from "@/components/team-messages/reach-summary";
@@ -219,7 +220,7 @@ export function TeamComposer() {
       <div className="flex min-w-0 flex-col gap-6">
         <div className="flex flex-col gap-2">
           <Label htmlFor="team-body">{c.bodyLabel}</Label>
-          <Textarea
+          <LinkTextarea
             id="team-body"
             rows={7}
             value={body}

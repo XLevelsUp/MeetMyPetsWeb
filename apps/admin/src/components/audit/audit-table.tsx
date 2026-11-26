@@ -74,7 +74,7 @@ export function AuditTable({ initialTargetId }: { initialTargetId?: string }) {
         <QueryErrorCard message={logs.error.message} onRetry={() => logs.refetch()} />
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="overflow-clip rounded-lg border">
             <Table stackOnMobile>
               <TableHeader>
                 <TableRow>

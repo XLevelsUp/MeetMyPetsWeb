@@ -107,6 +107,13 @@ export const copy = {
       unsavedLeave: "Leave page",
       unsavedStay: "Stay and keep editing",
     },
+    // Horizontal scrolling for wide tables (components/ui/table.tsx).
+    table: {
+      scrollLeft: "Scroll table left",
+      scrollRight: "Scroll table right",
+      region: "Table — scroll sideways to see more columns",
+      hint: "Swipe, drag the bar, or Shift + scroll to see more columns",
+    },
     // Labels for the shared 12-hour date + time picker (components/shared/time-picker.tsx).
     time: {
       date: "Date",
@@ -192,18 +199,8 @@ export const copy = {
       swipePasses: "Passed",
       speciesTitle: "Active pets by species",
       speciesDescription: "Pets currently listed",
-      petAgeTitle: "Pets by age",
-      petAgeDescription: "Active pets, from the birth date owners entered (some are estimates)",
       peopleAgeTitle: "People by age",
       peopleAgeDescription: "Accounts, from the birth date on their profile",
-      petAges: {
-        under1: "Under 1 yr",
-        "1to2": "1–2 yrs",
-        "3to6": "3–6 yrs",
-        "7to10": "7–10 yrs",
-        "11plus": "11+ yrs",
-        unknown: "Not given",
-      },
       peopleAges: {
         under18: "Under 18",
         "18to24": "18–24",
@@ -1042,8 +1039,14 @@ export const copy = {
      */
     liveWarning:
       "The mobile app reads this taxonomy live. Changes appear in pet creation immediately.",
-    tabs: { species: "Species", breeds: "Breeds", schemas: "Attribute schemas" },
+    tabs: { species: "Species", breeds: "Breeds", schemas: "Attribute schemas", later: "Later" },
     statusLabels: { active: "Active", inactive: "Retired" },
+    actions: { column: "Actions", edit: "Edit" },
+    // {count} active pets use it
+    petsInUse: "{count} active pets use this, so it can't be retired",
+    noPets: "No active pets use this, so it can be retired",
+    // {count}
+    breedsCount: "{count} breeds under this species",
     filters: { status: "Status", species: "Species", all: "All", clear: "Clear filters" },
     species: {
       searchPlaceholder: "Search species…",
@@ -1309,6 +1312,7 @@ export const copy = {
       pet_welcome: "Pet welcome message",
     },
     newMessage: "New message",
+    linksFound: "Links in this message — open each to check it goes to the right page:",
     welcome: {
       navButton: "Welcome messages",
       title: "Welcome messages",
@@ -1333,6 +1337,10 @@ export const copy = {
         user_name: "Greets the person with {user_name}",
         pet_name: "Names the pet with {pet_name}",
         no_pet: "No {pet_name} — there's no pet yet",
+      },
+      tips: {
+        add_user_name: "Optional: add {user_name} to greet the person by name",
+        add_pet_name: "Optional: add {pet_name} to name the pet",
       },
       preview: "Preview",
       sampleUser: "Priya",
@@ -1544,8 +1552,24 @@ export const copy = {
       },
       failedBanner: "Some scheduled messages failed to send and reached nobody.",
       failedBannerAction: "Show failed",
-      loadMore: "Load more",
-      loadingMore: "Loading…",
+      fromLabel: "From",
+      toLabel: "To",
+      quickRanges: { thisMonth: "This month", lastMonth: "Last month", nextMonth: "Next month" },
+      quickRangesLabel: "Quick dates",
+      // {from} {to}
+      emptyRange: "No messages between {from} and {to} on this tab.",
+      senderLabel: "Sent by",
+      allSenders: "Anyone",
+      systemSender: "System (automatic)",
+      // {who} {count}
+      senderOption: "{who} ({count})",
+      audienceLabel: "Audience",
+      allAudiences: "All audiences",
+      searchLabel: "Search",
+      searchPlaceholder: "Search message text…",
+      clearFilters: "Clear filters",
+      emptyFiltered: "No messages match these filters on this tab.",
+      truncated: "This tab has more than 2,000 messages, so only the newest 2,000 are filtered and listed.",
       columns: {
         message: "Message",
         state: "State",

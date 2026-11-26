@@ -5,8 +5,6 @@ import {
   PERSON_AGE_BUCKETS,
   personAgeBucket,
   personDobs,
-  PET_AGE_BUCKETS,
-  petAgeBucket,
 } from "@/lib/age-demographics";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createReferenceClient, isSupabaseConfigured } from "@/lib/supabase/reference";
@@ -252,28 +250,20 @@ export async function fetchAnalyticsSummary(
       .sort((a, b) => b.count - a.count);
   };
 
-  // Age bands for active pets and live accounts. Isolated like operations(): a grant problem empties two charts, not the dashboard.
-  const ageBreakdowns = async () => {
-    const empty = {
-      pets: countByBucket(PET_AGE_BUCKETS, [], petAgeBucket),
-      people: countByBucket(PERSON_AGE_BUCKETS, [], personAgeBucket),
-    };
+  // Age bands for live accounts. Isolated like operations(): a grant problem empties one chart, not the dashboard.
+  const peopleByAge = async () => {
+    const empty = countByBucket(PERSON_AGE_BUCKETS, [], personAgeBucket);
     try {
-      const [petsRes, accountsRes, profilesRes] = await Promise.all([
-        fromRef(TABLES.pets).select("date_of_birth").eq("status", "active").range(0, 49_999),
+      const [accountsRes, profilesRes] = await Promise.all([
         fromRef(TABLES.users).select("id,deleted_at").range(0, 49_999),
         fromRef(TABLES.profiles).select("account_id,date_of_birth").range(0, 49_999),
       ]);
-      if (petsRes.error || accountsRes.error || profilesRes.error) return empty;
-      const petDobs = ((petsRes.data ?? []) as { date_of_birth: string | null }[]).map((r) => r.date_of_birth);
-      const peopleDobs = personDobs(
+      if (accountsRes.error || profilesRes.error) return empty;
+      const dobs = personDobs(
         (accountsRes.data ?? []) as { id: string; deleted_at: string | null }[],
         (profilesRes.data ?? []) as { account_id: string; date_of_birth: string | null }[],
       );
-      return {
-        pets: countByBucket(PET_AGE_BUCKETS, petDobs, petAgeBucket),
-        people: countByBucket(PERSON_AGE_BUCKETS, peopleDobs, personAgeBucket),
-      };
+      return countByBucket(PERSON_AGE_BUCKETS, dobs, personAgeBucket);
     } catch {
       return empty;
     }
@@ -378,7 +368,7 @@ export async function fetchAnalyticsSummary(
       likeRate,
       bySpecies,
       ops,
-      ages,
+      peopleAges,
     ] = await Promise.all([
       stockMetric(TABLES.users),
       stockMetric(TABLES.pets, (q) => q.eq("status", "active")),
@@ -393,7 +383,7 @@ export async function fetchAnalyticsSummary(
       likeRateMetric(),
       speciesBreakdown(),
       operations(),
-      ageBreakdowns(),
+      peopleByAge(),
     ]);
 
     const metrics: Record<MetricKey, MetricValue> = {
@@ -412,8 +402,7 @@ export async function fetchAnalyticsSummary(
         generatedAt: new Date().toISOString(),
         metrics,
         activePetsBySpecies: bySpecies,
-        activePetsByAge: ages.pets,
-        accountsByAge: ages.people,
+        accountsByAge: peopleAges,
         operations: ops,
         from: range.from,
         to: range.to,

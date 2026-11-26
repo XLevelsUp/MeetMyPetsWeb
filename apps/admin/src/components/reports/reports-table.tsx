@@ -128,7 +128,7 @@ export function ReportsTable({ initialQuery }: { initialQuery: ReportsQuery }) {
       ) : (
         <>
           <FetchingOverlay isFetching={reports.isFetching && !reports.isPending}>
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="overflow-clip rounded-lg border">
             <Table stackOnMobile>
               <TableHeader>
                 <TableRow>

@@ -40,7 +40,6 @@ describe("analyticsSummarySchema", () => {
         likeRate: { current: 25.5, previous: 23.4, changePct: 9 },
       },
       activePetsBySpecies: [{ species: "Dog", count: 30 }],
-      activePetsByAge: [{ key: "1to2", count: 12 }, { key: "unknown", count: 3 }],
       accountsByAge: [{ key: "25to34", count: 20 }, { key: "unknown", count: 5 }],
       // Standing facts, with no period delta — they describe the world now.
       operations: {

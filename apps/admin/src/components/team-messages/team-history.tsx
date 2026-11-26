@@ -1,12 +1,13 @@
 "use client";
 
-import { MoreHorizontal, TriangleAlert } from "lucide-react";
-import { useMemo, useState } from "react";
+import { MoreHorizontal, Search, TriangleAlert } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { Spinner } from "@/components/shared/spinner";
+import { Pagination } from "@/components/shared/pagination";
 import { QueryErrorCard } from "@/components/shared/query-error-card";
 import { TeamActionDialog, type TeamDialogAction } from "@/components/team-messages/team-action-dialog";
+import { LinkifiedText } from "@/components/team-messages/linkified-text";
 import {
   AUDIENCE_TONES,
   SYSTEM_TONE,
@@ -29,13 +30,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { FilterSelect } from "@/components/users/filter-select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { copy } from "@/config/admin";
 import { useHasFailedMessages, useTeamMessageAction, useTeamMessages } from "@/hooks/use-team-messages";
 import { useUrlSyncedQuery } from "@/hooks/use-url-query";
 import { useSpeciesOptions } from "@/hooks/use-users";
 import { isAdminRole, ROLE_LABELS } from "@/lib/roles";
-import { TEAM_STATES, type TeamState } from "@/lib/team-messages-constants";
+import { dayLabel, HISTORY_PAGE_SIZE, monthRange, SYSTEM_SENDER } from "@/lib/team-history";
+import { TEAM_AUDIENCES, TEAM_STATES, type TeamAudience, type TeamState } from "@/lib/team-messages-constants";
 import type { TeamMessage } from "@/lib/team-messages-contract";
 
 const text = copy.teamMessages;
@@ -43,13 +48,69 @@ const h = text.history;
 const COLUMN_COUNT = 7;
 // Scheduled first: it is the only state staff can still change before users see it.
 const TAB_ORDER: readonly TeamState[] = ["scheduled", "sent", "failed", "cancelled", "deleted"];
-export const HISTORY_DEFAULTS = { state: "sent" as TeamState };
+const ALL = "all";
+// Not "all": the backend already uses "all" for the Everyone audience, and a clash made Everyone unselectable.
+const ANY_AUDIENCE = "any";
+export const HISTORY_DEFAULTS = {
+  state: "sent" as TeamState,
+  from: "",
+  to: "",
+  sender: ALL,
+  audience: ANY_AUDIENCE as TeamAudience | typeof ANY_AUDIENCE,
+  q: "",
+  page: 1,
+  pageSize: HISTORY_PAGE_SIZE,
+};
+export type HistoryUrlState = typeof HISTORY_DEFAULTS;
 
-export function TeamHistory({ initialState }: { initialState: TeamState }) {
-  const [query, setQuery] = useUrlSyncedQuery({ state: initialState }, HISTORY_DEFAULTS, { active: true });
+export function TeamHistory({ initial }: { initial: HistoryUrlState }) {
+  const [query, setQuery] = useUrlSyncedQuery<HistoryUrlState>(initial, HISTORY_DEFAULTS, { active: true });
   const [pending, setPending] = useState<{ message: TeamMessage; action: TeamDialogAction } | null>(null);
 
-  const list = useTeamMessages(query.state);
+  // The box owns what's typed; the search runs once typing pauses, not on every key.
+  const [search, setSearch] = useState(initial.q);
+  const committed = useRef(initial.q);
+  useEffect(() => {
+    if (search.trim() === committed.current) return;
+    const timer = setTimeout(() => {
+      committed.current = search.trim();
+      setQuery((prev) => ({ ...prev, q: search.trim(), page: 1 }));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search, setQuery]);
+
+  const list = useTeamMessages({
+    state: query.state,
+    from: query.from || undefined,
+    to: query.to || undefined,
+    sender: query.sender === ALL ? undefined : query.sender,
+    audience: query.audience === ANY_AUDIENCE ? undefined : query.audience,
+    q: query.q || undefined,
+    page: query.page,
+    pageSize: query.pageSize,
+  });
+
+  // A sender picked on another tab stays listed (with no count) so the dropdown never shows a blank value.
+  const senders = useMemo(() => {
+    const options = list.data?.senders ?? [];
+    return query.sender !== ALL && !options.some((s) => s.value === query.sender)
+      ? [{ value: query.sender, email: query.sender === SYSTEM_SENDER ? null : query.sender, role: null, count: 0 }, ...options]
+      : options;
+  }, [list.data?.senders, query.sender]);
+
+  const anyFilter = query.from !== "" || query.to !== "" || query.sender !== ALL || query.audience !== ANY_AUDIENCE || query.q !== "";
+  function clearFilters() {
+    setSearch("");
+    committed.current = "";
+    setQuery((prev) => ({ ...prev, from: "", to: "", sender: ALL, audience: ANY_AUDIENCE, q: "", page: 1 }));
+  }
+  function setRange(offset: number) {
+    setQuery((prev) => ({ ...prev, ...monthRange(offset), page: 1 }));
+  }
+  const isRange = (offset: number) => {
+    const r = monthRange(offset);
+    return query.from === r.from && query.to === r.to;
+  };
   const hasFailed = useHasFailedMessages();
   const species = useSpeciesOptions();
   const act = useTeamMessageAction();
@@ -58,7 +119,8 @@ export function TeamHistory({ initialState }: { initialState: TeamState }) {
     () => new Map((species.data?.items ?? []).map((s) => [s.id, s.name] as const)),
     [species.data],
   );
-  const items = list.data?.pages.flatMap((page) => page.items) ?? [];
+  const items = list.data?.items ?? [];
+  const onlyDates = query.from !== "" && query.to !== "" && query.sender === ALL && query.audience === ANY_AUDIENCE && query.q === "";
 
   async function confirm(input: { body?: string; sendAt?: string; reason: string }) {
     if (!pending) return;
@@ -80,35 +142,133 @@ export function TeamHistory({ initialState }: { initialState: TeamState }) {
         >
           <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
           <span className="flex-1">{h.failedBanner}</span>
-          <Button size="sm" variant="outline" onClick={() => setQuery((prev) => ({ ...prev, state: "failed" }))}>
+          <Button size="sm" variant="outline" onClick={() => setQuery((prev) => ({ ...prev, state: "failed", page: 1 }))}>
             {h.failedBannerAction}
           </Button>
         </div>
       ) : null}
 
-      <Tabs
-        value={query.state}
-        onValueChange={(value) => {
-          if ((TEAM_STATES as readonly string[]).includes(value as string)) {
-            setQuery((prev) => ({ ...prev, state: value as TeamState }));
-          }
-        }}
-      >
-        {/* Wraps rather than scrolls on phones, so no tab hides off-screen. */}
-        <TabsList aria-label={h.tabsLabel} className="flex-wrap justify-start group-data-horizontal/tabs:h-auto">
-          {TAB_ORDER.map((state) => (
-            <TabsTrigger key={state} value={state} className="h-7 flex-none px-3">
-              {text.states[state]}
-            </TabsTrigger>
+      <div className="flex flex-col gap-3">
+        <Tabs
+          value={query.state}
+          onValueChange={(value) => {
+            if ((TEAM_STATES as readonly string[]).includes(value as string)) {
+              // Dates and the other filters carry over between tabs.
+              setQuery((prev) => ({ ...prev, state: value as TeamState, page: 1 }));
+            }
+          }}
+        >
+          {/* Wraps rather than scrolls on phones, so no tab hides off-screen. */}
+          <TabsList aria-label={h.tabsLabel} className="flex-wrap justify-start group-data-horizontal/tabs:h-auto">
+            {TAB_ORDER.map((state) => (
+              <TabsTrigger key={state} value={state} className="h-7 flex-none px-3">
+                {text.states[state]}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+        <div className="filter-row flex flex-wrap items-end gap-3">
+          {/* Native date inputs: a calendar in every browser, keyboard and screen readers for free (as on Audit Logs). */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="team-history-from">{h.fromLabel}</Label>
+            <Input
+              id="team-history-from"
+              type="date"
+              className="w-40"
+              value={query.from}
+              max={query.to || undefined}
+              onChange={(event) => setQuery((prev) => ({ ...prev, from: event.target.value, page: 1 }))}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="team-history-to">{h.toLabel}</Label>
+            <Input
+              id="team-history-to"
+              type="date"
+              className="w-40"
+              value={query.to}
+              min={query.from || undefined}
+              onChange={(event) => setQuery((prev) => ({ ...prev, to: event.target.value, page: 1 }))}
+            />
+          </div>
+          <FilterSelect
+            id="team-history-sender"
+            label={h.senderLabel}
+            value={query.sender}
+            className="w-64"
+            options={[
+              { value: ALL, label: h.allSenders },
+              ...senders.map((s) => {
+                const who = s.value === SYSTEM_SENDER ? h.systemSender : (s.email ?? s.value);
+                return { value: s.value, label: s.count > 0 ? fill(h.senderOption, { who, count: s.count }) : who };
+              }),
+            ]}
+            onChange={(sender) => setQuery((prev) => ({ ...prev, sender, page: 1 }))}
+          />
+          <FilterSelect
+            id="team-history-audience"
+            label={h.audienceLabel}
+            value={query.audience}
+            className="w-52"
+            options={[
+              { value: ANY_AUDIENCE, label: h.allAudiences },
+              ...TEAM_AUDIENCES.map((a) => ({ value: a, label: text.audiences[a] })),
+            ]}
+            onChange={(audience) => setQuery((prev) => ({ ...prev, audience, page: 1 }))}
+          />
+          <div className="flex min-w-56 flex-1 flex-col gap-1.5" data-filter-wide>
+            <Label htmlFor="team-history-search">{h.searchLabel}</Label>
+            <div className="relative">
+              <Search
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <Input
+                id="team-history-search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={h.searchPlaceholder}
+                className="pl-9"
+              />
+            </div>
+          </div>
+          {anyFilter ? (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              {h.clearFilters}
+            </Button>
+          ) : null}
+        </div>
+        <div role="group" aria-label={h.quickRangesLabel} className="flex flex-wrap gap-1.5">
+          {([
+            [-1, h.quickRanges.lastMonth],
+            [0, h.quickRanges.thisMonth],
+            [1, h.quickRanges.nextMonth],
+          ] as const).map(([offset, label]) => (
+            <Button
+              key={offset}
+              type="button"
+              size="sm"
+              variant={isRange(offset) ? "default" : "outline"}
+              aria-pressed={isRange(offset)}
+              className="h-7"
+              onClick={() => setRange(offset)}
+            >
+              {label}
+            </Button>
           ))}
-        </TabsList>
-      </Tabs>
+        </div>
+      </div>
+
+      {list.data?.truncated ? <p className="text-xs text-muted-foreground">{h.truncated}</p> : null}
 
       {list.isError ? (
         <QueryErrorCard message={list.error.message} onRetry={() => list.refetch()} />
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border">
+          <div
+            className={`overflow-clip rounded-lg border transition-opacity ${list.isPlaceholderData ? "opacity-60" : ""}`}
+            aria-busy={list.isFetching}
+          >
             <Table stackOnMobile>
               <TableHeader>
                 <TableRow>
@@ -137,7 +297,11 @@ export function TeamHistory({ initialState }: { initialState: TeamState }) {
                 ) : items.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={COLUMN_COUNT} className="py-10 text-center text-muted-foreground">
-                      {h.empty[query.state]}
+                      {onlyDates
+                        ? fill(h.emptyRange, { from: dayLabel(query.from), to: dayLabel(query.to) })
+                        : anyFilter
+                          ? h.emptyFiltered
+                          : h.empty[query.state]}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -154,16 +318,14 @@ export function TeamHistory({ initialState }: { initialState: TeamState }) {
             </Table>
           </div>
 
-          {list.hasNextPage ? (
-            <Button
-              variant="outline"
-              className="self-center"
-              disabled={list.isFetchingNextPage}
-              onClick={() => void list.fetchNextPage()}
-            >
-              {list.isFetchingNextPage ? <Spinner size="sm" className="mr-1.5" /> : null}
-              {list.isFetchingNextPage ? h.loadingMore : h.loadMore}
-            </Button>
+          {list.data && list.data.total > 0 ? (
+            <Pagination
+              page={list.data.page}
+              pageSize={list.data.pageSize}
+              total={list.data.total}
+              onPageChange={(page) => setQuery((prev) => ({ ...prev, page }))}
+              onPageSizeChange={(pageSize) => setQuery((prev) => ({ ...prev, pageSize, page: 1 }))}
+            />
           ) : null}
         </>
       )}
@@ -218,7 +380,9 @@ function MessageRow({
   return (
     <TableRow>
       <TableCell className="max-w-md align-top">
-        <p className="line-clamp-3 text-sm break-words whitespace-pre-wrap">{message.body}</p>
+        <p className="line-clamp-3 text-sm break-words whitespace-pre-wrap">
+          <LinkifiedText text={message.body} />
+        </p>
         {message.editedAt ? <span className="text-xs text-muted-foreground italic">{h.edited}</span> : null}
       </TableCell>
       <TableCell className="align-top">

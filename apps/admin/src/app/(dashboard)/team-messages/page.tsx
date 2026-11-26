@@ -7,7 +7,8 @@ import { TeamHistory } from "@/components/team-messages/team-history";
 import { copy } from "@/config/admin";
 import { requireRole } from "@/lib/dal";
 import { TEAM_MESSAGE_ROLES } from "@/lib/roles";
-import { TEAM_STATES, type TeamState } from "@/lib/team-messages-constants";
+import { searchParamsToQuery } from "@/lib/contract-shared";
+import { historyQuerySchema } from "@/lib/team-messages-contract";
 
 // Tab state is parsed here so the client needs no useSearchParams Suspense boundary.
 export default async function TeamMessagesPage({
@@ -18,9 +19,24 @@ export default async function TeamMessagesPage({
   const session = await requireRole(...TEAM_MESSAGE_ROLES);
   if (!session.ok) redirect("/");
 
-  const raw = (await searchParams).state;
-  const value = Array.isArray(raw) ? raw[0] : raw;
-  const state: TeamState = (TEAM_STATES as readonly string[]).includes(value ?? "") ? (value as TeamState) : "sent";
+  const raw = await searchParams;
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(raw)) {
+    const first = Array.isArray(value) ? value[0] : value;
+    if (first) params.set(key, first);
+  }
+  // Bad or missing values fall back to defaults (Sent, any date, page 1) instead of erroring.
+  const parsed = searchParamsToQuery(historyQuerySchema, params);
+  const initial = {
+    state: parsed.state,
+    from: parsed.from ?? "",
+    to: parsed.to ?? "",
+    sender: parsed.sender ?? "all",
+    audience: parsed.audience ?? ("any" as const),
+    q: parsed.q ?? "",
+    page: parsed.page,
+    pageSize: parsed.pageSize,
+  };
 
   return (
     <main className="flex-1 p-4 md:p-6">
@@ -41,7 +57,7 @@ export default async function TeamMessagesPage({
             </Button>
           </div>
         </div>
-        <TeamHistory initialState={state} />
+        <TeamHistory initial={initial} />
       </div>
     </main>
   );

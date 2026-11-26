@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server";
 
 import { searchParamsToQuery } from "@/lib/contract-shared";
-import { listTeamMessages, sendTeamMessage } from "@/lib/team-messages";
-import { listQuerySchema, sendBodySchema } from "@/lib/team-messages-contract";
+import { listTeamHistory, sendTeamMessage } from "@/lib/team-messages";
+import { historyQuerySchema, sendBodySchema } from "@/lib/team-messages-contract";
 import { badRequest, readJson, teamResponse, teamSession } from "@/lib/team-messages-http";
 
 export const dynamic = "force-dynamic";
@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const session = await teamSession();
   if (!session.ok) return session.response;
-  const query = searchParamsToQuery(listQuerySchema, request.nextUrl.searchParams);
-  return teamResponse(await listTeamMessages(query, session.actorId));
+  const query = searchParamsToQuery(historyQuerySchema, request.nextUrl.searchParams);
+  return teamResponse(await listTeamHistory(query, session.actorId));
 }
 
 export async function POST(request: Request) {

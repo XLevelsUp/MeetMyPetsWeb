@@ -17,6 +17,8 @@ import { Spinner } from "@/components/shared/spinner";
 import { TimePicker } from "@/components/shared/time-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { fill } from "@/components/team-messages/team-format";
+import { LinkifiedText } from "@/components/team-messages/linkified-text";
+import { LinkTextarea } from "@/components/team-messages/link-textarea";
 import { copy } from "@/config/admin";
 import { reasonSchema } from "@/lib/contract-shared";
 import { TEAM_BODY_MAX } from "@/lib/team-messages-constants";
@@ -95,7 +97,7 @@ export function TeamActionDialog({
         {isEdit ? (
           <div className="flex flex-col gap-2">
             <Label htmlFor="team-edit-body">{text.bodyLabel}</Label>
-            <Textarea
+            <LinkTextarea
               id="team-edit-body"
               rows={6}
               value={body}
@@ -127,7 +129,7 @@ export function TeamActionDialog({
 
         {!isEdit ? (
           <blockquote className="max-h-40 overflow-y-auto rounded-md border bg-muted/40 p-3 text-sm whitespace-pre-wrap">
-            {message.body}
+            <LinkifiedText text={message.body} />
           </blockquote>
         ) : null}
 

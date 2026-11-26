@@ -1,12 +1,15 @@
 "use client";
 
-import { Check, CircleAlert, Info, PawPrint, UserRound, X } from "lucide-react";
+import { Check, CircleAlert, Info, Lightbulb, PawPrint, UserRound, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Spinner } from "@/components/shared/spinner";
 import { useUnsavedChanges } from "@/components/providers/dialog-provider";
+import { Pagination } from "@/components/shared/pagination";
 import { InlineError } from "@/components/team-messages/inline-error";
+import { LinkTextarea } from "@/components/team-messages/link-textarea";
+import { LinkifiedText } from "@/components/team-messages/linkified-text";
 import { countOf, fill, formatDateTime, TeamStateBadge, ToneIcon, type Tone } from "@/components/team-messages/team-format";
 import {
   AlertDialog,
@@ -34,9 +37,11 @@ import {
   WELCOME_BODY_MAX,
   WELCOME_KINDS,
   welcomeProblems,
+  welcomeTips,
   type WelcomeKind,
 } from "@/lib/team-messages-constants";
 import type { TeamMessage } from "@/lib/team-messages-contract";
+import { paginate } from "@/lib/team-history";
 
 const w = copy.teamMessages.welcome;
 
@@ -71,17 +76,23 @@ function PreviewText({ body }: { body: string }) {
             {part === PLACEHOLDERS.userName ? w.sampleUser : w.samplePet}
           </mark>
         ) : (
-          <span key={i}>{part}</span>
+          <span key={i}>
+            <LinkifiedText text={part} />
+          </span>
         ),
       )}
     </>
   );
 }
 
-function CheckLine({ ok, text }: { ok: boolean; text: string }) {
+// ok = green ✓; tip = grey suggestion that never blocks; otherwise red ✗ that blocks Save.
+function CheckLine({ state, text }: { state: "ok" | "tip" | "error"; text: string }) {
+  const style =
+    state === "ok" ? "text-emerald-700 dark:text-emerald-400" : state === "tip" ? "text-muted-foreground" : "text-destructive";
+  const Icon = state === "ok" ? Check : state === "tip" ? Lightbulb : X;
   return (
-    <li className={`flex items-center gap-1.5 text-xs ${ok ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"}`}>
-      {ok ? <Check className="size-3.5" aria-hidden="true" /> : <X className="size-3.5" aria-hidden="true" />}
+    <li className={`flex items-center gap-1.5 text-xs ${style}`}>
+      <Icon className="size-3.5" aria-hidden="true" />
       {text}
     </li>
   );
@@ -99,6 +110,7 @@ function WelcomeCard({ kind, active }: { kind: WelcomeKind; active: TeamMessage 
 
   const info = w.kinds[kind];
   const problems = welcomeProblems(kind, draft);
+  const tips = welcomeTips(kind, draft);
   const dirty = draft !== current;
   const canSave = dirty && problems.length === 0;
   useUnsavedChanges(dirty);
@@ -194,7 +206,7 @@ function WelcomeCard({ kind, active }: { kind: WelcomeKind; active: TeamMessage 
               </Button>
             </div>
           </div>
-          <Textarea
+          <LinkTextarea
             id={`welcome-${kind}`}
             ref={area}
             rows={5}
@@ -204,11 +216,19 @@ function WelcomeCard({ kind, active }: { kind: WelcomeKind; active: TeamMessage 
           />
           <div className="flex flex-wrap items-start justify-between gap-2">
             <ul className="flex flex-col gap-0.5">
-              <CheckLine ok={!problems.includes("user_name_missing")} text={w.checks.user_name} />
-              {kind === "pet_welcome" ? (
-                <CheckLine ok={!problems.includes("pet_name_missing")} text={w.checks.pet_name} />
+              {tips.includes("add_user_name") ? (
+                <CheckLine state="tip" text={w.tips.add_user_name} />
               ) : (
-                <CheckLine ok={!problems.includes("pet_name_not_allowed")} text={w.checks.no_pet} />
+                <CheckLine state="ok" text={w.checks.user_name} />
+              )}
+              {kind === "pet_welcome" ? (
+                tips.includes("add_pet_name") ? (
+                  <CheckLine state="tip" text={w.tips.add_pet_name} />
+                ) : (
+                  <CheckLine state="ok" text={w.checks.pet_name} />
+                )
+              ) : (
+                <CheckLine state={problems.includes("pet_name_not_allowed") ? "error" : "ok"} text={w.checks.no_pet} />
               )}
             </ul>
             <span className="text-xs text-muted-foreground tabular-nums">
@@ -307,8 +327,12 @@ function WelcomeCard({ kind, active }: { kind: WelcomeKind; active: TeamMessage 
   );
 }
 
+const VERSIONS_PER_PAGE = 10;
+
 function History({ versions }: { versions: TeamMessage[] }) {
   const h = w.history;
+  const [page, setPage] = useState(1);
+  const shown = paginate(versions, page, VERSIONS_PER_PAGE);
   return (
     <section className="flex flex-col gap-3">
       <div>
@@ -319,7 +343,7 @@ function History({ versions }: { versions: TeamMessage[] }) {
         <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">{h.empty}</p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {versions.map((v) => {
+          {shown.items.map((v) => {
             const kind = (v.kind === "pet_welcome" ? "pet_welcome" : "welcome") as WelcomeKind;
             const author = authorLabel(v);
             return (
@@ -331,7 +355,9 @@ function History({ versions }: { versions: TeamMessage[] }) {
                     <TeamStateBadge state={v.state} />
                     <span className="text-xs text-muted-foreground">{formatDateTime(v.createdAt)}</span>
                   </div>
-                  <p className="line-clamp-3 text-sm break-words whitespace-pre-wrap text-muted-foreground">{v.body}</p>
+                  <p className="line-clamp-3 text-sm break-words whitespace-pre-wrap text-muted-foreground">
+                    <LinkifiedText text={v.body} />
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {author ? fill(h.by, { who: author }) : h.system} ·{" "}
                     {fill(w.stats, {
@@ -345,6 +371,9 @@ function History({ versions }: { versions: TeamMessage[] }) {
           })}
         </ul>
       )}
+      {versions.length > VERSIONS_PER_PAGE ? (
+        <Pagination page={shown.page} pageSize={VERSIONS_PER_PAGE} total={shown.total} onPageChange={setPage} />
+      ) : null}
     </section>
   );
 }

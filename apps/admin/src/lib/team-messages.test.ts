@@ -26,13 +26,13 @@ import {
   audienceParams,
   classifyError,
   listPlaceOptions,
-  listTeamMessages,
+  listTeamHistory,
   listWelcomes,
   previewAudience,
   sendTeamMessage,
   toTeamMessage,
 } from "@/lib/team-messages";
-import { teamErrorText, welcomeProblems } from "@/lib/team-messages-constants";
+import { teamErrorText, welcomeProblems, welcomeTips } from "@/lib/team-messages-constants";
 import { messageActionBodySchema, sendBodySchema } from "@/lib/team-messages-contract";
 
 const ACTOR = "99999999-9999-9999-9999-999999999999";
@@ -111,18 +111,60 @@ describe("rpc calls", () => {
   });
 });
 
-describe("listTeamMessages", () => {
+describe("listTeamHistory", () => {
   const row = (createdAt: string, extra: Record<string, unknown> = {}) => ({
     id: MSG, kind: "staff", state: "sent", body: "Hi", created_at: createdAt, pets: 3, accounts: 1, read_count: 2, ...extra,
   });
+  const view = { state: "sent" as const, page: 1, pageSize: 25, tz: 330 };
 
-  it("offers a next page only when the page came back full", async () => {
-    holder.reply = { data: [row("2026-11-02T00:00:00+00:00"), row("2026-11-01T00:00:00+00:00")], error: null };
-    const full = await listTeamMessages({ limit: 2 }, ACTOR);
-    expect(full).toMatchObject({ ok: true, data: { nextBefore: "2026-11-01T00:00:00+00:00" } });
-    const short = await listTeamMessages({ limit: 50, state: "sent" }, ACTOR);
-    expect(short).toMatchObject({ ok: true, data: { nextBefore: null } });
-    expect(lastCall().args).toMatchObject({ p_state: "sent", p_limit: 50 });
+  it("filters by the From/To days of the date staff see, in their time zone, and pages the result", async () => {
+    holder.reply = {
+      data: [
+        // 30 Nov 20:00 UTC is already 1 Dec in India, so it belongs to December for an IST viewer.
+        row("2026-11-30T20:00:00Z", { sent_at: "2026-11-30T20:00:00Z" }),
+        row("2026-11-15T10:00:00Z", { sent_at: "2026-11-15T10:00:00Z" }),
+        row("2026-11-02T10:00:00Z", { sent_at: "2026-11-02T10:00:00Z" }),
+        row("2026-10-20T10:00:00Z", { sent_at: "2026-10-20T10:00:00Z" }),
+      ],
+      error: null,
+    };
+    const nov = await listTeamHistory({ ...view, from: "2026-11-01", to: "2026-11-30" }, ACTOR);
+    expect(nov).toMatchObject({ ok: true, data: { total: 2, page: 1, truncated: false } });
+    expect(lastCall().args).toMatchObject({ p_state: "sent", p_limit: 200 });
+    const dec = await listTeamHistory({ ...view, from: "2026-12-01", to: "2026-12-31" }, ACTOR);
+    expect(dec).toMatchObject({ ok: true, data: { total: 1 } });
+    const paged = await listTeamHistory({ ...view, pageSize: 3, page: 2 }, ACTOR);
+    expect(paged).toMatchObject({ ok: true, data: { total: 4, page: 2, pageSize: 3 } });
+    if (paged.ok) expect(paged.data.items).toHaveLength(1);
+  });
+
+  it("filters by sender, audience and text, and lists every sender on the tab for the dropdown", async () => {
+    holder.reply = {
+      data: [
+        row("2026-11-20T10:00:00Z", { created_by_email: "dev-admin@meetmypets.app", audience: "all", body: "Camp on Sunday" }),
+        row("2026-11-19T10:00:00Z", { created_by_email: "dev-admin@meetmypets.app", audience: "pet", body: "Hello Snowbell" }),
+        row("2026-11-18T10:00:00Z", { created_by_email: "qa.tester@meetmypets.app", audience: "all", body: "QA check" }),
+      ],
+      error: null,
+    };
+    const bySender = await listTeamHistory({ ...view, sender: "dev-admin@meetmypets.app" }, ACTOR);
+    if (!bySender.ok) throw new Error("expected ok");
+    expect(bySender.data.total).toBe(2);
+    expect(bySender.data.senders.map((s) => [s.value, s.count])).toEqual([
+      ["dev-admin@meetmypets.app", 2],
+      ["qa.tester@meetmypets.app", 1],
+    ]);
+    const combined = await listTeamHistory({ ...view, sender: "dev-admin@meetmypets.app", audience: "all", q: "camp" }, ACTOR);
+    expect(combined).toMatchObject({ ok: true, data: { total: 1 } });
+  });
+
+  it("keeps reading older batches with p_before, and stops at the scan limit", async () => {
+    const full = Array.from({ length: 200 }, (_, i) => row(new Date(Date.UTC(2026, 10, 20) - i * 60_000).toISOString()));
+    holder.reply = { data: full, error: null };
+    const result = await listTeamHistory(view, ACTOR);
+    expect(holder.calls).toHaveLength(10);
+    expect(holder.calls[1].args.p_before).toBe(full.at(-1)!.created_at);
+    expect(result).toMatchObject({ ok: true, data: { total: 2000, truncated: true } });
   });
 
   it("offers edit and delete on real staff rows (kind 'staff', as Staging returns them)", () => {
@@ -198,14 +240,20 @@ describe("contract", () => {
 });
 
 describe("welcomeProblems", () => {
-  it("mirrors the backend's placeholder rules for each welcome", () => {
-    expect(welcomeProblems("welcome", "Hey {user_name}!")).toEqual([]);
-    expect(welcomeProblems("welcome", "Welcome to MeetMyPets!")).toEqual(["user_name_missing"]);
+  it("mirrors the backend since 2026-11-26: names optional, {pet_name} still refused in the account welcome", () => {
+    expect(welcomeProblems("welcome", "Welcome to MeetMyPets!")).toEqual([]);
+    expect(welcomeProblems("pet_welcome", "A new pet joined MeetMyPets!")).toEqual([]);
     expect(welcomeProblems("welcome", "Hi {user_name}, meet {pet_name}")).toEqual(["pet_name_not_allowed"]);
-    expect(welcomeProblems("pet_welcome", "Woohoo, {user_name}! {pet_name} is ready!")).toEqual([]);
-    expect(welcomeProblems("pet_welcome", "Hi {user_name}, your pet is ready!")).toEqual(["pet_name_missing"]);
-    expect(welcomeProblems("pet_welcome", "   ")).toEqual(["body_empty", "user_name_missing", "pet_name_missing"]);
-    expect(welcomeProblems("welcome", `{user_name}${"x".repeat(2000)}`)).toContain("body_too_long");
+    expect(welcomeProblems("pet_welcome", "Woohoo! {pet_name} is ready!")).toEqual([]);
+    expect(welcomeProblems("pet_welcome", "   ")).toEqual(["body_empty"]);
+    expect(welcomeProblems("welcome", "x".repeat(2001))).toContain("body_too_long");
+  });
+
+  it("only suggests the name placeholders, never blocks on them", () => {
+    expect(welcomeTips("welcome", "Welcome to MeetMyPets!")).toEqual(["add_user_name"]);
+    expect(welcomeTips("welcome", "Hey {user_name}!")).toEqual([]);
+    expect(welcomeTips("pet_welcome", "A new pet joined!")).toEqual(["add_user_name", "add_pet_name"]);
+    expect(welcomeTips("pet_welcome", "Woohoo, {user_name}! {pet_name} is ready!")).toEqual([]);
   });
 });
 

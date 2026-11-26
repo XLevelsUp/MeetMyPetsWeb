@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { filterHistory, HISTORY_SCAN_LIMIT, paginate, senderOptions } from "@/lib/team-history";
 import { isSupabaseConfigured } from "@/lib/supabase/reference";
 import { isStaffKind, TEAM_AUDIENCES, TEAM_STATES, type TeamState } from "@/lib/team-messages-constants";
 import type {
@@ -11,8 +12,8 @@ import type {
   PlaceOptionsResponse,
   SendRequest,
   SendResult,
-  TeamListQuery,
-  TeamListResponse,
+  TeamHistoryQuery,
+  TeamHistoryResponse,
   TeamMessage,
   WelcomeActionRequest,
   WelcomeActionResult,
@@ -174,15 +175,28 @@ export function actOnTeamMessage(messageId: string, input: MessageActionRequest,
   return call<ActionResult>(input.action === "edit" ? FN.edit : FN.delete, args, (d) => ({ state: state(asRow(d).state) }));
 }
 
-export function listTeamMessages(query: TeamListQuery, actorId: string) {
-  const args: Record<string, unknown> = { p_limit: query.limit, p_actor_id: actorId };
-  if (query.state) args.p_state = query.state;
-  if (query.before) args.p_before = query.before;
-  return call<TeamListResponse>(FN.list, args, (d) => {
-    const items = (Array.isArray(d) ? (d as Row[]) : []).map(toTeamMessage);
-    const last = items.at(-1);
-    return { items, nextBefore: items.length === query.limit && last ? last.createdAt : null };
-  });
+// team_admin_list has no date filter or total count, so read the tab (newest first, 200 a call), then filter and page here.
+export async function listTeamHistory(query: TeamHistoryQuery, actorId: string): Promise<TeamResult<TeamHistoryResponse>> {
+  const batch = 200;
+  const all: TeamMessage[] = [];
+  let before: string | undefined;
+  let truncated = false;
+  for (;;) {
+    const args: Record<string, unknown> = { p_actor_id: actorId, p_state: query.state, p_limit: batch };
+    if (before) args.p_before = before;
+    const res = await call(FN.list, args, (d) => (Array.isArray(d) ? (d as Row[]) : []).map(toTeamMessage));
+    if (!res.ok) return res;
+    all.push(...res.data);
+    if (res.data.length < batch) break;
+    if (all.length >= HISTORY_SCAN_LIMIT) {
+      truncated = true;
+      break;
+    }
+    before = res.data.at(-1)?.createdAt;
+    if (!before) break;
+  }
+  const filtered = filterHistory(all, query);
+  return { ok: true, data: { ...paginate(filtered, query.page, query.pageSize), truncated, senders: senderOptions(all) } };
 }
 
 export function listPlaceOptions(actorId: string) {

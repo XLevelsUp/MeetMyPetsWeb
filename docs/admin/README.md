@@ -92,6 +92,10 @@ crashes on interaction. Known traps:
   inside a menu do not surface until something opens it. A page that renders
   fine is not evidence its menus work.
 - `Select`'s `onValueChange` hands back `string | null`, not `string`.
+- **Wide tables scroll sideways from a bar pinned to the bottom of the screen**
+  (drawn handle, ◀ ▶ buttons, edge shadows), built into `components/ui/table.tsx`.
+  Wrap a table in `overflow-clip rounded-lg border`, never `overflow-x-auto`:
+  a second scroll container stops the bar from pinning to the screen.
 - **No browser pop-ups.** Never call `window.confirm`, `window.prompt` or
   `window.alert`, and don't add your own `beforeunload`. Use the app modal in
   `components/providers/dialog-provider.tsx`: `useConfirm()`, `usePrompt()`,

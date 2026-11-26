@@ -279,7 +279,6 @@ as moderator context only. Two facts that constrain future work:
 | pendingVerifications | `identity.account_verifications` where `status='pending'` | table still empty (re-checked 08-15) and still no CHECK constraint; `'pending'` remains an assumption that silently renders 0 if wrong |
 | openReports | `matching.pet_reports` where `status='pending'` | **CORRECTED 08-15** — was a hardcoded zero; now a real count (13 today) with week-over-week trend via the existing `queueMetric` |
 | speciesBreakdown | `pets.pets.species_id` + `pets.species` names | species via anon reference client |
-| activePetsByAge | `pets.pets.date_of_birth` where `status='active'` | added 2026-11-24. Staging: 91 of 109 have a date, 26 flagged `is_birth_date_estimated`. Bands in `lib/age-demographics.ts`; missing date = "Not given". Counts only |
 | accountsByAge | `identity.accounts` (not deleted) ⟕ `identity.account_profiles.date_of_birth` | added 2026-11-24. Staging: 43 of 91 accounts have no date (23 have no profile row at all). Counts only — no date leaves the server |
 | userAcquisition (chart) | `public.admin_analytics_timeseries` rpc → `identity.accounts.created_at` | |
 | swipeVolume (chart) | `public.admin_analytics_timeseries` rpc → `matching.pet_likes.created_at` | ✅ unblocked 2026-08-06 |
@@ -983,8 +982,11 @@ version (the old one becomes `retired`, never deleted) and
 `team_admin_welcome_stop(p_kind, p_reason?)` stops one. Changes reach only
 future sign-ups / new pets. In `team_admin_list` welcome rows use states
 `active` / `retired`; staff rows keep scheduled/sent/cancelled/deleted/failed.
-`welcome` must contain `{user_name}` and must not contain `{pet_name}`;
-`pet_welcome` must contain both. `team_admin_edit` / `team_admin_delete` on a
+Placeholders (relaxed by the backend, confirmed on Staging 2026-11-26 by reading
+the function): `{user_name}` and `{pet_name}` are **optional** in both
+welcomes, but `welcome` still must not contain `{pet_name}`
+(`pet_name_not_allowed`). The panel shows the optional ones as grey tips, not
+errors. `team_admin_edit` / `team_admin_delete` on a
 welcome answer `cannot_change_welcome`. Edit/Delete in the History page are
 shown only for `kind = 'staff'` (an allow-list, as the backend asked).
 Verified 2026-11-24 without changing anything: both functions refuse a

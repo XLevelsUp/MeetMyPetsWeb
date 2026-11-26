@@ -4,6 +4,7 @@ import { CalendarClock, Lock, Send } from "lucide-react";
 
 import { Spinner } from "@/components/shared/spinner";
 import { ReachSummary } from "@/components/team-messages/reach-summary";
+import { LinkifiedText } from "@/components/team-messages/linkified-text";
 import { RecipientsBlock, type RecipientPlan } from "@/components/team-messages/recipients-preview";
 import { AUDIENCE_TONES, ToneIcon, WHEN_TONES, fill, splitDateTime } from "@/components/team-messages/team-format";
 import {
@@ -67,7 +68,7 @@ function ChatPreview({ body, time }: { body: string; time: string }) {
       </div>
       <div className="flex min-h-40 flex-col justify-end bg-muted/40 px-2.5 py-3">
         <div className="max-h-56 max-w-[90%] overflow-y-auto rounded-2xl rounded-tl-md bg-background px-3 py-2 text-[13px] leading-snug break-words whitespace-pre-wrap shadow-xs">
-          {body}
+          <LinkifiedText text={body} />
         </div>
         <p className="mt-1 pl-1 text-[10px] text-muted-foreground">{time}</p>
       </div>

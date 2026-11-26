@@ -1,8 +1,5 @@
 // Age bands for the dashboard. Counts only — no birth date ever leaves the server.
 
-export const PET_AGE_BUCKETS = ["under1", "1to2", "3to6", "7to10", "11plus", "unknown"] as const;
-export type PetAgeBucket = (typeof PET_AGE_BUCKETS)[number];
-
 export const PERSON_AGE_BUCKETS = ["under18", "18to24", "25to34", "35to44", "45to54", "55plus", "unknown"] as const;
 export type PersonAgeBucket = (typeof PERSON_AGE_BUCKETS)[number];
 
@@ -17,15 +14,6 @@ export function ageInYears(dob: string | null | undefined, now: Date = new Date(
   let age = now.getFullYear() - y;
   if (now.getMonth() + 1 < m || (now.getMonth() + 1 === m && now.getDate() < d)) age -= 1;
   return age < 0 || age > 120 ? null : age;
-}
-
-export function petAgeBucket(age: number | null): PetAgeBucket {
-  if (age === null) return "unknown";
-  if (age < 1) return "under1";
-  if (age <= 2) return "1to2";
-  if (age <= 6) return "3to6";
-  if (age <= 10) return "7to10";
-  return "11plus";
 }
 
 export function personAgeBucket(age: number | null): PersonAgeBucket {

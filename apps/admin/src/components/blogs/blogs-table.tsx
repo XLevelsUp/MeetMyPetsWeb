@@ -149,7 +149,7 @@ export function BlogsTable({ initialQuery }: { initialQuery: BlogListQuery }) {
         <QueryErrorCard message={posts.error.message} onRetry={() => posts.refetch()} />
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="overflow-clip rounded-lg border">
             <Table stackOnMobile>
               <TableHeader>
                 <TableRow>

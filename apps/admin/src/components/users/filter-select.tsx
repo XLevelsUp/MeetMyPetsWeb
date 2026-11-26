@@ -23,6 +23,7 @@ export function FilterSelect<T extends string>({
   options,
   onChange,
   className = "w-40",
+  disabled = false,
 }: {
   id: string;
   label: string;
@@ -30,13 +31,14 @@ export function FilterSelect<T extends string>({
   options: readonly { value: T; label: string }[];
   onChange: (value: T) => void;
   className?: string;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>{label}</Label>
       {/* Base UI hands back `string | null`; these filters always have a value,
           so a null selection falls back to the first option. */}
-      <Select value={value} onValueChange={(next) => onChange((next ?? options[0].value) as T)}>
+      <Select value={value} disabled={disabled} onValueChange={(next) => onChange((next ?? options[0].value) as T)}>
         <SelectTrigger id={id} className={className}>
           <SelectValue>
             {(val: string) => options.find((o) => o.value === val)?.label ?? val}
