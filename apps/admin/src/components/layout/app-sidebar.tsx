@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   Flag,
   LayoutDashboard,
+  Megaphone,
   Newspaper,
   ScanEye,
   ScrollText,
@@ -47,6 +48,7 @@ const icons: Record<(typeof adminNav)[number]["icon"], LucideIcon> = {
   "shield-alert": ShieldAlert,
   store: Store,
   newspaper: Newspaper,
+  megaphone: Megaphone,
   "scroll-text": ScrollText,
   settings: Settings,
 };

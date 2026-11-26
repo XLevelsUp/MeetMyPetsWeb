@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Pagination } from "@/components/shared/pagination";
 import { QueryErrorCard } from "@/components/shared/query-error-card";
 import { TaxonomyDialog, type TaxonomyDraft } from "@/components/settings/taxonomy-dialog";
-import { Badge } from "@/components/ui/badge";
+import { PetCountChip, TaxonomyStatusBadge } from "@/components/settings/settings-format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,14 +30,11 @@ import {
 import { copy } from "@/config/admin";
 import { useBreeds, useCreateBreed, useSpecies, useUpdateBreed } from "@/hooks/use-taxonomy";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/lib/contract-shared";
-import type { BreedSummary, BreedsQuery } from "@/lib/taxonomy-contract";
+import { breedsResponseSchema, type BreedSummary, type BreedsQuery } from "@/lib/taxonomy-contract";
+import { ExportCsvButton } from "@/components/shared/export-csv-button";
+import { BREED_CSV_COLUMNS } from "@/components/users/csv-columns";
 
 const COLUMN_COUNT = 5;
-
-function statusLabel(status: string): string {
-  const labels = copy.settings.statusLabels as Record<string, string>;
-  return labels[status] ?? status;
-}
 
 export function BreedsTable() {
   const [query, setQuery] = useState<BreedsQuery>({
@@ -138,21 +135,27 @@ export function BreedsTable() {
           </Select>
         </div>
 
-        <Button
-          className="ml-auto"
-          disabled={speciesOptions.length === 0}
-          onClick={() => setCreating(true)}
-        >
-          <Plus className="mr-1 size-4" aria-hidden="true" />
-          {copy.settings.breeds.add}
-        </Button>
+        <div className="ml-auto flex flex-wrap gap-2 max-sm:w-full">
+          {/* Exports every breed matching the current search, status and species, not just this page. */}
+          <ExportCsvButton
+            endpoint="/api/v1/admin/taxonomy/breeds"
+            query={query}
+            filenamePrefix="breeds"
+            parse={(json) => breedsResponseSchema.parse(json)}
+            columns={BREED_CSV_COLUMNS}
+          />
+          <Button disabled={speciesOptions.length === 0} onClick={() => setCreating(true)} className="max-sm:w-full">
+            <Plus className="mr-1 size-4" aria-hidden="true" />
+            {copy.settings.breeds.add}
+          </Button>
+        </div>
       </div>
 
       {breeds.isError ? (
         <QueryErrorCard message={breeds.error.message} onRetry={() => breeds.refetch()} />
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="overflow-clip rounded-lg border">
             <Table stackOnMobile>
               <TableHeader>
                 <TableRow>
@@ -160,7 +163,7 @@ export function BreedsTable() {
                   <TableHead>{copy.settings.breeds.columns.species}</TableHead>
                   <TableHead>{copy.settings.breeds.columns.pets}</TableHead>
                   <TableHead>{copy.settings.breeds.columns.status}</TableHead>
-                  <TableHead className="sr-only">Actions</TableHead>
+                  <TableHead className="sr-only">{copy.settings.actions.column}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -187,7 +190,7 @@ export function BreedsTable() {
                   breeds.data.items.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>
-                        <span className="block text-sm font-medium">{item.name}</span>
+                        <span className={`block text-sm font-medium ${item.status === "active" ? "" : "text-muted-foreground"}`}>{item.name}</span>
                         {item.description ? (
                           <span className="block text-xs text-muted-foreground">
                             {item.description}
@@ -197,17 +200,15 @@ export function BreedsTable() {
                       <TableCell className="text-sm text-muted-foreground">
                         {item.speciesName ?? "—"}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {item.activePetCount}
+                      <TableCell>
+                        <PetCountChip count={item.activePetCount} />
                       </TableCell>
                       <TableCell>
-                        <Badge variant={item.status === "active" ? "secondary" : "outline"}>
-                          {statusLabel(item.status)}
-                        </Badge>
+                        <TaxonomyStatusBadge status={item.status} />
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" onClick={() => setEditing(item)}>
-                          Edit
+                          {copy.settings.actions.edit}
                         </Button>
                       </TableCell>
                     </TableRow>

@@ -4,6 +4,7 @@ import { adminNav, navForRole } from "@/config/admin";
 import {
   BLOG_ROLES,
   ADMIN_ROLES,
+  TEAM_MESSAGE_ROLES,
   USER_ACTION_ROLES,
   canAct,
   type AdminRole,
@@ -64,6 +65,11 @@ describe("navForRole", () => {
     expect(labels("support")).not.toContain("Blogs");
   });
 
+  it("keeps support out of Team messages, matching the backend's not_allowed", () => {
+    expect(TEAM_MESSAGE_ROLES).toEqual(["super_admin", "moderator"]);
+    expect(navForRole("support").map((item) => item.label)).not.toContain("Team Messages");
+  });
+
   it("shows a moderator everything except Settings", () => {
     expect(labels("moderator")).toEqual([
       "Dashboard",
@@ -73,6 +79,7 @@ describe("navForRole", () => {
       "AI Reports",
       "Trust Review",
       "Blogs",
+      "Team Messages",
       "Audit Logs",
     ]);
     expect(labels("moderator")).not.toContain("Settings");

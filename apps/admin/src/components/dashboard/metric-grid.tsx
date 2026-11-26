@@ -22,6 +22,7 @@ import {
   PetOwnershipChart,
   SpeciesBreakdown,
 } from "@/components/dashboard/species-breakdown";
+import { PeopleAgeChart } from "@/components/dashboard/age-charts";
 import { SwipeVolumeChart } from "@/components/dashboard/swipe-volume-chart";
 import { QueryErrorCard } from "@/components/shared/query-error-card";
 import { copy } from "@/config/admin";
@@ -102,10 +103,12 @@ export function MetricGrid({ initialRange }: { initialRange: AnalyticsRangeQuery
             </div>
           </div>
           {/* Breakdowns that were once single cards, now charts each viewer can switch type on. */}
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {/* Four cards: 2×2 up to very wide screens, then one row — never a lone card on a row of its own. */}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-4">
             <SpeciesBreakdown data={summary.data.activePetsBySpecies} />
             <PetOwnershipChart ops={summary.data.operations} />
             <DeviceChart ops={summary.data.operations} />
+            <PeopleAgeChart data={summary.data.accountsByAge} />
           </div>
         </>
       )}

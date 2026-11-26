@@ -1,5 +1,11 @@
 import "server-only";
 
+import {
+  countByBucket,
+  PERSON_AGE_BUCKETS,
+  personAgeBucket,
+  personDobs,
+} from "@/lib/age-demographics";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createReferenceClient, isSupabaseConfigured } from "@/lib/supabase/reference";
 import {
@@ -244,6 +250,25 @@ export async function fetchAnalyticsSummary(
       .sort((a, b) => b.count - a.count);
   };
 
+  // Age bands for live accounts. Isolated like operations(): a grant problem empties one chart, not the dashboard.
+  const peopleByAge = async () => {
+    const empty = countByBucket(PERSON_AGE_BUCKETS, [], personAgeBucket);
+    try {
+      const [accountsRes, profilesRes] = await Promise.all([
+        fromRef(TABLES.users).select("id,deleted_at").range(0, 49_999),
+        fromRef(TABLES.profiles).select("account_id,date_of_birth").range(0, 49_999),
+      ]);
+      if (accountsRes.error || profilesRes.error) return empty;
+      const dobs = personDobs(
+        (accountsRes.data ?? []) as { id: string; deleted_at: string | null }[],
+        (profilesRes.data ?? []) as { account_id: string; date_of_birth: string | null }[],
+      );
+      return countByBucket(PERSON_AGE_BUCKETS, dobs, personAgeBucket);
+    } catch {
+      return empty;
+    }
+  };
+
   /**
    * Standing facts, not window counts.
    *
@@ -343,6 +368,7 @@ export async function fetchAnalyticsSummary(
       likeRate,
       bySpecies,
       ops,
+      peopleAges,
     ] = await Promise.all([
       stockMetric(TABLES.users),
       stockMetric(TABLES.pets, (q) => q.eq("status", "active")),
@@ -357,6 +383,7 @@ export async function fetchAnalyticsSummary(
       likeRateMetric(),
       speciesBreakdown(),
       operations(),
+      peopleByAge(),
     ]);
 
     const metrics: Record<MetricKey, MetricValue> = {
@@ -375,6 +402,7 @@ export async function fetchAnalyticsSummary(
         generatedAt: new Date().toISOString(),
         metrics,
         activePetsBySpecies: bySpecies,
+        accountsByAge: peopleAges,
         operations: ops,
         from: range.from,
         to: range.to,

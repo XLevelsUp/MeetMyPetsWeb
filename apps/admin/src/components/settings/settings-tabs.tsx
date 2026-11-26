@@ -1,5 +1,7 @@
 "use client";
 
+import { FileCog, ListTree, PawPrint } from "lucide-react";
+
 import { BreedsTable } from "@/components/settings/breeds-table";
 import { SpeciesTable } from "@/components/settings/species-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,9 +19,22 @@ export function SettingsTabs() {
   return (
     <Tabs defaultValue="species">
       <TabsList>
-        <TabsTrigger value="species">{copy.settings.tabs.species}</TabsTrigger>
-        <TabsTrigger value="breeds">{copy.settings.tabs.breeds}</TabsTrigger>
-        <TabsTrigger value="schemas">{copy.settings.tabs.schemas}</TabsTrigger>
+        {/* Violet = a category (same as "Animal types" elsewhere); slate = not built yet. */}
+        <TabsTrigger value="species" className="px-3">
+          <PawPrint className="text-violet-600 dark:text-violet-400" aria-hidden="true" />
+          {copy.settings.tabs.species}
+        </TabsTrigger>
+        <TabsTrigger value="breeds" className="px-3">
+          <ListTree className="text-violet-600 dark:text-violet-400" aria-hidden="true" />
+          {copy.settings.tabs.breeds}
+        </TabsTrigger>
+        <TabsTrigger value="schemas" className="px-3">
+          <FileCog className="text-slate-500" aria-hidden="true" />
+          {copy.settings.tabs.schemas}
+          <span className="rounded-full bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
+            {copy.settings.tabs.later}
+          </span>
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="species">

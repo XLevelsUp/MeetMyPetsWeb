@@ -1,5 +1,6 @@
 "use client";
 
+import { Megaphone } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 
@@ -8,6 +9,7 @@ import { AuditFilters } from "@/components/audit/audit-filters";
 import {
   actionLabel,
   actionTone,
+  isTeamAction,
   formatWhen,
   targetTypeLabel,
   TONE_CLASSES,
@@ -72,7 +74,7 @@ export function AuditTable({ initialTargetId }: { initialTargetId?: string }) {
         <QueryErrorCard message={logs.error.message} onRetry={() => logs.refetch()} />
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="overflow-clip rounded-lg border">
             <Table stackOnMobile>
               <TableHeader>
                 <TableRow>
@@ -118,8 +120,10 @@ export function AuditTable({ initialTargetId }: { initialTargetId?: string }) {
                       </TableCell>
                       <TableCell>
                         <span
-                          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${TONE_CLASSES[actionTone(entry.action)]}`}
+                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${TONE_CLASSES[actionTone(entry.action)]}`}
                         >
+                          {/* Same megaphone as the sidebar, so Team message rows are findable at a glance. */}
+                          {isTeamAction(entry.action) ? <Megaphone className="size-3" aria-hidden="true" /> : null}
                           {actionLabel(entry.action)}
                         </span>
                       </TableCell>

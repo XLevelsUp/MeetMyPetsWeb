@@ -118,7 +118,7 @@ export function VerificationsQueue({ initialQuery }: { initialQuery: Certificate
       ) : (
         <>
           <FetchingOverlay isFetching={certificates.isFetching && !certificates.isPending}>
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="overflow-clip rounded-lg border">
             <Table stackOnMobile>
               <TableHeader>
                 <TableRow>

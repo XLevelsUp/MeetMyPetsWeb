@@ -30,6 +30,7 @@ import {
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { usePrompt } from "@/components/providers/dialog-provider";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { copy } from "@/config/admin";
@@ -132,10 +133,11 @@ function ToolButton({
 function Toolbar({ editor, onPickImage, uploading }: { editor: Editor; onPickImage: () => void; uploading: boolean }) {
   const chain = () => editor.chain().focus();
   const inTable = editor.isActive("table");
+  const prompt = usePrompt();
 
-  function setLink() {
+  async function setLink() {
     const previous = editor.getAttributes("link").href as string | undefined;
-    const href = window.prompt(t.linkPrompt, previous ?? "https://");
+    const href = await prompt({ title: t.link, label: t.linkPrompt, defaultValue: previous ?? "https://" });
     if (href === null) return;
     if (href.trim() === "") {
       chain().extendMarkRange("link").unsetLink().run();
@@ -148,10 +150,10 @@ function Toolbar({ editor, onPickImage, uploading }: { editor: Editor; onPickIma
     chain().extendMarkRange("link").setLink({ href: href.trim() }).run();
   }
 
-  function insertCta() {
-    const label = window.prompt(t.ctaLabelPrompt, "Join the MeetMyPets Waitlist");
+  async function insertCta() {
+    const label = await prompt({ title: t.cta, label: t.ctaLabelPrompt, defaultValue: "Join the MeetMyPets Waitlist" });
     if (!label?.trim()) return;
-    const href = window.prompt(t.ctaHrefPrompt, "/#waitlist");
+    const href = await prompt({ title: t.cta, label: t.ctaHrefPrompt, defaultValue: "/#waitlist" });
     if (href === null) return;
     if (!isSafeHref(href)) {
       toast.error(t.linkInvalid);
@@ -173,7 +175,7 @@ function Toolbar({ editor, onPickImage, uploading }: { editor: Editor; onPickIma
       <Separator orientation="vertical" className="mx-1 h-5" />
       <ToolButton icon={Bold} label={t.bold} active={editor.isActive("bold")} onClick={() => chain().toggleBold().run()} />
       <ToolButton icon={Italic} label={t.italic} active={editor.isActive("italic")} onClick={() => chain().toggleItalic().run()} />
-      <ToolButton icon={Link2} label={t.link} active={editor.isActive("link")} onClick={setLink} />
+      <ToolButton icon={Link2} label={t.link} active={editor.isActive("link")} onClick={() => void setLink()} />
       <ToolButton icon={Link2Off} label={t.unlink} disabled={!editor.isActive("link")} onClick={() => chain().unsetLink().run()} />
       <Separator orientation="vertical" className="mx-1 h-5" />
       <ToolButton icon={List} label={t.bulletList} active={editor.isActive("bulletList")} onClick={() => chain().toggleBulletList().run()} />
@@ -182,7 +184,7 @@ function Toolbar({ editor, onPickImage, uploading }: { editor: Editor; onPickIma
       <ToolButton icon={Minus} label={t.rule} onClick={() => chain().setHorizontalRule().run()} />
       <Separator orientation="vertical" className="mx-1 h-5" />
       <ToolButton icon={ImagePlus} label={t.image} disabled={uploading} onClick={onPickImage} />
-      <ToolButton icon={MousePointerClick} label={t.cta} onClick={insertCta} />
+      <ToolButton icon={MousePointerClick} label={t.cta} onClick={() => void insertCta()} />
       <ToolButton
         icon={TableIcon}
         label={t.table}
@@ -227,6 +229,7 @@ export function RichTextEditor({
 }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const prompt = usePrompt();
 
   const editor = useEditor({
     extensions: extensions(),
@@ -252,7 +255,7 @@ export function RichTextEditor({
     setUploading(true);
     try {
       const src = await onUploadImage(file);
-      const alt = window.prompt(t.imageAltPrompt, "") ?? "";
+      const alt = (await prompt({ title: t.image, label: t.imageAltPrompt })) ?? "";
       editor.chain().focus().setImage({ src, alt: alt.trim() }).run();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed.");

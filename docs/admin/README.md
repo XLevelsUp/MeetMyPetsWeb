@@ -92,6 +92,23 @@ crashes on interaction. Known traps:
   inside a menu do not surface until something opens it. A page that renders
   fine is not evidence its menus work.
 - `Select`'s `onValueChange` hands back `string | null`, not `string`.
+- **Wide tables scroll sideways from a bar pinned to the bottom of the screen**
+  (drawn handle, ◀ ▶ buttons, edge shadows), built into `components/ui/table.tsx`.
+  Wrap a table in `overflow-clip rounded-lg border`, never `overflow-x-auto`:
+  a second scroll container stops the bar from pinning to the screen.
+- **No browser pop-ups.** Never call `window.confirm`, `window.prompt` or
+  `window.alert`, and don't add your own `beforeunload`. Use the app modal in
+  `components/providers/dialog-provider.tsx`: `useConfirm()`, `usePrompt()`,
+  and `useUnsavedChanges(dirty)` for screens holding unsaved work (in-app links
+  then open the app's "Leave without saving?" modal). The one exception is
+  reload/close-tab: browsers only allow their own box there, and the provider
+  adds it for you.
+- **Never put `render={<button type="submit">}` on a `DropdownMenuItem`.** Base
+  UI logs a `nativeButton` console error, and the obvious fix — adding
+  `nativeButton` — makes Base UI force `type="button"`, so the surrounding
+  `<form>` silently stops submitting. That is how the header's Sign out would
+  have broken (verified 2026-11-24). Call the Server Action from `onClick`
+  instead; see `components/layout/sign-out-item.tsx`.
 
 The general rule: if a primitive is named `XGroupY` or `XItem`, assume Base UI
 requires the matching parent and check `node_modules/@base-ui/react/**` rather
@@ -220,6 +237,28 @@ one-hour preview links. Writes revalidate the marketing site's ISR cache and
 sitemap; a failed refresh is reported, never hidden. Gated by `BLOG_ROLES`
 (super_admin, moderator). Runbook: `docs/deployment.md` → Blog CMS.
 
+### Team Messages ✅ BUILT (2026-11-24, backend on Staging only)
+
+`/team-messages` — history with Scheduled / Sent / Failed / Cancelled / Deleted
+tabs (who sent it, audience, reach, read count, a red banner while anything has
+failed), and `/team-messages/new` — compose, pick one of 8 audiences (everyone,
+animal types, one pet, chosen pets, people without a pet, chosen people,
+country/state/city from real profile spellings, or a Leaflet/OpenStreetMap
+point + radius), see a live "this will reach N" preview, then send now or
+schedule (12-hour AM/PM picker, always sent with a time zone). Edit text or
+time, delete for everyone, or cancel a scheduled message — each with a
+mandatory 10+ character reason (stricter than the backend, which makes it
+optional; sending keeps it optional). Gated by `TEAM_MESSAGE_ROLES`
+(super_admin, moderator). Calls the backend's `chat.team_admin_*` RPCs, which
+write their own audit rows — see schema-notes → Team messages.
+
+- **Not on Production yet**: the panel says so instead of erroring.
+- **Every failure is a sentence**, never a status code
+  (`lib/team-messages-client.ts`), and only network/5xx failures retry.
+- **Unverified as a signed-in user** in this repo: send/edit/delete need a
+  human pass on Staging; the role checks are in `e2e/auth-rbac.spec.ts` and run
+  wherever `E2E_*` credentials are set.
+
 ### Phase 4 — Business Directory & Monetization
 
 - **Directory CRUD**: vets/groomers/trainers/stores/photographers; license
@@ -239,6 +278,7 @@ sitemap; a failed refresh is reported, never hidden. Gated by `BLOG_ROLES`
 | RBAC boundary | `apps/admin/src/lib/dal.ts` (+ `src/proxy.ts` optimistic layer) |
 | Schema-aware queries | `apps/admin/src/lib/analytics.ts` — the pattern for future feature adapters |
 | Supabase client factories | `apps/admin/src/lib/supabase/{client,server,admin}.ts` (`admin.ts` is `server-only`, secret key, narrow grants) |
+| Team messages | `apps/admin/src/lib/team-messages*.ts`, `team-schedule.ts`, `components/team-messages/`, `app/api/v1/admin/team-messages/` (backend RPCs: schema-notes → Team messages) |
 | Verified DB reality, security findings, test users | `docs/admin/schema-notes.md` |
 | Pending SQL | `supabase/migrations/` (timeseries fn — needs rewrite to verified tables before applying) |
 | Env | `apps/admin/.env.local` (gitignored; template `.env.example`) |

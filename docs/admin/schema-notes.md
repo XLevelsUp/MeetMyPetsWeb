@@ -279,6 +279,7 @@ as moderator context only. Two facts that constrain future work:
 | pendingVerifications | `identity.account_verifications` where `status='pending'` | table still empty (re-checked 08-15) and still no CHECK constraint; `'pending'` remains an assumption that silently renders 0 if wrong |
 | openReports | `matching.pet_reports` where `status='pending'` | **CORRECTED 08-15** — was a hardcoded zero; now a real count (13 today) with week-over-week trend via the existing `queueMetric` |
 | speciesBreakdown | `pets.pets.species_id` + `pets.species` names | species via anon reference client |
+| accountsByAge | `identity.accounts` (not deleted) ⟕ `identity.account_profiles.date_of_birth` | added 2026-11-24. Staging: 43 of 91 accounts have no date (23 have no profile row at all). Counts only — no date leaves the server |
 | userAcquisition (chart) | `public.admin_analytics_timeseries` rpc → `identity.accounts.created_at` | |
 | swipeVolume (chart) | `public.admin_analytics_timeseries` rpc → `matching.pet_likes.created_at` | ✅ unblocked 2026-08-06 |
 
@@ -931,3 +932,73 @@ Same default-privileges trap as the moderation tables, extended: Supabase
 also auto-grants new **functions** to anon/authenticated, so the migration
 revokes those too. Expect the security advisor to flag the SECURITY DEFINER
 preview function as anon-executable — that is the design (token-gated).
+
+## Team messages — `chat.team_admin_*` (verified on Staging 2026-11-24)
+
+Staff broadcast messages that users read in a pinned, read-only "MeetMyPets
+Team" chat. **Backend-owned**: the panel only calls the backend team's RPCs
+and writes nothing itself — not even the audit row, which the functions write
+to `admin_audit_logs` themselves. Source of truth for the contract is the
+backend repo's `backend/supabase/docs/team_messages_website_guide.md`.
+
+**Where it exists:** Staging (`lavupsdacofpawqfwbfo`) only. Production
+(`owfrnkafevdfzduuqnic`) does not have the functions yet; there the panel shows
+"Team messages are not set up on this database yet" (PostgREST `PGRST202` →
+our `unavailable`, HTTP 503) instead of failing.
+
+**Calling convention:** service key + `p_actor_id` = the signed-in admin's
+`auth.users.id` from `requireRole`. The database re-checks that the actor is
+`super_admin`, `admin` or `moderator` and refuses anyone else with
+`not_allowed` — so `support` is refused twice (by `TEAM_MESSAGE_ROLES` and by
+the database). The backend's `admin` role is **not** a panel role (decided
+2026-11-24); only `super_admin` and `moderator` reach these screens.
+
+**Verified live (read-only calls as a Staging moderator):**
+
+| Function | Returns |
+|---|---|
+| `team_admin_list` | array of rows (`id, kind, state, body, audience, species_ids, pet_ids, account_ids, location, send_at, sent_at, created_at, created_by*, edited_at, deleted_at, failed_reason, pets, accounts, read_count`) |
+| `team_admin_place_options` | array of `{ level: country\|state\|city, value, people }` |
+| `team_admin_preview_audience` | object `{ pets, accounts_without_pets, skipped_pets, skipped_people }` |
+
+- Errors arrive as `error.message` = a bare snake_case code (e.g.
+  `pets_required` with SQLSTATE `22023`; `not_allowed` with `42501`). The
+  adapter treats any `^[a-z_]+$` message as a staff-fixable rejection.
+- Staff-sent rows have `kind` = **`staff`** (not `team` — assuming `team` once
+  hid Edit/Delete on every real message). The two automatic welcome rows have
+  `kind` = `welcome` / `pet_welcome`, `audience` = null and null `created_by*`;
+  the panel never offers edit/delete on them (`isSystemKind`, a deny-list).
+  Their bodies are templates (`{user_name}`, `{pet_name}`) filled per user.
+- `send`, `edit` and `delete` were **not** called from this session (they reach
+  real users); they are covered by unit tests against the guide's contract and
+  need a live check by a human on Staging.
+- Staging staff on 2026-11-24: 3 moderators, 1 support, **no super_admin login**
+  (as the backend team warned), so super_admin cannot be tested there yet.
+
+**Welcome messages (added by the backend 2026-11-24, Staging only).** The two
+welcomes are now versioned and editable by super_admin / admin / moderator:
+`team_admin_welcome_set(p_kind, p_body, p_reason?)` makes a new active
+version (the old one becomes `retired`, never deleted) and
+`team_admin_welcome_stop(p_kind, p_reason?)` stops one. Changes reach only
+future sign-ups / new pets. In `team_admin_list` welcome rows use states
+`active` / `retired`; staff rows keep scheduled/sent/cancelled/deleted/failed.
+Placeholders (relaxed by the backend, confirmed on Staging 2026-11-26 by reading
+the function): `{user_name}` and `{pet_name}` are **optional** in both
+welcomes, but `welcome` still must not contain `{pet_name}`
+(`pet_name_not_allowed`). The panel shows the optional ones as grey tips, not
+errors. `team_admin_edit` / `team_admin_delete` on a
+welcome answer `cannot_change_welcome`. Edit/Delete in the History page are
+shown only for `kind = 'staff'` (an allow-list, as the backend asked).
+Verified 2026-11-24 without changing anything: both functions refuse a
+non-staff actor (`not_allowed`); as a moderator, saving the same text gives
+`no_change`, a welcome without `{user_name}` gives `user_name_missing`, a
+pet_welcome without `{pet_name}` gives `pet_name_missing`; the active texts
+were unchanged afterwards. A real save/stop has not been done from here.
+Screen: `/team-messages/welcome` (`components/team-messages/welcome-editor.tsx`).
+
+**Times:** `p_send_at` is always sent as zoned ISO (`toISOString()`, `Z`); the
+UI picks in 12-hour local time and never sends a zoneless value.
+
+Code: `lib/team-messages.ts` (the only file naming these functions),
+`lib/team-messages-contract.ts`, `lib/team-messages-http.ts`,
+`app/api/v1/admin/team-messages/**`.

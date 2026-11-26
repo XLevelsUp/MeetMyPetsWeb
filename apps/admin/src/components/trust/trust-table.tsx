@@ -309,7 +309,7 @@ export function TrustTable({
       ) : (
         <>
           <FetchingOverlay isFetching={trust.isFetching && !trust.isPending}>
-            <div className="overflow-x-auto rounded-lg border bg-card">
+            <div className="overflow-clip rounded-lg border bg-card">
               <Table stackOnMobile>
                 <TableHeader>
                   <TableRow>

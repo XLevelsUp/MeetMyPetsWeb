@@ -1,13 +1,10 @@
-import { LogOut } from "lucide-react";
-
-import { signOut } from "@/app/login/actions";
+import { SignOutItem } from "@/components/layout/sign-out-item";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -53,17 +50,7 @@ export function UserMenu({ email, role }: { email: string; role: AdminRole }) {
             <span className="text-xs font-normal text-muted-foreground">{ROLE_LABELS[role]}</span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <form action={signOut}>
-            <DropdownMenuItem
-              variant="destructive"
-              render={
-                <button type="submit" className="w-full">
-                  <LogOut />
-                  Sign out
-                </button>
-              }
-            />
-          </form>
+          <SignOutItem label="Sign out" />
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>

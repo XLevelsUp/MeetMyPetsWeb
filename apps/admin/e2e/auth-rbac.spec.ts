@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { STORAGE_STATE } from "./global-setup";
 
 const SUMMARY_API = "/api/v1/admin/analytics/summary";
+const TEAM_API = "/api/v1/admin/team-messages";
 
 test.describe("anonymous", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
@@ -16,6 +17,13 @@ test.describe("anonymous", () => {
     const res = await request.get(SUMMARY_API);
     expect(res.status()).toBe(401);
     expect((await res.json()).error).toBe("unauthenticated");
+  });
+
+  test("Team messages refuses logged-out callers", async ({ page, request }) => {
+    expect((await request.get(TEAM_API)).status()).toBe(401);
+    expect((await request.post(`${TEAM_API}/preview`, { data: { audience: "all" } })).status()).toBe(401);
+    await page.goto("/team-messages/new");
+    await expect(page).toHaveURL(/\/login/);
   });
 });
 
@@ -64,7 +72,7 @@ test.describe("support role", () => {
     const sidebar = page.getByRole("navigation");
 
     await expect(sidebar.getByRole("link", { name: "Users & Pets" })).toBeVisible();
-    for (const hidden of ["Settings", "Trust Review", "Audit Logs", "Content Reports", "Verifications"]) {
+    for (const hidden of ["Settings", "Trust Review", "Audit Logs", "Content Reports", "Verifications", "Team Messages"]) {
       await expect(sidebar.getByRole("link", { name: hidden })).toHaveCount(0);
     }
   });
@@ -73,6 +81,13 @@ test.describe("support role", () => {
     // Hiding is UX; requireRole is the boundary. Typing the URL must still bounce.
     await page.goto("/settings");
     await expect(page).not.toHaveURL(/\/settings$/);
+  });
+
+  test("is refused Team messages, matching the backend's not_allowed", async ({ page, request }) => {
+    expect((await request.get(TEAM_API)).status()).toBe(403);
+    expect((await request.post(TEAM_API, { data: { audience: "all", body: "should never send" } })).status()).toBe(403);
+    await page.goto("/team-messages");
+    await expect(page).not.toHaveURL(/\/team-messages/);
   });
 });
 
@@ -90,5 +105,21 @@ test.describe("moderator role", () => {
     expect(res.status()).toBe(200);
     const body = await res.json();
     expect(body.metrics).toHaveProperty("totalUsers");
+  });
+
+  // Read-only calls only: list and preview never send anything to users.
+  test("can read Team messages history and preview an audience", async ({ page, request }) => {
+    const list = await request.get(`${TEAM_API}?state=sent&limit=5`);
+    expect(list.status()).toBe(200);
+    expect(Array.isArray((await list.json()).items)).toBe(true);
+
+    const preview = await request.post(`${TEAM_API}/preview`, { data: { audience: "all" } });
+    expect(preview.status()).toBe(200);
+    expect(typeof (await preview.json()).pets).toBe("number");
+
+    await page.goto("/team-messages");
+    await expect(page.getByRole("heading", { name: "Team Messages" })).toBeVisible();
+    await page.goto("/team-messages/new");
+    await expect(page.getByRole("heading", { name: "New Team message" })).toBeVisible();
   });
 });

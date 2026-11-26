@@ -3,6 +3,7 @@ import { copy } from "@/config/admin";
 import type { AuditEntry } from "@/lib/audit-contract";
 import type { CsvColumn } from "@/lib/csv";
 import type { ReportSummary } from "@/lib/reports-contract";
+import type { BreedSummary, SpeciesSummary } from "@/lib/taxonomy-contract";
 import type { TrustQueueEntry } from "@/lib/trust-contract";
 import type { CertificateSummary } from "@/lib/verifications-contract";
 import type { AccountSummary, PetSummary } from "@/lib/users-contract";
@@ -109,4 +110,30 @@ export const AUDIT_CSV_COLUMNS: readonly CsvColumn<AuditEntry>[] = [
   { header: "Target ID", value: (e) => e.targetId },
   { header: "Reason", value: (e) => e.reason },
   { header: "Details (JSON)", value: (e) => (Object.keys(e.metadata).length ? JSON.stringify(e.metadata) : "") },
+];
+
+const taxonomyStatus = (status: string) => (copy.settings.statusLabels as Record<string, string>)[status] ?? status;
+
+// Settings → Species. Counts are what the table shows: breeds under it and ACTIVE pets using it.
+export const SPECIES_CSV_COLUMNS: readonly CsvColumn<SpeciesSummary>[] = [
+  { header: "Species ID", value: (s) => s.id },
+  { header: "Species", value: (s) => s.name },
+  { header: "Description", value: (s) => s.description },
+  { header: "Status", value: (s) => taxonomyStatus(s.status) },
+  { header: "Breeds", value: (s) => s.breedCount },
+  { header: "Active pets", value: (s) => s.activePetCount },
+  { header: "Added", value: (s) => s.createdAt },
+  { header: "Last updated", value: (s) => s.updatedAt },
+];
+
+// Settings → Breeds.
+export const BREED_CSV_COLUMNS: readonly CsvColumn<BreedSummary>[] = [
+  { header: "Breed ID", value: (b) => b.id },
+  { header: "Breed", value: (b) => b.name },
+  { header: "Species", value: (b) => b.speciesName },
+  { header: "Species ID", value: (b) => b.speciesId },
+  { header: "Description", value: (b) => b.description },
+  { header: "Status", value: (b) => taxonomyStatus(b.status) },
+  { header: "Active pets", value: (b) => b.activePetCount },
+  { header: "Added", value: (b) => b.createdAt },
 ];
